@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>內流 InnerFlow — 為內驅力而生的任務工具</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600&family=DM+Serif+Display:ital@0;1&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f7fb;
+    --bg2: #ffffff;
+    --bg3: #eef2f8;
+    --border: rgba(90,140,200,0.18);
+    --green: #4a82c4;
+    --green-dim: rgba(74,130,196,0.25);
+    --gold: #b8922a;
+    --gold-dim: rgba(184,146,42,0.18);
+    --rose: #c0565a;
+    --sky: #6aaee0;
+    --text: #1e2d45;
+    --text-dim: rgba(30,45,69,0.55);
+    --text-faint: rgba(30,45,69,0.28);
+    --glow: 0 0 20px rgba(74,130,196,0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Lato', 'Noto Serif TC', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Ambient background */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -20%;
+    left: -10%;
+    width: 60%;
+    height: 60%;
+    background: radial-gradient(ellipse, rgba(74,130,196,0.07) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    bottom: -20%;
+    right: -10%;
+    width: 50%;
+    height: 50%;
+    background: radial-gradient(ellipse, rgba(184,146,42,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: 56px 1fr;
+    height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    border-bottom: 1px solid var(--border);
+    gap: 16px;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(8px);
+  }
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px;
+    color: var(--green);
+    letter-spacing: 0.02em;
+  }
+  .logo span { color: var(--text-dim); font-size: 13px; font-family: 'Lato', sans-serif; font-weight: 300; margin-left: 8px; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+  .energy-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .energy-label { font-size: 12px; color: var(--text-dim); }
+  .energy-dots { display: flex; gap: 4px; }
+  .energy-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .energy-dot.active { background: var(--green); border-color: var(--green); box-shadow: 0 0 6px var(--green); }
+  .energy-dot:hover { border-color: var(--green-dim); }
+
+  /* ── Sidebar ── */
+  aside {
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    background: rgba(255,255,255,0.6);
+  }
+  .sidebar-section { padding: 6px 16px 2px; font-size: 10px; letter-spacing: 0.12em; color: var(--text-faint); text-transform: uppercase; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 0;
+    font-size: 13px;
+    color: var(--text-dim);
+    transition: all 0.2s;
+    border-left: 2px solid transparent;
+  }
+  .nav-item:hover { color: var(--text); background: rgba(74,130,196,0.07); }
+  .nav-item.active { color: var(--green); border-left-color: var(--green); background: rgba(74,130,196,0.09); }
+  .nav-icon { font-size: 14px; width: 18px; text-align: center; }
+
+  /* ── Main ── */
+  main {
+    padding: 28px 32px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .page { display: none; flex-direction: column; gap: 24px; }
+  .page.active { display: flex; }
+
+  /* ── Section Titles ── */
+  .section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 22px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-title .sub { font-family: 'Lato', sans-serif; font-size: 13px; color: var(--text-dim); font-weight: 300; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 4px rgba(74,130,196,0.06);
+  }
+  .card-title { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 16px; }
+
+  /* ── Life Tree ── */
+  .tree-container {
+    position: relative;
+    width: 100%;
+    min-height: 380px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tree-svg-wrap { position: relative; }
+
+  /* ── Goal Nodes ── */
+  .goal-node {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .goal-node:hover { transform: translateY(-2px); }
+  .goal-circle {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    border: 1.5px solid;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    transition: all 0.25s;
+    position: relative;
+  }
+  .goal-circle::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+  .goal-node:hover .goal-circle::after { opacity: 1; }
+
+  .goal-label { font-size: 11px; color: var(--text-dim); text-align: center; max-width: 70px; line-height: 1.4; }
+
+  /* ── Task Items ── */
+  .task-list { display: flex; flex-direction: column; gap: 8px; }
+  .task-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .task-item::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 3px 0 0 3px;
+  }
+  .task-item:hover { border-color: rgba(74,130,196,0.35); background: rgba(74,130,196,0.04); }
+  .task-item.done { opacity: 0.45; }
+  .task-check {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 1.5px solid var(--border);
+    flex-shrink: 0; margin-top: 1px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 10px;
+  }
+  .task-check:hover { border-color: var(--green); }
+  .task-check.checked { background: var(--green); border-color: var(--green); color: #fff; }
+  .task-body { flex: 1; }
+  .task-name { font-size: 14px; line-height: 1.5; }
+  .task-item.done .task-name { text-decoration: line-through; color: var(--text-dim); }
+  .task-meta { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
+  .tag {
+    font-size: 10px; padding: 2px 8px; border-radius: 20px;
+    border: 1px solid; display: inline-flex; align-items: center; gap: 4px;
+    letter-spacing: 0.05em;
+  }
+  .tag-energy { border-color: rgba(200,169,110,0.4); color: var(--gold); background: rgba(200,169,110,0.08); }
+  .tag-goal   { border-color: rgba(120,200,150,0.3); color: var(--green); background: rgba(120,200,150,0.08); }
+  .tag-deep   { border-color: rgba(120,180,200,0.4); color: var(--sky);  background: rgba(120,180,200,0.08); }
+  .task-meaning { font-size: 11px; color: var(--text-faint); margin-top: 4px; font-style: italic; }
+
+  /* ── Energy Filter ── */
+  .filter-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  .filter-chip {
+    padding: 5px 14px; border-radius: 20px; font-size: 12px;
+    border: 1px solid var(--border);
+    color: var(--text-dim); background: transparent;
+    cursor: pointer; transition: all 0.18s;
+  }
+  .filter-chip:hover { border-color: var(--green-dim); color: var(--text); }
+  .filter-chip.active { border-color: var(--green); color: var(--green); background: rgba(74,130,196,0.08); }
+
+  /* ── Add Task Button ── */
+  .add-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 18px; border-radius: 8px;
+    border: 1px dashed rgba(120,200,150,0.3);
+    color: var(--text-dim); font-size: 13px;
+    cursor: pointer; transition: all 0.2s;
+    background: transparent;
+    font-family: inherit;
+    align-self: flex-start;
+  }
+  .add-btn:hover { border-color: var(--green); color: var(--green); background: rgba(74,130,196,0.05); }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(244,247,251,0.75);
+    backdrop-filter: blur(6px);
+    z-index: 100;
+    display: none; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg2);
+    border: 1px solid rgba(74,130,196,0.25);
+    border-radius: 16px;
+    padding: 28px;
+    width: 460px;
+    max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(74,130,196,0.15), 0 4px 16px rgba(0,0,0,0.08);
+    animation: modalIn 0.25s ease;
+  }
+  @keyframes modalIn { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-title { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 20px; color: var(--text); }
+  .modal label { display: block; font-size: 11px; letter-spacing: 0.08em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px; }
+  .modal input, .modal textarea, .modal select {
+    width: 100%; background: var(--bg3);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: inherit; font-size: 14px; font-weight: 300;
+    padding: 10px 12px; outline: none; transition: border-color 0.2s;
+    margin-bottom: 16px; resize: none;
+  }
+  .modal input:focus, .modal textarea:focus, .modal select:focus { border-color: var(--green); }
+  .modal select option { background: var(--bg2); color: var(--text); }
+  .modal-row { display: flex; gap: 12px; }
+  .modal-row > div { flex: 1; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+  .btn-cancel {
+    padding: 8px 16px; border-radius: 8px; font-size: 13px;
+    border: 1px solid var(--border); color: var(--text-dim);
+    cursor: pointer; background: transparent; font-family: inherit;
+    transition: all 0.2s;
+  }
+  .btn-cancel:hover { border-color: var(--text-dim); color: var(--text); }
+  .btn-confirm {
+    padding: 8px 20px; border-radius: 8px; font-size: 13px;
+    border: none; background: var(--green); color: var(--bg);
+    cursor: pointer; font-family: inherit; font-weight: 400;
+    transition: all 0.2s;
+  }
+  .btn-confirm:hover { background: #8dd4a8; }
+
+  /* ── Achievements ── */
+  .achievement-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+  .achievement-card {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 12px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    text-align: center; transition: all 0.2s;
+  }
+  .achievement-card:hover { border-color: rgba(184,146,42,0.45); transform: translateY(-2px); box-shadow: 0 4px 14px rgba(184,146,42,0.1); }
+  .achievement-card.locked { opacity: 0.3; filter: grayscale(1); }
+  .ach-icon { font-size: 28px; }
+  .ach-name { font-size: 12px; color: var(--text); line-height: 1.3; }
+  .ach-desc { font-size: 10px; color: var(--text-dim); line-height: 1.4; }
+
+  /* ── Stats ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .stat-card {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .stat-value { font-family: 'DM Serif Display', serif; font-size: 32px; color: var(--green); }
+  .stat-label { font-size: 11px; color: var(--text-dim); }
+
+  /* ── Sandbox ── */
+  .sandbox-list { display: flex; flex-direction: column; gap: 8px; }
+  .sandbox-item {
+    display: flex; align-items: center;
+    padding: 10px 14px; border-radius: 8px;
+    border: 1px dashed rgba(200,169,110,0.2);
+    background: rgba(200,169,110,0.03);
+    font-size: 13px; color: var(--text-dim);
+    transition: all 0.2s;
+  }
+  .sandbox-item:hover { border-color: rgba(184,146,42,0.4); color: var(--text); background: rgba(184,146,42,0.04); }
+  .sandbox-text { flex: 1; min-width: 0; word-break: break-word; line-height: 1.5; }
+  .sandbox-del { cursor: pointer; font-size: 15px; opacity: 0.35; transition: opacity 0.2s; flex-shrink: 0; margin-left: 12px; }
+  .sandbox-del:hover { opacity: 1; color: var(--rose); }
+
+  /* ── Postpone Dialog ── */
+  .postpone-msg {
+    font-size: 13px; color: var(--text); line-height: 1.7;
+    font-style: italic; margin-bottom: 16px;
+    padding: 12px; background: rgba(74,130,196,0.05);
+    border-radius: 8px; border: 1px solid var(--border);
+  }
+
+  /* ── Celebration ── */
+  .celebration {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 999;
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .celebration.show { display: flex; }
+  .celebration-text {
+    font-family: 'DM Serif Display', serif;
+    font-size: 36px; color: var(--green);
+    text-shadow: 0 0 30px rgba(74,130,196,0.35);
+    animation: celebFade 2.5s ease forwards;
+  }
+  .celebration-sub {
+    font-size: 14px; color: var(--text-dim);
+    animation: celebFade 2.5s ease 0.3s forwards;
+    opacity: 0;
+  }
+  @keyframes celebFade {
+    0% { opacity: 0; transform: translateY(10px); }
+    20% { opacity: 1; transform: translateY(0); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-10px); }
+  }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 28px; right: 28px; z-index: 200;
+    background: var(--bg2); border: 1px solid rgba(74,130,196,0.3);
+    border-radius: 10px; padding: 12px 18px;
+    font-size: 13px; color: var(--text);
+    box-shadow: 0 8px 24px rgba(74,130,196,0.15);
+    display: none; align-items: center; gap: 10px;
+    animation: slideUp 0.25s ease;
+    max-width: 300px;
+  }
+  .toast.show { display: flex; }
+  @keyframes slideUp { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+  /* ── Context Menu ── */
+  .ctx-menu {
+    position: fixed; z-index: 300;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(74,130,196,0.15);
+    padding: 6px;
+    min-width: 150px;
+    display: none;
+    animation: modalIn 0.15s ease;
+  }
+  .ctx-menu.open { display: block; }
+  .ctx-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 12px; border-radius: 7px;
+    font-size: 13px; color: var(--text-dim);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .ctx-item:hover { background: var(--bg3); color: var(--text); }
+  .ctx-item.danger:hover { background: rgba(192,86,90,0.08); color: var(--rose); }
+  .ctx-sep { height: 1px; background: var(--border); margin: 4px 6px; }
+
+  /* ── Progress ring */
+  .progress-ring { transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: var(--bg3); stroke-width: 3; }
+  .ring-fill { fill: none; stroke: var(--green); stroke-width: 3; stroke-linecap: round; transition: stroke-dashoffset 0.6s ease; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(74,130,196,0.2); border-radius: 4px; }
+
+  /* ── Done Section Toggle ── */
+  .done-section-header {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; padding: 10px 0 6px;
+    border-top: 1px dashed var(--border);
+    margin-top: 8px;
+    font-size: 12px; color: var(--text-dim);
+    letter-spacing: 0.08em; text-transform: uppercase;
+    user-select: none;
+    transition: color 0.2s;
+  }
+  .done-section-header:hover { color: var(--text); }
+  .done-toggle-arrow { transition: transform 0.2s; font-size: 10px; }
+  .done-toggle-arrow.open { transform: rotate(90deg); }
+  .done-tasks-wrap { overflow: hidden; transition: max-height 0.3s ease; max-height: 0; }
+  .done-tasks-wrap.open { max-height: 2000px; }
+
+  /* ── Onboarding Modal ── */
+  .onboard-modal {
+    background: var(--bg2);
+    border: 1px solid rgba(74,130,196,0.2);
+    border-radius: 20px;
+    padding: 0;
+    width: 520px; max-width: 96vw;
+    box-shadow: 0 24px 64px rgba(74,130,196,0.18);
+    animation: modalIn 0.3s ease;
+    overflow: hidden;
+  }
+  .onboard-header {
+    background: linear-gradient(135deg, rgba(74,130,196,0.12), rgba(184,146,42,0.08));
+    padding: 32px 32px 24px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  .onboard-logo { font-family: 'DM Serif Display', serif; font-size: 32px; color: var(--green); }
+  .onboard-tagline { font-size: 13px; color: var(--text-dim); margin-top: 6px; }
+  .onboard-body { padding: 24px 32px 28px; }
+  .onboard-steps { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
+  .onboard-step {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 12px 14px; border-radius: 10px;
+    background: var(--bg3); border: 1px solid var(--border);
+  }
+  .onboard-step-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+  .onboard-step-title { font-size: 13px; font-weight: 400; color: var(--text); margin-bottom: 3px; }
+  .onboard-step-desc { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
+  .onboard-tip {
+    font-size: 12px; color: var(--text-dim); font-style: italic;
+    text-align: center; margin-bottom: 20px; line-height: 1.7;
+    padding: 10px; background: rgba(74,130,196,0.05);
+    border-radius: 8px; border: 1px solid var(--border);
+  }
+
+  /* ── Mobile Bottom Nav ── */
+  .mobile-nav {
+    display: none;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+    z-index: 50;
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+  }
+  .mobile-nav-inner { display: flex; justify-content: space-around; align-items: center; }
+  .mob-nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 4px 12px; cursor: pointer;
+    font-size: 10px; color: var(--text-dim); transition: color 0.2s;
+    border: none; background: none; font-family: inherit;
+  }
+  .mob-nav-item.active { color: var(--green); }
+  .mob-nav-icon { font-size: 20px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 680px) {
+    .app {
+      grid-template-columns: 1fr;
+      grid-template-rows: 52px 1fr 60px;
+      height: 100dvh;
+    }
+    aside { display: none; }
+    header { padding: 0 16px; }
+    .logo span { display: none; }
+    .energy-label:first-child { display: none; }
+    main { padding: 16px; padding-bottom: 80px; }
+    .mobile-nav { display: block; }
+    .section-title { font-size: 18px; }
+    .modal { padding: 20px; }
+    .modal-row { flex-direction: column; gap: 0; }
+    .onboard-header { padding: 24px 20px 18px; }
+    .onboard-body { padding: 18px 20px 22px; }
+    .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stat-value { font-size: 24px; }
+    .tree-container { min-height: 260px; overflow-x: auto; }
+    .tree-container svg { min-width: 360px; width: 100%; height: auto; }
+    .btn-confirm { padding: 10px 16px; font-size: 14px; }
+    .energy-dots { gap: 3px; }
+    .energy-dot { width: 8px; height: 8px; }
+  }
+
+  @media (min-width: 681px) and (max-width: 900px) {
+    .app { grid-template-columns: 180px 1fr; }
+    main { padding: 20px; }
+  }
+
+  /* ── API Setup Modal ── */
+  .api-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(20,30,50,0.55);
+    backdrop-filter: blur(6px);
+    z-index: 9999;
+    display: none; align-items: center; justify-content: center;
+  }
+  .api-modal-overlay.open { display: flex; }
+  .api-modal-box {
+    background: var(--bg2);
+    border: 1px solid rgba(74,130,196,0.3);
+    border-radius: 18px;
+    padding: 32px;
+    width: 500px;
+    max-width: 94vw;
+    box-shadow: 0 24px 64px rgba(74,130,196,0.18);
+    animation: modalIn 0.25s ease;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .api-modal-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px; color: var(--green);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .api-modal-desc { font-size: 13px; color: var(--text-dim); line-height: 1.7; }
+  .api-modal-desc code {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 6px;
+    font-size: 12px; color: var(--sky);
+  }
+  .api-modal-input {
+    width: 100%; padding: 11px 14px;
+    border: 1px solid var(--border); border-radius: 9px;
+    font-size: 13px; background: var(--bg3);
+    color: var(--text); outline: none; font-family: inherit;
+    transition: border-color 0.2s;
+  }
+  .api-modal-input:focus { border-color: var(--green); }
+  .api-modal-input::placeholder { color: var(--text-faint); }
+  .api-status {
+    font-size: 12px; padding: 8px 12px; border-radius: 7px;
+    display: none; align-items: center; gap: 8px;
+  }
+  .api-status.ok  { display: flex; background: rgba(74,130,196,0.08); border: 1px solid rgba(74,130,196,0.2); color: var(--green); }
+  .api-status.err { display: flex; background: rgba(192,86,90,0.07); border: 1px solid rgba(192,86,90,0.2); color: var(--rose); }
+  .api-modal-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+  .api-btn-save {
+    padding: 9px 22px; background: var(--green); color: #fff;
+    border: none; border-radius: 8px; cursor: pointer;
+    font-size: 13px; font-family: inherit; transition: all 0.2s;
+  }
+  .api-btn-save:hover { opacity: 0.88; }
+  .api-btn-skip {
+    padding: 9px 16px; background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; font-size: 13px; font-family: inherit; transition: all 0.2s;
+  }
+  .api-btn-skip:hover { border-color: var(--text-dim); color: var(--text); }
+  .api-btn-clear {
+    padding: 9px 16px; background: transparent; color: var(--rose);
+    border: 1px solid rgba(192,86,90,0.3); border-radius: 8px;
+    cursor: pointer; font-size: 13px; font-family: inherit; transition: all 0.2s;
+    margin-right: auto;
+  }
+  .api-btn-clear:hover { background: rgba(192,86,90,0.06); }
+  /* header settings icon */
+  .header-settings-btn {
+    font-size: 14px; cursor: pointer; padding: 4px 10px;
+    border: 1px solid var(--border); border-radius: 20px;
+    color: var(--text-dim); transition: all 0.2s; white-space: nowrap;
+  }
+  .header-settings-btn:hover { border-color: var(--green); color: var(--green); }
+  .header-settings-btn.connected { border-color: rgba(74,130,196,0.4); color: var(--green); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Header -->
+  <header>
+    <div class="logo">內流 <span>InnerFlow · 為內驅力而生</span></div>
+    <div class="header-right">
+      <div class="energy-bar-wrap">
+        <span class="energy-label">今日能量</span>
+        <div class="energy-dots" id="energyDots"></div>
+        <span class="energy-label" id="energyNum" style="color:var(--green);min-width:24px">—</span>
+      </div>
+      <div onclick="document.getElementById('onboardModal').classList.add('open')" style="font-size:12px;color:var(--text-dim);cursor:pointer;padding:4px 10px;border:1px solid var(--border);border-radius:20px;transition:all 0.2s;white-space:nowrap" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">？ 使用說明</div>
+      <div class="header-settings-btn" id="settingsBtn" onclick="openApiModal()">⚙ 雲端設定</div>
+    </div>
+  </header>
+
+  <!-- Sidebar -->
+  <aside>
+    <div class="sidebar-section">探索</div>
+    <div class="nav-item active" onclick="showPage('tree')" id="nav-tree">
+      <span class="nav-icon">🌿</span> 生命樹
+    </div>
+    <div class="nav-item" onclick="showPage('tasks')" id="nav-tasks">
+      <span class="nav-icon">✦</span> 今日任務
+    </div>
+    <div class="nav-item" onclick="showPage('sandbox')" id="nav-sandbox">
+      <span class="nav-icon">🪐</span> 沙盒探索
+    </div>
+    <div class="sidebar-section" style="margin-top:8px">成長</div>
+    <div class="nav-item" onclick="showPage('achievements')" id="nav-achievements">
+      <span class="nav-icon">🏅</span> 成就牆
+    </div>
+    <div class="nav-item" onclick="showPage('stats')" id="nav-stats">
+      <span class="nav-icon">◎</span> 成長軌跡
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main>
+
+    <!-- Page: Life Tree -->
+    <div class="page active" id="page-tree">
+      <div class="section-title">生命樹 <span class="sub">每個任務都扎根於你認同的意義</span></div>
+      <div class="card">
+        <div class="card-title">你的核心目標</div>
+        <div class="tree-container">
+          <svg width="560" height="340" viewBox="0 0 560 340">
+            <!-- trunk -->
+            <line x1="280" y1="310" x2="280" y2="200" stroke="rgba(120,200,150,0.35)" stroke-width="3" stroke-linecap="round"/>
+            <!-- branches -->
+            <line x1="280" y1="230" x2="160" y2="150" stroke="rgba(120,200,150,0.25)" stroke-width="2" stroke-linecap="round"/>
+            <line x1="280" y1="220" x2="400" y2="150" stroke="rgba(120,200,150,0.25)" stroke-width="2" stroke-linecap="round"/>
+            <line x1="280" y1="210" x2="280" y2="120" stroke="rgba(120,200,150,0.25)" stroke-width="2" stroke-linecap="round"/>
+            <line x1="160" y1="150" x2="80" y2="90" stroke="rgba(120,200,150,0.18)" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="160" y1="150" x2="200" y2="80" stroke="rgba(120,200,150,0.18)" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="400" y1="150" x2="360" y2="80" stroke="rgba(120,200,150,0.18)" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="400" y1="150" x2="460" y2="90" stroke="rgba(120,200,150,0.18)" stroke-width="1.5" stroke-linecap="round"/>
+            <!-- root circle glow -->
+            <circle cx="280" cy="310" r="14" fill="rgba(120,200,150,0.1)" stroke="rgba(120,200,150,0.4)" stroke-width="1.5"/>
+            <text x="280" y="315" text-anchor="middle" fill="rgba(120,200,150,0.9)" font-size="13">🌱</text>
+          </svg>
+          <!-- Goal nodes overlaid -->
+          <div style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none">
+            <!-- Center top: 核心 -->
+            <div class="goal-node" style="position:absolute;left:50%;top:26px;transform:translateX(-50%);pointer-events:all" onclick="filterByGoal('成長')">
+              <div class="goal-circle" style="border-color:rgba(120,200,150,0.6);background:rgba(120,200,150,0.1);box-shadow:0 0 16px rgba(120,200,150,0.15)">🌟</div>
+              <div class="goal-label" style="color:var(--green)">持續成長</div>
+            </div>
+            <!-- Left branch -->
+            <div class="goal-node" style="position:absolute;left:18%;top:90px;transform:translateX(-50%);pointer-events:all" onclick="filterByGoal('創作')">
+              <div class="goal-circle" style="border-color:rgba(200,169,110,0.5);background:rgba(200,169,110,0.08)">🎨</div>
+              <div class="goal-label">創作表達</div>
+            </div>
+            <!-- Right branch -->
+            <div class="goal-node" style="position:absolute;left:72%;top:90px;transform:translateX(-50%);pointer-events:all" onclick="filterByGoal('關係')">
+              <div class="goal-circle" style="border-color:rgba(200,120,120,0.5);background:rgba(200,120,120,0.08)">🤝</div>
+              <div class="goal-label">深度連結</div>
+            </div>
+            <!-- Sub left -->
+            <div class="goal-node" style="position:absolute;left:6%;top:40px;transform:translateX(-50%);pointer-events:all" onclick="filterByGoal('技能')">
+              <div class="goal-circle" style="border-color:rgba(120,180,200,0.5);background:rgba(120,180,200,0.08);width:40px;height:40px">💡</div>
+              <div class="goal-label" style="font-size:10px">技能精進</div>
+            </div>
+            <!-- Sub right inner -->
+            <div class="goal-node" style="position:absolute;left:33%;top:35px;transform:translateX(-50%);pointer-events:all" onclick="filterByGoal('健康')">
+              <div class="goal-circle" style="border-color:rgba(150,200,120,0.5);background:rgba(150,200,120,0.08);width:40px;height:40px">🌿</div>
+              <div class="goal-label" style="font-size:10px">身心健康</div>
+            </div>
+            <!-- Sub right outer -->
+            <div class="goal-node" style="position:absolute;left:60%;top:35px;transform:translateX(-50%);pointer-events:all" onclick="filterByGoal('探索')">
+              <div class="goal-circle" style="border-color:rgba(200,170,200,0.5);background:rgba(200,170,200,0.08);width:40px;height:40px">🔭</div>
+              <div class="goal-label" style="font-size:10px">好奇探索</div>
+            </div>
+            <div class="goal-node" style="position:absolute;left:84%;top:40px;transform:translateX(-50%);pointer-events:all" onclick="filterByGoal('貢獻')">
+              <div class="goal-circle" style="border-color:rgba(200,200,120,0.5);background:rgba(200,200,120,0.08);width:40px;height:40px">✨</div>
+              <div class="goal-label" style="font-size:10px">為世界貢獻</div>
+            </div>
+          </div>
+        </div>
+        <div style="text-align:center;font-size:12px;color:var(--text-faint);margin-top:-8px">點擊目標節點，篩選相關任務</div>
+      </div>
+    </div>
+
+    <!-- Page: Tasks -->
+    <div class="page" id="page-tasks">
+      <div class="section-title">今日任務 <span class="sub" id="filtered-label"></span><span id="clear-filter-btn" onclick="clearGoalFilter()" style="display:none;font-size:11px;color:var(--rose);cursor:pointer;padding:3px 10px;border:1px solid rgba(192,86,90,0.3);border-radius:20px;font-family:'Lato',sans-serif;font-weight:300;transition:all 0.2s" onmouseover="this.style.background='rgba(192,86,90,0.06)'" onmouseout="this.style.background='transparent'">✕ 清除篩選</span></div>
+
+      <div class="card">
+        <div class="card-title">能量適配篩選</div>
+        <div class="filter-row" id="energyFilter">
+          <div class="filter-chip active" onclick="filterEnergy('all')">全部顯示</div>
+          <div class="filter-chip" onclick="filterEnergy('deep')">🌊 深度思考</div>
+          <div class="filter-chip" onclick="filterEnergy('flow')">⚡ 靈感爆發</div>
+          <div class="filter-chip" onclick="filterEnergy('light')">🍃 輕鬆雜事</div>
+          <div class="filter-chip" onclick="filterEnergy('rest')">🌙 低耗能</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">任務清單</div>
+        <div class="task-list" id="taskList"></div>
+        <button class="add-btn" onclick="openAddTask()" style="margin-top:12px">＋ 新增任務</button>
+      </div>
+    </div>
+
+    <!-- Page: Sandbox -->
+    <div class="page" id="page-sandbox">
+      <div class="section-title">沙盒探索 <span class="sub">不計入完成率，純粹的好奇心空間</span></div>
+      <div class="card">
+        <div class="card-title">✦ 還沒決定要做，但聽起來很有趣</div>
+        <div class="sandbox-list" id="sandboxList"></div>
+        <div style="display:flex;gap:10px;margin-top:16px">
+          <input id="sandboxInput" placeholder="一個讓你好奇的想法、主題或冒險…" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'" onkeydown="if(event.key==='Enter')addSandbox()">
+          <button class="btn-confirm" onclick="addSandbox()" style="background:var(--gold-dim);border:1px solid rgba(200,169,110,0.4);color:var(--gold)">丟進來</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-faint);margin-top:8px">這裡沒有截止日期，沒有完成率壓力，只有好奇心本身。</div>
+      </div>
+    </div>
+
+    <!-- Page: Achievements -->
+    <div class="page" id="page-achievements">
+      <div class="section-title">成就牆 <span class="sub">你所創造過的，永遠在這裡</span></div>
+      <div class="card">
+        <div class="card-title">已解鎖</div>
+        <div class="achievement-grid" id="achievementGrid"></div>
+      </div>
+    </div>
+
+    <!-- Page: Stats -->
+    <div class="page" id="page-stats">
+      <div class="section-title">成長軌跡 <span class="sub">看見你累積的深度</span></div>
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="card">
+        <div class="card-title">已完成的任務（成就牆）</div>
+        <div class="task-list" id="doneList"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Add Task Modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-title">✦ 新增一件有意義的事</div>
+    <label>任務名稱</label>
+    <input id="newTaskName" placeholder="你想完成什麼？">
+    <label>這件事對你的意義是什麼？</label>
+    <textarea id="newTaskMeaning" rows="2" placeholder="為什麼這件事值得你的時間和能量…"></textarea>
+    <div class="modal-row">
+      <div>
+        <label>掛載目標</label>
+        <select id="newTaskGoal">
+          <option value="成長">🌟 持續成長</option>
+          <option value="創作">🎨 創作表達</option>
+          <option value="關係">🤝 深度連結</option>
+          <option value="技能">💡 技能精進</option>
+          <option value="健康">🌿 身心健康</option>
+          <option value="探索">🔭 好奇探索</option>
+          <option value="貢獻">✨ 為世界貢獻</option>
+        </select>
+      </div>
+      <div>
+        <label>能量類型</label>
+        <select id="newTaskEnergy">
+          <option value="deep">🌊 深度思考</option>
+          <option value="flow">⚡ 靈感爆發</option>
+          <option value="light">🍃 輕鬆雜事</option>
+          <option value="rest">🌙 低耗能</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('addModal')">取消</button>
+      <button class="btn-confirm" onclick="addTask()">種下這顆種子 🌱</button>
+    </div>
+  </div>
+</div>
+
+<!-- Onboarding Modal -->
+<div class="modal-overlay" id="onboardModal" style="align-items:center">
+  <div class="onboard-modal">
+    <div class="onboard-header">
+      <div class="onboard-logo">內流 InnerFlow</div>
+      <div class="onboard-tagline">為內驅力而生的任務工具 · 不是壓力，是意義</div>
+    </div>
+    <div class="onboard-body">
+      <div class="onboard-steps">
+        <div class="onboard-step">
+          <div class="onboard-step-icon">🌿</div>
+          <div>
+            <div class="onboard-step-title">生命樹 — 看見大圖景</div>
+            <div class="onboard-step-desc">每個任務都掛載在你認同的人生目標上。點擊樹上的節點，可以篩選出相關任務。</div>
+          </div>
+        </div>
+        <div class="onboard-step">
+          <div class="onboard-step-icon">✦</div>
+          <div>
+            <div class="onboard-step-title">今日任務 — 依能量篩選</div>
+            <div class="onboard-step-desc">先設定今天的能量值（1-10）。能量低時系統自動推薦輕鬆任務。勾選完成後可點擊「已完成」區塊隨時取消勾選。右側 ⋯ 可編輯或刪除任務。</div>
+          </div>
+        </div>
+        <div class="onboard-step">
+          <div class="onboard-step-icon">↷</div>
+          <div>
+            <div class="onboard-step-title">延期不是失敗</div>
+            <div class="onboard-step-desc">任務旁的 ↷ 按鈕讓你溫柔延期。延期三次後，工具會輕聲問你：這件事是否還需要？</div>
+          </div>
+        </div>
+        <div class="onboard-step">
+          <div class="onboard-step-icon">🪐</div>
+          <div>
+            <div class="onboard-step-title">沙盒 — 好奇心的容身之處</div>
+            <div class="onboard-step-desc">把「聽起來很有趣但還沒決定」的想法丟進沙盒。不計入完成率，零壓力。</div>
+          </div>
+        </div>
+      </div>
+      <div class="onboard-tip">「不是所有重要的事都緊急，不是所有緊急的事都重要。<br>你值得用自己的節奏，做有意義的事。」</div>
+      <div style="text-align:center">
+        <button class="btn-confirm" onclick="closeModal('onboardModal')" style="padding:12px 36px;font-size:14px">開始探索 ✦</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile Bottom Nav -->
+<nav class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <button class="mob-nav-item active" id="mob-tree" onclick="showPage('tree')">
+      <span class="mob-nav-icon">🌿</span>生命樹
+    </button>
+    <button class="mob-nav-item" id="mob-tasks" onclick="showPage('tasks')">
+      <span class="mob-nav-icon">✦</span>任務
+    </button>
+    <button class="mob-nav-item" id="mob-sandbox" onclick="showPage('sandbox')">
+      <span class="mob-nav-icon">🪐</span>沙盒
+    </button>
+    <button class="mob-nav-item" id="mob-achievements" onclick="showPage('achievements')">
+      <span class="mob-nav-icon">🏅</span>成就
+    </button>
+    <button class="mob-nav-item" id="mob-stats" onclick="showPage('stats')">
+      <span class="mob-nav-icon">◎</span>軌跡
+    </button>
+  </div>
+</nav>
+
+<!-- Context Menu -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-item" id="ctxEdit" onclick="ctxAction('edit')">✏️ 編輯任務</div>
+  <div class="ctx-item" id="ctxToggle" onclick="ctxAction('toggle')">↩ 取消完成</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" onclick="ctxAction('delete')">🗑 刪除任務</div>
+</div>
+
+<!-- Edit Task Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-title">✏️ 編輯任務</div>
+    <label>任務名稱</label>
+    <input id="editTaskName" placeholder="任務名稱">
+    <label>這件事對你的意義是什麼？</label>
+    <textarea id="editTaskMeaning" rows="2" placeholder="為什麼這件事值得你的時間和能量…"></textarea>
+    <div class="modal-row">
+      <div>
+        <label>掛載目標</label>
+        <select id="editTaskGoal">
+          <option value="成長">🌟 持續成長</option>
+          <option value="創作">🎨 創作表達</option>
+          <option value="關係">🤝 深度連結</option>
+          <option value="技能">💡 技能精進</option>
+          <option value="健康">🌿 身心健康</option>
+          <option value="探索">🔭 好奇探索</option>
+          <option value="貢獻">✨ 為世界貢獻</option>
+        </select>
+      </div>
+      <div>
+        <label>能量類型</label>
+        <select id="editTaskEnergy">
+          <option value="deep">🌊 深度思考</option>
+          <option value="flow">⚡ 靈感爆發</option>
+          <option value="light">🍃 輕鬆雜事</option>
+          <option value="rest">🌙 低耗能</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('editModal')">取消</button>
+      <button class="btn-confirm" onclick="saveEdit()">儲存變更</button>
+    </div>
+  </div>
+</div>
+
+<!-- Postpone Modal -->
+<div class="modal-overlay" id="postponeModal">
+  <div class="modal">
+    <div class="modal-title">💭 看來這件事想等一等</div>
+    <div class="postpone-msg" id="postponeMsg"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('postponeModal')">先不動它</button>
+      <button class="btn-confirm" onclick="rethinkTask()">重新拆解它</button>
+    </div>
+  </div>
+</div>
+
+<!-- Celebration -->
+<div class="celebration" id="celebration">
+  <div class="celebration-text">✦ 完成了！</div>
+  <div class="celebration-sub" id="celebSub"></div>
+</div>
+
+<!-- API Setup Modal -->
+<div class="api-modal-overlay" id="apiModal">
+  <div class="api-modal-box">
+    <div class="api-modal-title">☁️ 雲端連線設定</div>
+    <div class="api-modal-desc">
+      貼上你的 <code>Google Apps Script</code> 部署網址。<br>
+      網址只會儲存在你的瀏覽器（<code>localStorage</code>），不會出現在 GitHub 原始碼中。
+    </div>
+    <input class="api-modal-input" id="apiUrlInput"
+      placeholder="https://script.google.com/macros/s/.../exec" />
+    <div class="api-status" id="apiStatus"></div>
+    <div class="api-modal-actions">
+      <button class="api-btn-clear" id="apiClearBtn" onclick="clearApiUrl()" style="display:none">✕ 清除連線</button>
+      <button class="api-btn-skip" onclick="closeApiModal()">暫時略過</button>
+      <button class="api-btn-save" onclick="saveApiUrl()">儲存並連線 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"><span id="toastMsg"></span></div>
+<script>
+// ── Cloud API (URL stored in localStorage, never in source code) ──
+const API_STORAGE_KEY = 'innerflow_api_url';
+
+function getApiUrl() { return localStorage.getItem(API_STORAGE_KEY) || ''; }
+
+function openApiModal() {
+  const existing = getApiUrl();
+  const input = document.getElementById('apiUrlInput');
+  const clearBtn = document.getElementById('apiClearBtn');
+  input.value = existing;
+  clearBtn.style.display = existing ? 'block' : 'none';
+  setApiStatus('');
+  document.getElementById('apiModal').classList.add('open');
+}
+
+function closeApiModal() {
+  document.getElementById('apiModal').classList.remove('open');
+}
+
+function setApiStatus(type, msg) {
+  const el = document.getElementById('apiStatus');
+  el.className = 'api-status' + (type ? ' ' + type : '');
+  el.textContent = msg || '';
+}
+
+async function saveApiUrl() {
+  const url = document.getElementById('apiUrlInput').value.trim();
+  if (!url) { setApiStatus('err', '請貼上你的 GAS 部署網址'); return; }
+  if (!url.startsWith('https://script.google.com')) {
+    setApiStatus('err', '網址格式不正確，應以 https://script.google.com 開頭');
+    return;
+  }
+  setApiStatus('', '連線測試中…');
+  try {
+    const res = await fetch(url + '?action=load');
+    const data = await res.json();
+    localStorage.setItem(API_STORAGE_KEY, url);
+    setApiStatus('ok', '✓ 連線成功！資料已載入');
+    document.getElementById('settingsBtn').classList.add('connected');
+    document.getElementById('settingsBtn').textContent = '☁ 已連線';
+    if (data && Array.isArray(data.tasks)) {
+      state.tasks   = data.tasks;
+      state.sandbox = data.sandbox || [];
+      state.done    = data.done    || 0;
+      renderTasks(); renderSandbox(); renderStats(); renderAchievements();
+    }
+    setTimeout(closeApiModal, 1200);
+  } catch (e) {
+    setApiStatus('err', '無法連線，請確認網址正確且 GAS 已部署為「所有人可存取」');
+  }
+}
+
+function clearApiUrl() {
+  localStorage.removeItem(API_STORAGE_KEY);
+  document.getElementById('apiUrlInput').value = '';
+  document.getElementById('apiClearBtn').style.display = 'none';
+  document.getElementById('settingsBtn').classList.remove('connected');
+  document.getElementById('settingsBtn').textContent = '⚙ 雲端設定';
+  setApiStatus('ok', '已清除，目前為本機模式');
+}
+
+let isSyncing = false;
+
+async function loadFromCloud() {
+  const url = getApiUrl();
+  if (!url) return false;
+  try {
+    const res = await fetch(url + '?action=load');
+    const data = await res.json();
+    if (data && Array.isArray(data.tasks)) {
+      state.tasks   = data.tasks;
+      state.sandbox = data.sandbox || [];
+      state.done    = data.done    || 0;
+      return true;
+    }
+  } catch (e) {
+    console.warn('無法讀取雲端資料', e);
+  }
+  return false;
+}
+
+async function syncToCloud() {
+  const url = getApiUrl();
+  if (!url || isSyncing) return;
+  isSyncing = true;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'save',
+        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done }
+      })
+    });
+  } catch (e) {
+    console.warn('雲端儲存失敗', e);
+  } finally {
+    isSyncing = false;
+  }
+}
+
+// ── State ──
+let state = {
+  tasks: [
+    { id: 1, name: '閱讀《心流》第三章', meaning: '理解深度投入的心理機制，應用到自己的工作中', goal: '成長', energy: 'deep', done: false, postponed: 0 },
+    { id: 2, name: '整理筆記資料夾', meaning: '讓思緒有更清晰的空間', goal: '成長', energy: 'light', done: false, postponed: 0 },
+    { id: 3, name: '寫一段關於孤獨的散文', meaning: '把內心深處的感受轉化為語言，留下痕跡', goal: '創作', energy: 'flow', done: false, postponed: 1 },
+    { id: 4, name: '給老朋友發一封真誠的信', meaning: '維繫珍貴的情感連結，不讓忙碌侵蝕關係', goal: '關係', energy: 'rest', done: false, postponed: 0 },
+    { id: 5, name: '練習30分鐘冥想', meaning: '照顧自己的心理健康，保持清明', goal: '健康', energy: 'rest', done: true, postponed: 0 },
+  ],
+  sandbox: ['學習如何製作蠟燭', '研究古埃及語言', '嘗試用聲音創作音樂'],
+  energy: 0,
+  energyFilter: 'all',
+  goalFilter: null,
+  postponeTarget: null,
+  done: 1,
+  doneOpen: false,
+};
+
+const energyLabels = { deep: '深度思考', flow: '靈感爆發', light: '輕鬆雜事', rest: '低耗能' };
+const energyIcons  = { deep: '🌊', flow: '⚡', light: '🍃', rest: '🌙' };
+
+const easterEggs = [
+  '「好奇心是智識的心跳。」', '你今天比昨天多往前了一步。', '每次完成都是一個小小的自我實現。',
+  '深度思考是最稀缺的勇氣。', '不是速度，是深度決定你走多遠。'
+];
+
+// ── Init ──
+async function init() {
+  // Restore header button state if API URL already saved
+  if (getApiUrl()) {
+    const btn = document.getElementById('settingsBtn');
+    btn.classList.add('connected');
+    btn.textContent = '☁ 已連線';
+    showToast('☁️ 同步雲端資料中…');
+    const ok = await loadFromCloud();
+    if (ok) showToast('🌿 雲端同步完成');
+    else showToast('⚠ 雲端讀取失敗，使用本機資料');
+  }
+  renderEnergyDots();
+  renderTasks();
+  renderSandbox();
+  renderAchievements();
+  renderStats();
+  if (!localStorage.getItem('innerflow_onboarded')) {
+    document.getElementById('onboardModal').classList.add('open');
+    localStorage.setItem('innerflow_onboarded', 'true');
+  }
+}
+
+// ── Energy Dots ──
+function renderEnergyDots() {
+  const wrap = document.getElementById('energyDots');
+  wrap.innerHTML = '';
+  for (let i = 1; i <= 10; i++) {
+    const d = document.createElement('div');
+    d.className = 'energy-dot' + (i <= state.energy ? ' active' : '');
+    d.onclick = () => setEnergy(i);
+    wrap.appendChild(d);
+  }
+  document.getElementById('energyNum').textContent = state.energy || '—';
+  if (state.energy > 0 && state.energy <= 3) {
+    document.getElementById('energyNum').style.color = 'var(--rose)';
+    showToast('能量偏低，已自動篩選出輕鬆任務 🍃');
+    filterEnergy('light');
+  } else {
+    document.getElementById('energyNum').style.color = 'var(--green)';
+  }
+}
+
+function setEnergy(n) {
+  state.energy = n;
+  renderEnergyDots();
+}
+
+// ── Pages ──
+function showPage(id, skipRender) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.mob-nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  const sideNav = document.getElementById('nav-' + id);
+  const mobNav  = document.getElementById('mob-' + id);
+  if (sideNav) sideNav.classList.add('active');
+  if (mobNav)  mobNav.classList.add('active');
+  if (!skipRender) {
+    if (id === 'tasks') renderTasks();
+    if (id === 'stats') renderStats();
+  }
+}
+
+// ── Filter ──
+function filterEnergy(type) {
+  state.energyFilter = type;
+  document.querySelectorAll('.filter-chip').forEach((c, i) => {
+    const types = ['all','deep','flow','light','rest'];
+    c.classList.toggle('active', types[i] === type);
+  });
+  renderTasks();
+}
+
+function filterByGoal(goal) {
+  // Set filter state BEFORE navigating so renderTasks sees the correct value
+  state.goalFilter = goal;
+  state.energyFilter = 'all';
+  // Navigate without triggering a render yet
+  showPage('tasks', true);
+  // Update label
+  const label = document.getElementById('filtered-label');
+  if (label) label.textContent = '— 篩選：' + goal;
+  // Update energy filter chips to show "all" as active
+  document.querySelectorAll('.filter-chip').forEach((c, i) => {
+    c.classList.toggle('active', i === 0);
+  });
+  // Now render once with correct state
+  renderTasks();
+}
+
+function clearGoalFilter() {
+  state.goalFilter = null;
+  const label = document.getElementById('filtered-label');
+  if (label) label.textContent = '';
+  const clearBtn = document.getElementById('clear-filter-btn');
+  if (clearBtn) clearBtn.style.display = 'none';
+  renderTasks();
+}
+
+// ── Tasks ──
+function renderTasks() {
+  // Show/hide the "clear filter" button
+  const clearBtn = document.getElementById('clear-filter-btn');
+  if (clearBtn) clearBtn.style.display = state.goalFilter ? 'inline-flex' : 'none';
+
+  const list = document.getElementById('taskList');
+  let activeTasks = state.tasks.filter(t => !t.done);
+  let doneTasks   = state.tasks.filter(t =>  t.done);
+  if (state.energyFilter !== 'all') activeTasks = activeTasks.filter(t => t.energy === state.energyFilter);
+  if (state.goalFilter) {
+    activeTasks = activeTasks.filter(t => t.goal === state.goalFilter);
+    doneTasks   = doneTasks.filter(t => t.goal === state.goalFilter);
+  }
+
+  let html = '';
+  if (activeTasks.length === 0) {
+    html += '<div style="text-align:center;padding:24px;color:var(--text-faint);font-size:13px;font-style:italic">沒有符合條件的任務。也許這就是你休息的訊號？</div>';
+  } else {
+    html += activeTasks.map(t => taskHTML(t)).join('');
+  }
+
+  // Done section
+  if (doneTasks.length > 0) {
+    const isOpen = state.doneOpen;
+    html += `
+      <div class="done-section-header" onclick="toggleDoneSection()">
+        <span class="done-toggle-arrow ${isOpen ? 'open' : ''}">▶</span>
+        已完成 ${doneTasks.length} 件
+        <span style="font-size:10px;color:var(--text-faint);margin-left:4px">（點擊可取消勾選）</span>
+      </div>
+      <div class="done-tasks-wrap ${isOpen ? 'open' : ''}" id="doneTasksWrap">
+        ${doneTasks.map(t => taskHTML(t)).join('')}
+      </div>`;
+  }
+
+  list.innerHTML = html;
+}
+
+function taskHTML(t) {
+  const eIcon = energyIcons[t.energy] || '●';
+  const eLabel = energyLabels[t.energy] || t.energy;
+  const borderColor = t.goal === '成長' ? 'var(--green)' : t.goal === '創作' ? 'var(--gold)' : t.goal === '關係' ? 'var(--rose)' : 'var(--sky)';
+  return `
+  <div class="task-item${t.done ? ' done' : ''}" id="task-${t.id}">
+    <div style="position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;background:${borderColor};opacity:0.6"></div>
+    <div class="task-check${t.done ? ' checked' : ''}" onclick="toggleTask(${t.id})">${t.done ? '✓' : ''}</div>
+    <div class="task-body">
+      <div class="task-name">${t.name}</div>
+      ${t.meaning ? `<div class="task-meaning">${t.meaning}</div>` : ''}
+      <div class="task-meta">
+        <span class="tag tag-energy">${eIcon} ${eLabel}</span>
+        <span class="tag tag-goal">${t.goal}</span>
+        ${t.postponed >= 3 ? '<span class="tag" style="border-color:rgba(200,120,120,0.4);color:var(--rose);background:rgba(200,120,120,0.06)">⚠ 已多次延期</span>' : ''}
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
+      <div onclick="postponeTask(${t.id})" style="font-size:16px;cursor:pointer;opacity:0.3;transition:opacity 0.2s;padding:2px 4px" title="延期" onmouseover="this.style.opacity=0.9" onmouseout="this.style.opacity=0.3">↷</div>
+      <div onclick="openCtxMenu(event,${t.id})" style="font-size:16px;cursor:pointer;opacity:0.3;transition:opacity 0.2s;padding:2px 4px;line-height:1;letter-spacing:1px" title="更多" onmouseover="this.style.opacity=0.9" onmouseout="this.style.opacity=0.3">⋯</div>
+    </div>
+  </div>`;
+}
+
+function toggleDoneSection() {
+  state.doneOpen = !state.doneOpen;
+  renderTasks();
+}
+
+function toggleTask(id) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  const wasDone = t.done;
+  t.done = !t.done;
+  if (!wasDone) {
+    state.done++;
+    showCelebration(t);
+    checkAchievements();
+  } else {
+    if (state.done > 0) state.done--;
+    state.doneOpen = true; // keep section open when unchecking
+  }
+  renderTasks();
+  renderStats();
+  syncToCloud();
+}
+
+function showCelebration(task) {
+  const cel = document.getElementById('celebration');
+  const egg = easterEggs[Math.floor(Math.random() * easterEggs.length)];
+  document.getElementById('celebSub').textContent = egg;
+  cel.classList.add('show');
+  setTimeout(() => cel.classList.remove('show'), 2800);
+}
+
+// ── Postpone ──
+function postponeTask(id) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  t.postponed++;
+  syncToCloud();
+  state.postponeTarget = id;
+  const msgs = [
+    `「看來你今天把能量花在其他更重要的事上了。「${t.name}」想等你準備好了再出發，沒關係的。」`,
+    `「你已經將「${t.name}」延期 ${t.postponed} 次了。也許它不再重要，或者你需要重新拆解它？」`,
+    `「有時候抗拒本身就是一個訊號。「${t.name}」是在等你，還是已經不再是你想要的了？」`
+  ];
+  const idx = Math.min(t.postponed - 1, msgs.length - 1);
+  document.getElementById('postponeMsg').textContent = msgs[idx];
+  document.getElementById('postponeModal').classList.add('open');
+}
+
+function rethinkTask() {
+  const t = state.tasks.find(x => x.id === state.postponeTarget);
+  if (t) showToast(`✦ 「${t.name}」已標記為需要重新拆解`);
+  closeModal('postponeModal');
+}
+
+// ── Add Task ──
+function openAddTask() {
+  document.getElementById('addModal').classList.add('open');
+  document.getElementById('newTaskName').focus();
+}
+
+function addTask() {
+  const name = document.getElementById('newTaskName').value.trim();
+  if (!name) return;
+  const meaning = document.getElementById('newTaskMeaning').value.trim();
+  const goal = document.getElementById('newTaskGoal').value;
+  const energy = document.getElementById('newTaskEnergy').value;
+  state.tasks.push({ id: Date.now(), name, meaning, goal, energy, done: false, postponed: 0 });
+  document.getElementById('newTaskName').value = '';
+  document.getElementById('newTaskMeaning').value = '';
+  closeModal('addModal');
+  showPage('tasks');
+  renderTasks();
+  showToast('🌱 任務已種下，等待發芽');
+  syncToCloud();
+}
+
+// ── Sandbox ──
+function renderSandbox() {
+  const list = document.getElementById('sandboxList');
+  if (state.sandbox.length === 0) {
+    list.innerHTML = '<div style="color:var(--text-faint);font-size:13px;font-style:italic;padding:8px">還沒有任何探索。把你的好奇心丟進來吧。</div>';
+    return;
+  }
+  list.innerHTML = state.sandbox.map((s, i) => `
+    <div class="sandbox-item">
+      <span class="sandbox-text">${s}</span>
+      <span class="sandbox-del" onclick="removeSandbox(${i})">×</span>
+    </div>
+  `).join('');
+}
+
+function addSandbox() {
+  const input = document.getElementById('sandboxInput');
+  const val = input.value.trim();
+  if (!val) return;
+  state.sandbox.push(val);
+  input.value = '';
+  renderSandbox();
+  syncToCloud();
+}
+
+function removeSandbox(i) {
+  state.sandbox.splice(i, 1);
+  renderSandbox();
+  syncToCloud();
+}
+
+// ── Achievements ──
+const achievements = [
+  { icon: '🌱', name: '第一粒種子', desc: '完成第一個任務', req: () => state.done >= 1 },
+  { icon: '🌿', name: '生根', desc: '完成 5 個任務', req: () => state.done >= 5 },
+  { icon: '🌳', name: '茁壯', desc: '完成 10 個任務', req: () => state.done >= 10 },
+  { icon: '🔭', name: '好奇探索者', desc: '沙盒有 5 個想法', req: () => state.sandbox.length >= 5 },
+  { icon: '💡', name: '深度思考者', desc: '完成一個深度任務', req: () => state.tasks.some(t => t.done && t.energy === 'deep') },
+  { icon: '🎨', name: '創作魂', desc: '完成一個創作目標任務', req: () => state.tasks.some(t => t.done && t.goal === '創作') },
+  { icon: '🌙', name: '溫柔對待自己', desc: '使用延期功能', req: () => state.tasks.some(t => t.postponed > 0) },
+  { icon: '⚡', name: '靈感捕手', desc: '完成靈感爆發任務', req: () => state.tasks.some(t => t.done && t.energy === 'flow') },
+];
+
+function renderAchievements() {
+  const grid = document.getElementById('achievementGrid');
+  grid.innerHTML = achievements.map(a => {
+    const unlocked = a.req();
+    return `
+    <div class="achievement-card${unlocked ? '' : ' locked'}">
+      <div class="ach-icon">${a.icon}</div>
+      <div class="ach-name">${a.name}</div>
+      <div class="ach-desc">${unlocked ? a.desc : '尚未解鎖'}</div>
+    </div>`;
+  }).join('');
+}
+
+function checkAchievements() {
+  renderAchievements();
+}
+
+// ── Stats ──
+function renderStats() {
+  const doneTasks = state.tasks.filter(t => t.done);
+  const statsGrid = document.getElementById('statsGrid');
+  statsGrid.innerHTML = `
+    <div class="stat-card"><div class="stat-value">${doneTasks.length}</div><div class="stat-label">已完成任務</div></div>
+    <div class="stat-card"><div class="stat-value">${state.tasks.filter(t => !t.done).length}</div><div class="stat-label">進行中</div></div>
+    <div class="stat-card"><div class="stat-value">${state.sandbox.length}</div><div class="stat-label">探索中的好奇</div></div>
+  `;
+  const doneList = document.getElementById('doneList');
+  if (doneTasks.length === 0) {
+    doneList.innerHTML = '<div style="color:var(--text-faint);font-size:13px;padding:8px;font-style:italic">完成任務後，它們會以勳章的形式留在這裡。</div>';
+    return;
+  }
+  doneList.innerHTML = doneTasks.map(t => `
+    <div class="task-item done" style="opacity:0.7">
+      <div class="task-check checked">✓</div>
+      <div class="task-body">
+        <div class="task-name">${t.name}</div>
+        ${t.meaning ? `<div class="task-meaning">${t.meaning}</div>` : ''}
+        <div class="task-meta">
+          <span class="tag tag-goal">${t.goal}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Context Menu ──
+let ctxTargetId = null;
+
+function openCtxMenu(e, id) {
+  e.stopPropagation();
+  ctxTargetId = id;
+  const t = state.tasks.find(x => x.id === id);
+  const menu = document.getElementById('ctxMenu');
+  const toggleItem = document.getElementById('ctxToggle');
+  toggleItem.textContent = t.done ? '↩ 取消完成' : '✓ 標記完成';
+  menu.classList.add('open');
+  const x = Math.min(e.clientX, window.innerWidth - 170);
+  const y = Math.min(e.clientY, window.innerHeight - 130);
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+}
+
+function ctxAction(action) {
+  const menu = document.getElementById('ctxMenu');
+  menu.classList.remove('open');
+  const t = state.tasks.find(x => x.id === ctxTargetId);
+  if (!t) return;
+  if (action === 'edit') openEditTask(t);
+  if (action === 'toggle') {
+    const wasDone = t.done;
+    t.done = !t.done;
+    if (!wasDone) { state.done++; showCelebration(t); checkAchievements(); }
+    else { if (state.done > 0) state.done--; }
+    renderTasks(); renderStats();
+    syncToCloud();
+  }
+  if (action === 'delete') {
+    if (t.done && state.done > 0) state.done--;
+    state.tasks = state.tasks.filter(x => x.id !== ctxTargetId);
+    renderTasks(); renderStats(); checkAchievements();
+    showToast('🗑 任務已移除');
+    syncToCloud();
+  }
+}
+
+document.addEventListener('click', () => {
+  document.getElementById('ctxMenu').classList.remove('open');
+});
+
+// ── Edit Task ──
+let editTargetId = null;
+
+function openEditTask(t) {
+  editTargetId = t.id;
+  document.getElementById('editTaskName').value = t.name;
+  document.getElementById('editTaskMeaning').value = t.meaning || '';
+  document.getElementById('editTaskGoal').value = t.goal;
+  document.getElementById('editTaskEnergy').value = t.energy;
+  document.getElementById('editModal').classList.add('open');
+  setTimeout(() => document.getElementById('editTaskName').focus(), 50);
+}
+
+function saveEdit() {
+  const name = document.getElementById('editTaskName').value.trim();
+  if (!name) return;
+  const t = state.tasks.find(x => x.id === editTargetId);
+  if (!t) return;
+  t.name = name;
+  t.meaning = document.getElementById('editTaskMeaning').value.trim();
+  t.goal = document.getElementById('editTaskGoal').value;
+  t.energy = document.getElementById('editTaskEnergy').value;
+  closeModal('editModal');
+  renderTasks(); renderStats();
+  showToast('✦ 任務已更新');
+  syncToCloud();
+}
+
+// ── Modal / Toast utils ──
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+});
+
+init();
+</script>
+</body>
+</html>
