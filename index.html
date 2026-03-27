@@ -164,52 +164,39 @@
   }
   .card-title { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 16px; }
 
-  /* ── Life Tree ── */
-  .tree-container {
-    position: relative;
-    width: 100%;
-    min-height: 340px;
-    overflow-x: auto;
-    overflow-y: visible;
+  /* ── Life Tree (card grid) ── */
+  .tree-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    padding: 4px 0 8px;
   }
-  .tree-inner {
-    position: relative;
-    min-width: 480px;
-    width: 100%;
-    height: 340px;
-  }
-  .tree-svg-wrap { position: relative; }
-
-  /* ── Goal Nodes ── */
-  .goal-node {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
+  .goal-card {
+    display: flex; flex-direction: column; align-items: center; gap: 7px;
+    padding: 14px 10px 12px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    background: var(--bg3);
     cursor: pointer;
-    transition: transform 0.2s;
-  }
-  .goal-node:hover { transform: translateY(-2px); }
-  .goal-circle {
-    width: 52px; height: 52px;
-    border-radius: 50%;
-    border: 1.5px solid;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px;
-    transition: all 0.25s;
+    transition: all 0.2s;
     position: relative;
+    user-select: none;
   }
-  .goal-circle::after {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-    opacity: 0;
-    transition: opacity 0.25s;
+  .goal-card:hover { border-color: rgba(74,130,196,0.45); background: rgba(74,130,196,0.05); transform: translateY(-2px); box-shadow: 0 4px 14px rgba(74,130,196,0.1); }
+  .goal-card.active-filter { border-color: var(--green); background: rgba(74,130,196,0.09); box-shadow: 0 0 0 2px rgba(74,130,196,0.15); }
+  .goal-card-icon { font-size: 24px; }
+  .goal-card-label { font-size: 11px; color: var(--text-dim); text-align: center; line-height: 1.4; }
+  .goal-card-badge {
+    position: absolute; top: 6px; right: 8px;
+    background: var(--green); color: #fff;
+    border-radius: 20px; padding: 1px 6px;
+    font-size: 9px; font-weight: 600; min-width: 16px; text-align: center;
   }
-  .goal-node:hover .goal-circle::after { opacity: 1; }
-
-  .goal-label { font-size: 11px; color: var(--text-dim); text-align: center; max-width: 70px; line-height: 1.4; }
+  .goal-card-bar {
+    width: 100%; height: 3px; border-radius: 2px;
+    background: var(--border); overflow: hidden; margin-top: 2px;
+  }
+  .goal-card-bar-fill { height: 100%; background: var(--green); border-radius: 2px; transition: width 0.4s ease; }
 
   /* ── Task Items ── */
   .task-list { display: flex; flex-direction: column; gap: 8px; }
@@ -476,7 +463,6 @@
   .prog-bar-count { font-size: 11px; color: var(--text-dim); min-width: 36px; text-align: right; }
 
   /* ── Tree inner ── */
-  .tree-inner svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 
 
   /* ── Lottery (抽獎區) ── */
@@ -502,10 +488,12 @@
   .lottery-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+    gap: 8px;
+    max-width: 480px;
+    margin: 0 auto;
   }
   .lottery-card {
-    aspect-ratio: 2/3;
+    aspect-ratio: 3/4;
     border-radius: 12px;
     border: 1px solid var(--border);
     background: var(--bg3);
@@ -538,8 +526,8 @@
     40%  { transform: rotateY(90deg) scale(1.04); }
     100% { transform: rotateY(0) scale(1); }
   }
-  .card-reveal-icon { font-size: 22px; }
-  .card-reveal-text { font-size: 11px; color: var(--text); line-height: 1.55; }
+  .card-reveal-icon { font-size: 18px; }
+  .card-reveal-text { font-size: 10px; color: var(--text); line-height: 1.5; }
   .card-reveal-badge {
     font-size: 9px; padding: 2px 8px; border-radius: 10px;
     letter-spacing: 0.06em;
@@ -741,6 +729,16 @@
     margin-right: auto;
   }
   .api-btn-clear:hover { background: rgba(192,86,90,0.06); }
+  /* ── Sync indicator ── */
+  .sync-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--border); border: 1px solid rgba(74,130,196,0.3);
+    transition: all 0.4s; flex-shrink: 0;
+  }
+  .sync-dot.syncing { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 6px rgba(184,146,42,0.5); animation: syncPulse 0.8s ease infinite; }
+  .sync-dot.synced  { background: var(--green); border-color: var(--green); }
+  @keyframes syncPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
   /* header settings icon */
   .header-settings-btn {
     font-size: 14px; cursor: pointer; padding: 4px 10px;
@@ -766,6 +764,7 @@
         <div class="energy-dots" id="energyDots"></div>
         <span class="energy-label" id="energyNum" style="color:var(--green);min-width:20px;font-size:12px">—</span>
       </div>
+      <div id="syncDot" class="sync-dot" title="雲端同步狀態（長按 Logo 設定）"></div>
     </div>
   </header>
 
@@ -801,12 +800,10 @@
       <div class="section-title">生命樹 <span class="sub">每個任務都扎根於你認同的意義</span></div>
       <div class="card">
         <div class="card-title">你的核心目標</div>
-        <div class="tree-container">
-          <div class="tree-inner" id="treeInner">
-            <!-- Rendered by renderTree() -->
-          </div>
+        <div class="tree-grid" id="treeGrid">
+          <!-- Rendered by renderTree() -->
         </div>
-        <div style="text-align:center;font-size:12px;color:var(--text-faint);margin-top:4px">點擊目標節點，篩選相關任務並新增任務時自動帶入分類</div>
+        <div style="text-align:center;font-size:12px;color:var(--text-faint);margin-top:8px">點擊目標卡片，篩選相關任務並新增任務時自動帶入分類</div>
       </div>
     </div>
 
@@ -1230,7 +1227,8 @@ async function saveApiUrl() {
       state.done    = data.done    || 0;
       state.rewards = data.rewards || [];
       state.customQuotes = data.customQuotes || [];
-      renderTasks(); renderSandbox(); renderStats(); renderRewards(); renderTree();
+      state.energy  = data.energy  || 0;
+      renderTasks(); renderSandbox(); renderStats(); renderRewards(); renderTree(); renderEnergyDots();
     }
     setTimeout(closeApiModal, 1200);
   } catch (e) {
@@ -1261,6 +1259,7 @@ async function loadFromCloud() {
       state.done    = data.done    || 0;
       state.rewards = data.rewards || [];
       state.customQuotes = data.customQuotes || [];
+      state.energy  = data.energy  || 0;
       return true;
     }
   } catch (e) {
@@ -1273,6 +1272,8 @@ async function syncToCloud() {
   const url = getApiUrl();
   if (!url || isSyncing) return;
   isSyncing = true;
+  const dot = document.getElementById('syncDot');
+  if (dot) dot.className = 'sync-dot syncing';
   try {
     await fetch(url, {
       method: 'POST',
@@ -1280,11 +1281,13 @@ async function syncToCloud() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'save',
-        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [] }
+        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0 }
       })
     });
+    if (dot) { dot.className = 'sync-dot synced'; setTimeout(() => { if (dot) dot.className = 'sync-dot synced'; }, 2000); }
   } catch (e) {
     console.warn('雲端儲存失敗', e);
+    if (dot) dot.className = 'sync-dot';
   } finally {
     isSyncing = false;
   }
@@ -1331,55 +1334,28 @@ const treeNodes = [
 ];
 
 function renderTree() {
-  const wrap = document.getElementById('treeInner');
-  const W = 560, H = 340;
-
-  // Build SVG lines
-  const lines = [
-    // trunk
-    { x1: 0.5, y1: 0.95, x2: 0.5, y2: 0.60, sw: 3, op: 0.35 },
-    // main branches
-    { x1: 0.5, y1: 0.68, x2: 0.18, y2: 0.40, sw: 2, op: 0.25 },
-    { x1: 0.5, y1: 0.65, x2: 0.82, y2: 0.40, sw: 2, op: 0.25 },
-    { x1: 0.5, y1: 0.60, x2: 0.5, y2: 0.35, sw: 2, op: 0.25 },
-    // sub branches left
-    { x1: 0.18, y1: 0.40, x2: 0.06, y2: 0.22, sw: 1.5, op: 0.18 },
-    { x1: 0.18, y1: 0.40, x2: 0.33, y2: 0.22, sw: 1.5, op: 0.18 },
-    // sub branches right
-    { x1: 0.82, y1: 0.40, x2: 0.60, y2: 0.22, sw: 1.5, op: 0.18 },
-    { x1: 0.82, y1: 0.40, x2: 0.92, y2: 0.22, sw: 1.5, op: 0.18 },
-  ].map(l => `<line x1="${l.x1*100}%" y1="${l.y1*100}%" x2="${l.x2*100}%" y2="${l.y2*100}%" stroke="rgba(120,200,150,${l.op})" stroke-width="${l.sw}" stroke-linecap="round"/>`).join('');
-
-  const rootX = 50, rootY = 92;
-  const svgHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
-    ${lines}
-    <circle cx="${rootX}" cy="${rootY}" r="4" fill="rgba(120,200,150,0.1)" stroke="rgba(120,200,150,0.4)" stroke-width="0.5"/>
-    <text x="${rootX}" y="${rootY+1.5}" text-anchor="middle" dominant-baseline="middle" font-size="4">🌱</text>
-  </svg>`;
-
-  // Build node HTML (absolute positioned)
-  const nodesHTML = treeNodes.map(n => {
+  const grid = document.getElementById('treeGrid');
+  if (!grid) return;
+  const totalDone = state.tasks.filter(t => t.done).length;
+  grid.innerHTML = treeNodes.map(n => {
     const doneCnt = state.tasks.filter(t => t.done && t.goal === n.key).length;
-    const badge = doneCnt > 0 ? `<div style="position:absolute;top:-4px;right:-4px;background:var(--green);color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:600">${doneCnt}</div>` : '';
-    return `<div class="goal-node" style="position:absolute;left:${n.cx*100}%;top:${n.cy*100}%;transform:translate(-50%,-50%);pointer-events:all;z-index:2" onclick="filterByGoal('${n.key}')">
-      <div class="goal-circle" style="width:${n.r*2}px;height:${n.r*2}px;border-color:${n.color};background:${n.bg};${n.glow ? 'box-shadow:0 0 16px rgba(120,200,150,0.2)' : ''};position:relative">${n.icon}${badge}</div>
-      <div class="goal-label" style="font-size:${n.r >= 24 ? 11 : 10}px">${n.label}</div>
+    const totalCnt = state.tasks.filter(t => t.goal === n.key).length;
+    const pct = totalCnt > 0 ? Math.round(doneCnt / totalCnt * 100) : 0;
+    const isActive = state.goalFilter === n.key;
+    return `<div class="goal-card${isActive ? ' active-filter' : ''}" onclick="filterByGoal('${n.key}')">
+      ${doneCnt > 0 ? `<div class="goal-card-badge">${doneCnt}</div>` : ''}
+      <div class="goal-card-icon">${n.icon}</div>
+      <div class="goal-card-label">${n.label}</div>
+      ${totalCnt > 0 ? `<div class="goal-card-bar"><div class="goal-card-bar-fill" style="width:${pct}%"></div></div>` : ''}
     </div>`;
   }).join('');
-
-  wrap.innerHTML = svgHTML + nodesHTML;
 }
 
 // ── Wish Pool (許願池) ──
 const goalIcons = { 成長:'🌟', 創作:'🎨', 關係:'🤝', 技能:'💡', 健康:'🌿', 探索:'🔭', 貢獻:'✨', 任意:'🌈' };
 
-const defaultQuotes = [
-  '好奇心是智識的心跳。', '不是速度，是深度決定你走多遠。',
-  '每次完成都是一個小小的自我實現。', '深度思考是最稀缺的勇氣。',
-  '你今天比昨天多往前了一步。', '沉默是思考的土壤。',
-  '創作不是天賦，是選擇每天坐下來。', '你不需要被看見，你需要看見自己。',
-  '微小的行動，重複之後變成身份。', '關係是時間的另一種說法。',
-];
+const defaultQuotes = [];
+
 
 let wishTab = 'wish'; // 'wish' or 'quote'
 
@@ -1441,19 +1417,19 @@ function renderQuotes() {
   const el = document.getElementById('quoteList');
   if (!el) return;
   const custom = state.customQuotes || [];
-  const allItems = [
-    ...defaultQuotes.map((t, i) => ({ text: t, custom: false, idx: i })),
-    ...custom.map((t, i) => ({ text: t, custom: true, idx: i }))
-  ];
-  el.innerHTML = allItems.map(q => `
-    <div class="sandbox-item${q.custom ? ' custom-quote' : ''}" id="${q.custom ? 'cq-' + q.idx : ''}" style="justify-content:space-between">
-      <span class="sandbox-text" style="font-style:italic;color:${q.custom ? 'var(--text)' : 'var(--text-dim)'}">${q.custom ? '✦ ' : ''}${q.text}</span>
+  if (custom.length === 0) {
+    el.innerHTML = '<div style="color:var(--text-faint);font-size:13px;font-style:italic;padding:8px">還沒有自訂格言。加入幾句讓你有力量的話吧！</div>';
+    // clear and return early, still allow input
+    return;
+  }
+  el.innerHTML = custom.map((t, i) => `
+    <div class="sandbox-item custom-quote" id="cq-${i}" style="justify-content:space-between">
+      <span class="sandbox-text" style="font-style:italic;color:var(--text)">✦ ${t}</span>
       <div style="display:flex;gap:4px;flex-shrink:0;align-items:center">
-        ${q.custom ? `<span style="font-size:12px;cursor:pointer;color:var(--text-faint);padding:2px 4px;border-radius:5px;transition:all 0.2s" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text-faint)'" onclick="openEditCustomQuote(${q.idx})">✏️</span>` : '<span style="font-size:10px;color:var(--text-faint);padding:0 4px">內建</span>'}
-        ${q.custom ? `<span class="sandbox-del" onclick="removeCustomQuote(${q.idx})">×</span>` : ''}
+        <span style="font-size:12px;cursor:pointer;color:var(--text-faint);padding:2px 4px;border-radius:5px;transition:all 0.2s" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text-faint)'" onclick="openEditCustomQuote(${i})">✏️</span>
+        <span class="sandbox-del" onclick="removeCustomQuote(${i})">×</span>
       </div>
     </div>`).join('');
-  // Long-press on custom quotes
   custom.forEach((_, i) => {
     const el2 = document.getElementById('cq-' + i);
     if (el2) attachLongPress(el2, () => openEditCustomQuote(i));
@@ -1602,10 +1578,12 @@ async function init() {
   if (getApiUrl()) {
     const btn = document.getElementById('settingsBtn');
     if (btn) { btn.classList.add('connected'); btn.textContent = '☁ Connected'; }
+    const dot = document.getElementById('syncDot');
+    if (dot) dot.className = 'sync-dot syncing';
     showToast('☁️ 同步雲端資料中…');
     const ok = await loadFromCloud();
-    if (ok) showToast('🌿 雲端同步完成');
-    else showToast('⚠ 雲端讀取失敗，使用本機資料');
+    if (ok) { showToast('🌿 雲端同步完成'); if (dot) dot.className = 'sync-dot synced'; }
+    else { showToast('⚠ 雲端讀取失敗，使用本機資料'); if (dot) dot.className = 'sync-dot'; }
   }
 
   // Logo: click = help, longpress = cloud settings
@@ -1658,6 +1636,7 @@ function renderEnergyDots() {
 function setEnergy(n) {
   state.energy = n;
   renderEnergyDots();
+  syncToCloud();
 }
 
 // ── Pages ──
@@ -1703,6 +1682,7 @@ function filterByGoal(goal) {
   });
   // Now render once with correct state
   renderTasks();
+  renderTree();
   // Pre-set the goal in add modal for convenience
   state.pendingGoalForAdd = goal;
 }
@@ -1724,6 +1704,7 @@ function clearGoalFilter() {
   const clearBtn = document.getElementById('clear-filter-btn');
   if (clearBtn) clearBtn.style.display = 'none';
   renderTasks();
+  renderTree();
 }
 
 // ── Tasks ──
@@ -1969,39 +1950,58 @@ function onTaskUncompleted() {
 }
 
 function buildCardPool() {
-  const pool = [];
-  // Unlocked wishes get 3x weight (appear 3 times in pool)
+  // Gather unlocked wishes
+  const unlockedWishes = [];
   if (state.rewards) {
     state.rewards.forEach(r => {
       if (!r.claimed && getGoalCount(r.goal) >= r.count) {
-        for (let w = 0; w < 3; w++) {
-          pool.push({ text: r.name, icon: '🌊', isWish: true, wishId: r.id });
-        }
+        unlockedWishes.push({ text: r.name, icon: '🌊', isWish: true, wishId: r.id });
       }
     });
   }
-  // Custom quotes get 2x weight
+
+  // Gather quotes (custom first, then built-in)
+  const allQuotes = [];
   if (state.customQuotes) {
-    state.customQuotes.forEach(q => {
-      for (let w = 0; w < 2; w++) {
-        pool.push({ text: q, icon: '✦', isWish: false });
-      }
-    });
+    state.customQuotes.forEach(q => allQuotes.push({ text: q, icon: '✦', isWish: false }));
   }
-  // Built-in quotes fill the rest (1x weight each)
-  const shuffled = [...quotes].sort(() => Math.random() - 0.5);
-  shuffled.forEach(q => pool.push({ text: q.text, icon: q.icon, isWish: false }));
-  return pool;
+  quotes.forEach(q => allQuotes.push({ text: q.text, icon: q.icon, isWish: false }));
+
+  // Shuffle helpers
+  const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
+
+  const TOTAL = 9;
+
+  if (unlockedWishes.length === 0) {
+    // No wishes → all 9 are quotes
+    const pool = shuffle(allQuotes);
+    return Array.from({ length: TOTAL }, (_, i) => pool[i % pool.length]);
+  }
+
+  // Pick exactly 2 wish slots (positions), fill rest with quotes
+  const wishCards = shuffle(unlockedWishes).slice(0, Math.min(2, unlockedWishes.length));
+  // If only 1 unlocked wish, duplicate it for the 2nd slot
+  while (wishCards.length < 2) wishCards.push({ ...wishCards[0] });
+
+  const quoteCards = shuffle(allQuotes);
+  const WISH_COUNT = 2;
+  const QUOTE_COUNT = TOTAL - WISH_COUNT;
+
+  // Build the 9-card deck: 2 wish + 7 quote, then shuffle positions
+  const deck = [];
+  for (let i = 0; i < WISH_COUNT; i++) deck.push(wishCards[i]);
+  for (let i = 0; i < QUOTE_COUNT; i++) deck.push(quoteCards[i % quoteCards.length]);
+  return shuffle(deck);
 }
 
 function drawLottery() {
   if (lotteryState.tickets <= 0) return;
   lotteryState.tickets--;
-  const pool = buildCardPool();
-  lotteryState.cards = Array.from({length: 9}, (_, i) => {
-    const item = pool[i % pool.length];
-    return { revealed: false, text: item.text, icon: item.icon, isWish: item.isWish || false, wishId: item.wishId || null };
-  }).sort(() => Math.random() - 0.5);
+  const deck = buildCardPool();
+  lotteryState.cards = deck.map(item => ({
+    revealed: false, text: item.text, icon: item.icon,
+    isWish: item.isWish || false, wishId: item.wishId || null
+  }));
   saveLottery();
   renderLottery();
   showToast('✦ 牌已洗好，點擊翻牌！');
