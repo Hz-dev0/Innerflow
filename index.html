@@ -6,24 +6,51 @@
 <title>內流 InnerFlow — 為內驅力而生的任務工具</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600&family=DM+Serif+Display:ital@0;1&family=Lato:wght@300;400&display=swap" rel="stylesheet">
 <style>
+  /* ── 方案 B（日間 / 清晨冰川）：早上 6 點 – 晚上 6 點 ── */
   :root {
-    --bg: #f4f7fb;
+    --bg: #F0F4F8;
     --bg2: #ffffff;
-    --bg3: #eef2f8;
+    --bg3: #E2EAF4;
     --border: rgba(90,140,200,0.18);
-    --green: #4a82c4;
-    --green-dim: rgba(74,130,196,0.25);
-    --gold: #b8922a;
-    --gold-dim: rgba(184,146,42,0.18);
+    --green: #3A6EA5;
+    --green-dim: rgba(58,110,165,0.25);
+    --gold: #829AB1;
+    --gold-dim: rgba(130,154,177,0.22);
     --rose: #c0565a;
-    --sky: #6aaee0;
+    --sky: #829AB1;
     --text: #1e2d45;
     --text-dim: rgba(30,45,69,0.55);
     --text-faint: rgba(30,45,69,0.28);
-    --glow: 0 0 20px rgba(74,130,196,0.12);
+    --glow: 0 0 20px rgba(58,110,165,0.12);
+    --theme-indicator: '☀ 清晨冰川';
+    --modal-overlay-bg: rgba(224,234,244,0.78);
+    --header-bg: rgba(240,244,248,0.88);
+    --aside-bg: rgba(255,255,255,0.65);
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* ── 方案 A（夜間 / 深邃海洋）：晚上 6 點 – 早上 6 點 ── */
+  :root.night-mode {
+    --bg: #102A43;
+    --bg2: #1A3A55;
+    --bg3: #0D2035;
+    --border: rgba(100,160,220,0.16);
+    --green: #7BB8D4;
+    --green-dim: rgba(123,184,212,0.25);
+    --gold: #A8C4D8;
+    --gold-dim: rgba(168,196,216,0.18);
+    --rose: #e07b7e;
+    --sky: #7BB8D4;
+    --text: #C8DCE8;
+    --text-dim: rgba(200,220,232,0.6);
+    --text-faint: rgba(200,220,232,0.3);
+    --glow: 0 0 28px rgba(123,184,212,0.18);
+    --theme-indicator: '🌊 深邃海洋';
+    --modal-overlay-bg: rgba(10,24,38,0.82);
+    --header-bg: rgba(16,42,67,0.92);
+    --aside-bg: rgba(22,50,78,0.7);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease; }
 
   body {
     background: var(--bg);
@@ -42,9 +69,10 @@
     left: -10%;
     width: 60%;
     height: 60%;
-    background: radial-gradient(ellipse, rgba(74,130,196,0.07) 0%, transparent 70%);
+    background: radial-gradient(ellipse, rgba(58,110,165,0.07) 0%, transparent 70%);
     pointer-events: none;
     z-index: 0;
+    transition: background 0.5s ease;
   }
   body::after {
     content: '';
@@ -53,9 +81,16 @@
     right: -10%;
     width: 50%;
     height: 50%;
-    background: radial-gradient(ellipse, rgba(184,146,42,0.06) 0%, transparent 70%);
+    background: radial-gradient(ellipse, rgba(130,154,177,0.07) 0%, transparent 70%);
     pointer-events: none;
     z-index: 0;
+    transition: background 0.5s ease;
+  }
+  .night-mode body::before {
+    background: radial-gradient(ellipse, rgba(123,184,212,0.08) 0%, transparent 70%);
+  }
+  .night-mode body::after {
+    background: radial-gradient(ellipse, rgba(100,160,220,0.06) 0%, transparent 70%);
   }
 
   .app {
@@ -75,7 +110,7 @@
     padding: 0 20px;
     border-bottom: 1px solid var(--border);
     gap: 12px;
-    background: rgba(255,255,255,0.85);
+    background: var(--header-bg);
     backdrop-filter: blur(8px);
   }
   .logo {
@@ -91,7 +126,6 @@
     display: flex; align-items: baseline; gap: 6px;
   }
   .logo:hover { background: rgba(74,130,196,0.07); }
-  .logo-hint { color: var(--text-faint); font-size: 9px; font-family: 'Lato',sans-serif; font-weight: 300; letter-spacing: 0; white-space: nowrap; }
   .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
   .energy-bar-wrap { display: flex; align-items: center; gap: 5px; }
   .energy-label { font-size: 11px; color: var(--text-dim); }
@@ -114,7 +148,7 @@
     flex-direction: column;
     gap: 4px;
     overflow-y: auto;
-    background: rgba(255,255,255,0.6);
+    background: var(--aside-bg);
   }
   .sidebar-section { padding: 6px 16px 2px; font-size: 10px; letter-spacing: 0.12em; color: var(--text-faint); text-transform: uppercase; }
   .nav-item {
@@ -272,7 +306,7 @@
   /* ── Modal ── */
   .modal-overlay {
     position: fixed; inset: 0;
-    background: rgba(244,247,251,0.75);
+    background: var(--modal-overlay-bg);
     backdrop-filter: blur(6px);
     z-index: 100;
     display: none; align-items: center; justify-content: center;
@@ -756,7 +790,6 @@
   <header>
     <div class="logo" id="logoBtn">
       InnerFlow
-      <span class="logo-hint">click · help &nbsp;·&nbsp; hold · cloud</span>
     </div>
     <div class="header-right">
       <div class="energy-bar-wrap">
@@ -765,6 +798,13 @@
         <span class="energy-label" id="energyNum" style="color:var(--green);min-width:20px;font-size:12px">—</span>
       </div>
       <div id="syncDot" class="sync-dot" title="雲端同步狀態（長按 Logo 設定）"></div>
+      <button id="themeToggleBtn" onclick="toggleThemeManual()" title="切換日間/夜間模式" style="
+        font-size:13px; cursor:pointer; padding:4px 10px;
+        border:1px solid var(--border); border-radius:20px;
+        color:var(--text-dim); background:transparent;
+        font-family:inherit; white-space:nowrap;
+        transition:all 0.3s ease;
+      ">☀ 日間</button>
     </div>
   </header>
 
@@ -931,6 +971,10 @@
       </div>
     </div>
     <div class="modal-actions">
+      <div style="display:flex;align-items:center;gap:8px;margin-right:auto">
+        <input type="checkbox" id="newTaskRecurring" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer">
+        <label for="newTaskRecurring" style="font-size:12px;color:var(--text-dim);cursor:pointer;text-transform:none;letter-spacing:0;margin-bottom:0">🔁 重複任務（每天自動重置）</label>
+      </div>
       <button class="btn-cancel" onclick="closeModal('addModal')">取消</button>
       <button class="btn-confirm" onclick="addTask()">種下這顆種子 🌱</button>
     </div>
@@ -1073,7 +1117,8 @@
 
 <!-- API Setup Modal -->
 <div class="api-modal-overlay" id="apiModal">
-  <div class="api-modal-box">
+  <div class="api-modal-box" style="position:relative">
+    <button id="apiModalCloseBtn" onclick="closeApiModal()" style="display:none;position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;color:var(--text-faint);cursor:pointer;line-height:1;padding:2px 6px;border-radius:6px;transition:all 0.2s" onmouseover="this.style.color='var(--text)';this.style.background='var(--bg3)'" onmouseout="this.style.color='var(--text-faint)';this.style.background='none'">×</button>
     <div class="api-modal-title">☁️ 雲端連線設定</div>
     <div class="api-modal-desc">
       貼上你的 <code>Google Apps Script</code> 部署網址。<br>
@@ -1082,10 +1127,17 @@
     <input class="api-modal-input" id="apiUrlInput"
       placeholder="https://script.google.com/macros/s/.../exec" />
     <div class="api-status" id="apiStatus"></div>
-    <div class="api-modal-actions">
+    <div style="margin-top:4px;margin-bottom:4px">
+      <div style="font-size:11px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px">每日重置時間 <span style="font-size:10px;color:var(--text-faint);text-transform:none;letter-spacing:0">（以你的設備時區為準）</span></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="time" id="resetTimeInput" value="04:00" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:14px;font-weight:300;padding:8px 12px;outline:none;transition:border-color 0.2s;width:140px" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
+        <span style="font-size:12px;color:var(--text-faint)">重複任務將在此時間自動重置</span>
+      </div>
+    </div>
+    <div class="api-modal-actions" style="margin-top:12px">
       <button class="api-btn-clear" id="apiClearBtn" onclick="clearApiUrl()" style="display:none">✕ 清除連線</button>
       <button class="api-btn-skip" onclick="closeApiModal()">暫時略過</button>
-      <button class="api-btn-save" onclick="saveApiUrl()">儲存並連線 →</button>
+      <button class="api-btn-save" onclick="saveApiSettings()">儲存設定 →</button>
     </div>
   </div>
 </div>
@@ -1190,8 +1242,13 @@ function openApiModal() {
   const existing = getApiUrl();
   const input = document.getElementById('apiUrlInput');
   const clearBtn = document.getElementById('apiClearBtn');
+  const closeBtn = document.getElementById('apiModalCloseBtn');
   input.value = existing;
   clearBtn.style.display = existing ? 'block' : 'none';
+  closeBtn.style.display = existing ? 'block' : 'none';
+  // Load saved reset time
+  const savedTime = localStorage.getItem('innerflow_reset_time') || '04:00';
+  document.getElementById('resetTimeInput').value = savedTime;
   setApiStatus('');
   document.getElementById('apiModal').classList.add('open');
 }
@@ -1236,10 +1293,26 @@ async function saveApiUrl() {
   }
 }
 
+async function saveApiSettings() {
+  // Save reset time first (always)
+  const resetTime = document.getElementById('resetTimeInput').value || '04:00';
+  localStorage.setItem('innerflow_reset_time', resetTime);
+  scheduleNextReset();
+
+  const url = document.getElementById('apiUrlInput').value.trim();
+  if (!url) {
+    showToast('⏰ 重置時間已儲存：' + resetTime);
+    setTimeout(closeApiModal, 800);
+    return;
+  }
+  await saveApiUrl();
+}
+
 function clearApiUrl() {
   localStorage.removeItem(API_STORAGE_KEY);
   document.getElementById('apiUrlInput').value = '';
   document.getElementById('apiClearBtn').style.display = 'none';
+  document.getElementById('apiModalCloseBtn').style.display = 'none';
   const sb2 = document.getElementById('settingsBtn');
   if (sb2) { sb2.classList.remove('connected'); sb2.textContent = '⚙ Cloud'; }
   setApiStatus('ok', '已清除，目前為本機模式');
@@ -1573,6 +1646,76 @@ function checkRewardUnlocks() {
   });
 }
 
+// ── Daily Reset for Recurring Tasks ──
+const RESET_TIME_KEY = 'innerflow_reset_time';
+const LAST_RESET_KEY = 'innerflow_last_reset';
+
+function getResetTime() {
+  return localStorage.getItem(RESET_TIME_KEY) || '04:00';
+}
+
+function getNextResetMs() {
+  const [hStr, mStr] = getResetTime().split(':');
+  const h = parseInt(hStr), m = parseInt(mStr);
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(h, m, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  return next.getTime() - now.getTime();
+}
+
+function runDailyReset() {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const lastReset = localStorage.getItem(LAST_RESET_KEY);
+  if (lastReset === todayKey) { scheduleNextReset(); return; }
+  localStorage.setItem(LAST_RESET_KEY, todayKey);
+
+  let resetCount = 0;
+  state.tasks.forEach(t => {
+    if (!t.recurring) return;
+    if (t.done) {
+      // Task was completed — reset it back to undone for new day, but keep a done record
+      // Decrement done counter carefully
+      if (state.done > 0) state.done--;
+      t.done = false;
+      t.postponed = 0;
+      resetCount++;
+    }
+    // If task was not done — it just stays (no duplicate)
+  });
+
+  if (resetCount > 0) {
+    renderTasks(); renderStats(); renderTree(); renderRewards();
+    showToast(`🔁 ${resetCount} 個重複任務已重置，新的一天開始！`);
+    syncToCloud();
+  }
+  scheduleNextReset();
+}
+
+let _resetTimer = null;
+function scheduleNextReset() {
+  if (_resetTimer) clearTimeout(_resetTimer);
+  const msUntil = getNextResetMs();
+  _resetTimer = setTimeout(() => { runDailyReset(); }, msUntil);
+}
+
+// Check on startup if a reset was missed (e.g. user left tab open overnight)
+function checkMissedReset() {
+  const [hStr, mStr] = getResetTime().split(':');
+  const h = parseInt(hStr), m = parseInt(mStr);
+  const now = new Date();
+  const todayReset = new Date(now);
+  todayReset.setHours(h, m, 0, 0);
+  const todayKey = now.toISOString().slice(0, 10);
+  const lastReset = localStorage.getItem(LAST_RESET_KEY);
+  // If reset time for today has already passed and we haven't reset today
+  if (now > todayReset && lastReset !== todayKey) {
+    runDailyReset();
+  } else {
+    scheduleNextReset();
+  }
+}
+
 // ── Init ──
 async function init() {
   if (getApiUrl()) {
@@ -1607,6 +1750,7 @@ async function init() {
   renderStats();
   renderRewards();
   initLottery();
+  checkMissedReset();
   if (!localStorage.getItem('innerflow_onboarded')) {
     document.getElementById('onboardModal').classList.add('open');
     localStorage.setItem('innerflow_onboarded', 'true');
@@ -1761,6 +1905,7 @@ function taskHTML(t) {
         <span class="tag tag-energy">${eIcon} ${eLabel}</span>
         <span class="tag tag-goal">${t.goal}</span>
         ${t.postponed >= 3 ? '<span class="tag" style="border-color:rgba(200,120,120,0.4);color:var(--rose);background:rgba(200,120,120,0.06)">⚠ 已多次延期</span>' : ''}
+        ${t.recurring ? '<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 重複</span>' : ''}
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
@@ -1837,9 +1982,11 @@ function addTask() {
   const meaning = document.getElementById('newTaskMeaning').value.trim();
   const goal = document.getElementById('newTaskGoal').value;
   const energy = document.getElementById('newTaskEnergy').value;
-  state.tasks.push({ id: Date.now(), name, meaning, goal, energy, done: false, postponed: 0 });
+  const recurring = document.getElementById('newTaskRecurring').checked;
+  state.tasks.push({ id: Date.now(), name, meaning, goal, energy, done: false, postponed: 0, recurring: recurring || false });
   document.getElementById('newTaskName').value = '';
   document.getElementById('newTaskMeaning').value = '';
+  document.getElementById('newTaskRecurring').checked = false;
   closeModal('addModal');
   showPage('tasks');
   renderTasks();
@@ -2097,10 +2244,11 @@ function renderStats() {
         ${t.meaning ? `<div class="task-meaning">${t.meaning}</div>` : ''}
         <div class="task-meta">
           <span class="tag tag-goal">${t.goal}</span>
+          ${t.recurring ? '<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 重複</span>' : ''}
         </div>
       </div>
       <div style="display:flex;align-items:center;flex-shrink:0">
-        <div onclick="deleteTaskFromStats(${t.id})" title="刪除任務" style="font-size:16px;cursor:pointer;color:var(--text-faint);padding:4px 6px;border-radius:6px;transition:all 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'">🗑</div>
+        ${t.recurring ? '<span title="重複任務不可刪除" style="font-size:12px;color:var(--text-faint);padding:4px 6px;opacity:0.4" >🔒</span>' : `<div onclick="deleteTaskFromStats(${t.id})" title="刪除任務" style="font-size:16px;cursor:pointer;color:var(--text-faint);padding:4px 6px;border-radius:6px;transition:all 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'">🗑</div>`}
       </div>
     </div>
   `).join('');
@@ -2166,6 +2314,8 @@ function ctxAction(action) {
     syncToCloud();
   }
   if (action === 'delete') {
+    const isRecurringDone = t.done && t.recurring;
+    if (isRecurringDone) { showToast('🔒 重複任務完成後不可刪除'); return; }
     if (t.done && state.done > 0) state.done--;
     state.tasks = state.tasks.filter(x => x.id !== ctxTargetId);
     renderTasks(); renderStats(); renderTree(); checkAchievements(); renderRewards();
@@ -2220,6 +2370,68 @@ function showToast(msg) {
 document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
 });
+
+// ── 五行主題：補水補金 Dark/Light Mode ──
+// 方案 A（夜間 / 深邃海洋）：18:00 – 06:00
+// 方案 B（日間 / 清晨冰川）：06:00 – 18:00
+
+let themeManualOverride = null; // null = auto, 'day' | 'night' = manual
+
+function isNightTime() {
+  const h = new Date().getHours();
+  return h >= 18 || h < 6;
+}
+
+function applyTheme(isNight) {
+  const root = document.documentElement;
+  const btn = document.getElementById('themeToggleBtn');
+  if (isNight) {
+    root.classList.add('night-mode');
+    if (btn) {
+      btn.textContent = '🌊 夜間';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'var(--green)';
+    }
+  } else {
+    root.classList.remove('night-mode');
+    if (btn) {
+      btn.textContent = '☀ 日間';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'var(--green)';
+    }
+  }
+}
+
+function syncTheme() {
+  if (themeManualOverride !== null) {
+    applyTheme(themeManualOverride === 'night');
+  } else {
+    applyTheme(isNightTime());
+  }
+}
+
+function toggleThemeManual() {
+  const isNight = document.documentElement.classList.contains('night-mode');
+  // Toggle and lock manual override
+  themeManualOverride = isNight ? 'day' : 'night';
+  syncTheme();
+  const modeName = themeManualOverride === 'night' ? '深邃海洋 🌊' : '清晨冰川 ☀';
+  showToast(`✦ 已切換為${modeName}`);
+  // Release manual override after 60s so auto mode resumes
+  clearTimeout(window._themeOverrideTimer);
+  window._themeOverrideTimer = setTimeout(() => {
+    themeManualOverride = null;
+    syncTheme();
+  }, 60000);
+}
+
+// Initial apply
+syncTheme();
+
+// Check every minute if time crosses the 06:00 / 18:00 boundary
+setInterval(() => {
+  if (themeManualOverride === null) syncTheme();
+}, 60000);
 
 init();
 </script>
