@@ -1,0 +1,15 @@
+{
+  "name": "INNER FLOW",
+  "short_name": "INNER FLOW",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#F0F4F8",
+  "theme_color": "#102A43",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
