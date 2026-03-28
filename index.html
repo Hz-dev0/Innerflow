@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>內流 InnerFlow — 為內驅力而生的任務工具</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600&family=DM+Serif+Display:ital@0;1&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="InnerFlow">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="theme-color" content="#3A6EA5">
 <style>
   /* ── 方案 B（日間 / 清晨冰川）：早上 6 點 – 晚上 6 點 ── */
   :root {
@@ -2491,6 +2498,15 @@ function scheduleBoundaryRelease() {
     themeManualOverride = null;
     syncTheme();
   }, msUntil);
+}
+
+// ── PWA Service Worker ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/Innerflow/sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.warn('SW registration failed:', err));
+  });
 }
 
 // Initial apply
