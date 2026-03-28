@@ -1,23 +1,29 @@
 const CACHE_NAME = 'innerflow-v1';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon.png'
+  '/Innerflow/',
+  '/Innerflow/index.html',
+  '/Innerflow/manifest.json',
+  '/Innerflow/icon.png'
 ];
 
-// 安裝時快取檔案
-self.addEventListener('install', (e) => {
+self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
+  self.skipWaiting();
 });
 
-// 攔截請求（PWA 必備邏輯）
-self.addEventListener('fetch', (e) => {
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', e => {
   e.respondWith(
-    caches.match(e.request).then((response) => {
-      return response || fetch(e.request);
-    })
+    caches.match(e.request).then(cached => cached || fetch(e.request))
   );
 });
