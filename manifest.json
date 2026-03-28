@@ -1,15 +1,25 @@
 {
-  "name": "INNER FLOW",
-  "short_name": "INNER FLOW",
-  "start_url": "index.html",
+  "name": "內流 InnerFlow",
+  "short_name": "InnerFlow",
+  "description": "為內驅力而生的任務工具",
+  "start_url": "/Innerflow/",
+  "scope": "/Innerflow/",
   "display": "standalone",
   "background_color": "#F0F4F8",
-  "theme_color": "#102A43",
+  "theme_color": "#3A6EA5",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
