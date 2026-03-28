@@ -377,7 +377,7 @@
   .ach-desc { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
 
   /* ── Stats ── */
-  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .stat-card {
     background: var(--bg3); border: 1px solid var(--border);
     border-radius: 10px; padding: 16px;
@@ -918,6 +918,61 @@
   .mood-btn.active-low  { border-color: var(--rose);  color: var(--rose);  background: rgba(192,86,90,0.09); }
   .mood-btn.active-mid  { border-color: var(--gold);  color: var(--gold);  background: rgba(130,154,177,0.12); }
   .mood-btn.active-high { border-color: var(--green); color: var(--green); background: rgba(74,130,196,0.09); }
+
+  /* ── Done Calendar ── */
+  .cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .cal-nav-btn {
+    background: transparent; border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 4px 12px;
+    font-family: inherit; transition: all 0.2s;
+  }
+  .cal-nav-btn:hover { border-color: var(--green); color: var(--green); }
+  .cal-month-label { font-family: 'DM Serif Display', serif; font-size: 16px; color: var(--text); }
+  .cal-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+  }
+  .cal-dow {
+    text-align: center; font-size: 11px; color: var(--text-faint);
+    padding: 4px 0; letter-spacing: 0.06em;
+  }
+  .cal-day {
+    aspect-ratio: 1; border-radius: 8px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; font-size: 13px;
+    border: 1px solid transparent; cursor: default; position: relative;
+    transition: all 0.18s; user-select: none;
+  }
+  .cal-day.empty { opacity: 0; pointer-events: none; }
+  .cal-day.has-done {
+    background: var(--green-dim); border-color: rgba(74,130,196,0.35);
+    color: var(--green); cursor: pointer; font-weight: 500;
+  }
+  .cal-day.has-done:hover { background: rgba(74,130,196,0.22); border-color: var(--green); transform: scale(1.06); }
+  .cal-day.today { border-color: var(--green) !important; }
+  .cal-done-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--green); margin-top: 2px;
+  }
+  /* Bubble popup */
+  .cal-popup {
+    position: fixed; z-index: 500;
+    background: var(--bg2); border: 1px solid rgba(74,130,196,0.3);
+    border-radius: 12px; padding: 14px 16px;
+    box-shadow: 0 8px 32px rgba(74,130,196,0.18);
+    min-width: 220px; max-width: 300px;
+    animation: modalIn 0.2s ease;
+    pointer-events: auto;
+  }
+  .cal-popup-title { font-size: 12px; color: var(--text-dim); letter-spacing: 0.08em; margin-bottom: 10px; text-transform: uppercase; }
+  .cal-popup-item {
+    padding: 7px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px; color: var(--text); display: flex; gap: 8px; align-items: flex-start;
+  }
+  .cal-popup-item:last-child { border-bottom: none; }
+  .cal-popup-close {
+    float: right; cursor: pointer; color: var(--text-faint); font-size: 16px;
+    line-height: 1; padding: 0 2px; transition: color 0.15s;
+  }
+  .cal-popup-close:hover { color: var(--rose); }
 
   /* header settings icon */
   .header-settings-btn {
@@ -2197,6 +2252,7 @@ function toggleTask(id) {
   t.done = !t.done;
   if (!wasDone) {
     state.done++;
+    t.completedAt = new Date().toISOString().slice(0, 10); // track completion date
     showCelebration(t);
     checkRewardUnlocks();
     renderRewards();
@@ -2498,30 +2554,14 @@ function renderStats() {
   const statsGrid = document.getElementById('statsGrid');
   statsGrid.innerHTML = `
     <div class="stat-card"><div class="stat-value">${doneTasks.length}</div><div class="stat-label">已完成任務</div></div>
-    <div class="stat-card"><div class="stat-value">${state.tasks.filter(t => !t.done).length}</div><div class="stat-label">進行中</div></div>
     <div class="stat-card"><div class="stat-value">${state.sandbox.length}</div><div class="stat-label">探索中的好奇</div></div>
   `;
   const doneList = document.getElementById('doneList');
   if (doneTasks.length === 0) {
-    doneList.innerHTML = '<div style="color:var(--text-faint);font-size:13px;padding:8px;font-style:italic">完成任務後，它們會留在這裡。</div>';
+    doneList.innerHTML = '<div style="color:var(--text-faint);font-size:13px;padding:8px;font-style:italic">完成任務後，它們會出現在月曆上。</div>';
     return;
   }
-  doneList.innerHTML = doneTasks.map(t => `
-    <div class="task-item done" style="opacity:0.8">
-      <div class="task-check checked" onclick="undoneTask(${t.id})" title="點擊恢復為未完成" style="cursor:pointer;transition:all 0.2s" onmouseover="this.style.background='var(--gold)';this.style.borderColor='var(--gold)'" onmouseout="this.style.background='var(--green)';this.style.borderColor='var(--green)'">✓</div>
-      <div class="task-body">
-        <div class="task-name">${t.name}</div>
-        ${t.meaning ? `<div class="task-meaning">${t.meaning}</div>` : ''}
-        <div class="task-meta">
-          <span class="tag tag-goal">${t.goal}</span>
-          ${t.recurring ? '<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 重複</span>' : ''}
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;flex-shrink:0">
-        ${t.recurring ? '<span title="重複任務不可刪除" style="font-size:12px;color:var(--text-faint);padding:4px 6px;opacity:0.4" >🔒</span>' : `<div onclick="deleteTaskFromStats(${t.id})" title="刪除任務" style="font-size:16px;cursor:pointer;color:var(--text-faint);padding:4px 6px;border-radius:6px;transition:all 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'">🗑</div>`}
-      </div>
-    </div>
-  `).join('');
+  renderDoneCalendar(doneTasks, doneList);
 }
 
 function undoneTask(id) {
@@ -2578,7 +2618,7 @@ function ctxAction(action) {
   if (action === 'toggle') {
     const wasDone = t.done;
     t.done = !t.done;
-    if (!wasDone) { state.done++; showCelebration(t); checkRewardUnlocks(); renderRewards(); onTaskCompleted(); }
+    if (!wasDone) { t.completedAt = new Date().toISOString().slice(0, 10); state.done++; showCelebration(t); checkRewardUnlocks(); renderRewards(); onTaskCompleted(); }
     else { if (state.done > 0) state.done--; renderRewards(); onTaskUncompleted(); }
     renderTasks(); renderStats(); renderTree();
     syncToCloud();
@@ -2636,8 +2676,9 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 3200);
 }
 
-// Close modal on overlay click
+// Close modal on overlay click (except editModal — only cancel button closes it)
 document.querySelectorAll('.modal-overlay').forEach(o => {
+  if (o.id === 'editModal') return;
   o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
 });
 
@@ -2719,7 +2760,114 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Initial apply
+// ── Done Calendar ──
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth(); // 0-indexed
+let calPopupEl = null;
+
+function renderDoneCalendar(doneTasks, container) {
+  // Build date → tasks map
+  const byDate = {};
+  doneTasks.forEach(t => {
+    const d = t.completedAt || null;
+    if (!d) return;
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(t);
+  });
+
+  const today = new Date().toISOString().slice(0, 10);
+  const firstDay = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const monthNames = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+  const dowNames = ['日','一','二','三','四','五','六'];
+
+  let html = `
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="calPrevMonth()">‹</button>
+      <span class="cal-month-label">${calYear} 年 ${monthNames[calMonth]}</span>
+      <button class="cal-nav-btn" onclick="calNextMonth()">›</button>
+    </div>
+    <div class="cal-grid">
+      ${dowNames.map(d => `<div class="cal-dow">${d}</div>`).join('')}
+  `;
+
+  // Empty cells before month start
+  for (let i = 0; i < firstDay; i++) {
+    html += `<div class="cal-day empty"></div>`;
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const tasks = byDate[dateStr] || [];
+    const hasDone = tasks.length > 0;
+    const isToday = dateStr === today;
+    html += `<div class="cal-day${hasDone ? ' has-done' : ''}${isToday ? ' today' : ''}"
+      ${hasDone ? `onclick="showCalPopup(event,'${dateStr}')"` : ''}
+      title="${hasDone ? tasks.length + ' 件完成' : ''}"
+    >
+      ${day}
+      ${hasDone ? `<div class="cal-done-dot"></div>` : ''}
+    </div>`;
+  }
+
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function calPrevMonth() {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderStats();
+}
+
+function calNextMonth() {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderStats();
+}
+
+function showCalPopup(e, dateStr) {
+  e.stopPropagation();
+  closeCalPopup();
+
+  const doneTasks = state.tasks.filter(t => t.done && t.completedAt === dateStr);
+  const [y, m, d] = dateStr.split('-');
+  const label = `${parseInt(m)} 月 ${parseInt(d)} 日`;
+
+  const popup = document.createElement('div');
+  popup.className = 'cal-popup';
+  popup.id = 'calPopup';
+  popup.innerHTML = `
+    <div class="cal-popup-title">${label} 完成的任務 <span class="cal-popup-close" onclick="closeCalPopup()">×</span></div>
+    ${doneTasks.map(t => `
+      <div class="cal-popup-item">
+        <span style="color:var(--green);flex-shrink:0">✓</span>
+        <span>${t.name}${t.goal ? ` <span style="font-size:10px;color:var(--text-faint)">${t.goal}</span>` : ''}</span>
+      </div>`).join('')}
+  `;
+  document.body.appendChild(popup);
+  calPopupEl = popup;
+
+  // Position near click
+  const rect = e.target.getBoundingClientRect();
+  let left = rect.left + rect.width / 2 - 110;
+  let top = rect.bottom + 8;
+  if (left < 8) left = 8;
+  if (left + 310 > window.innerWidth) left = window.innerWidth - 318;
+  if (top + 200 > window.innerHeight) top = rect.top - 8 - popup.offsetHeight;
+  popup.style.left = left + 'px';
+  popup.style.top = top + 'px';
+}
+
+function closeCalPopup() {
+  if (calPopupEl) { calPopupEl.remove(); calPopupEl = null; }
+}
+
+document.addEventListener('click', (e) => {
+  if (calPopupEl && !calPopupEl.contains(e.target)) closeCalPopup();
+});
+
+// ── Initial apply
 syncTheme();
 
 // Check every minute if time crosses the 06:00 / 18:00 boundary
