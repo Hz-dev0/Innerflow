@@ -66,6 +66,8 @@
     font-weight: 400;
     min-height: 100vh;
     overflow-x: hidden;
+    max-width: 100%;
+    width: 100%;
   }
 
   /* Ambient background */
@@ -690,22 +692,33 @@
   /* ── Responsive ── */
   @media (max-width: 680px) {
     /* APP layout: header fixed top, main fills middle, bottom nav fixed bottom */
-    body { overflow: hidden; height: 100dvh; }
+    body {
+      overflow: hidden;
+      height: 100dvh;
+      max-width: 100vw;
+      width: 100%;
+    }
 
     .app {
       grid-template-columns: 1fr;
       grid-template-rows: 52px 1fr;
       height: 100dvh;
       overflow: hidden;
+      max-width: 100vw;
+      width: 100%;
     }
     aside { display: none; }
     header {
       padding: 0 16px;
-      position: sticky;
+      position: fixed;
       top: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
       z-index: 40;
       grid-column: 1;
       grid-row: 1;
+      overflow: hidden;
     }
     .logo span { display: none; }
     .energy-label:first-child { display: none; }
@@ -719,6 +732,8 @@
       -webkit-overflow-scrolling: touch;
       padding: 16px 16px calc(env(safe-area-inset-bottom) + 72px) 16px;
       height: 100%;
+      margin-top: 52px;
+      max-width: 100%;
     }
 
     .mobile-nav { display: block; }
