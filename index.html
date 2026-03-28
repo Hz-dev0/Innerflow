@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>內流 InnerFlow — 為內驅力而生的任務工具</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600&family=DM+Serif+Display:ital@0;1&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -62,7 +62,7 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Lato', 'Noto Serif TC', sans-serif;
+    font-family: 'Noto Sans TC', sans-serif;
     font-weight: 400;
     min-height: 100vh;
     overflow-x: hidden;
@@ -276,7 +276,7 @@
   .task-check:hover { border-color: var(--green); }
   .task-check.checked { background: var(--green); border-color: var(--green); color: #fff; }
   .task-body { flex: 1; }
-  .task-name { font-size: 15px; line-height: 1.5; font-weight: 400; letter-spacing: 0.01em; }
+  .task-name { font-size: 15px; line-height: 1.5; font-weight: 500; letter-spacing: 0.01em; }
   .task-item.done .task-name { text-decoration: line-through; color: var(--text-dim); }
   .task-meta { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
   .tag {
@@ -338,7 +338,7 @@
   .modal input, .modal textarea, .modal select {
     width: 100%; background: var(--bg3);
     border: 1px solid var(--border); border-radius: 8px;
-    color: var(--text); font-family: inherit; font-size: 14px; font-weight: 300;
+    color: var(--text); font-family: inherit; font-size: 14px; font-weight: 400;
     padding: 10px 12px; outline: none; transition: border-color 0.2s;
     margin-bottom: 16px; resize: none;
   }
@@ -860,7 +860,52 @@
   .sync-dot.synced  { background: var(--green); border-color: var(--green); }
   @keyframes syncPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-  /* ── Mood Buttons ── */
+  /* ── Energy Slider ── */
+  .energy-slider-wrap {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .energy-slider-label {
+    font-size: 11px; color: var(--text-dim); white-space: nowrap;
+    min-width: 28px; text-align: center; font-weight: 500;
+  }
+  .energy-slider-label.low  { color: var(--rose); }
+  .energy-slider-label.mid  { color: var(--gold); }
+  .energy-slider-label.high { color: var(--green); }
+  .energy-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 90px;
+    height: 4px;
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+    background: linear-gradient(to right, var(--rose) 0%, var(--gold) 50%, var(--green) 100%);
+    opacity: 0.7;
+    transition: opacity 0.2s;
+  }
+  .energy-slider:hover { opacity: 1; }
+  .energy-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--bg2);
+    border: 2px solid var(--green);
+    box-shadow: 0 0 6px rgba(74,130,196,0.35);
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .energy-slider.level-low::-webkit-slider-thumb  { border-color: var(--rose);  box-shadow: 0 0 6px rgba(192,86,90,0.4); }
+  .energy-slider.level-mid::-webkit-slider-thumb  { border-color: var(--gold);  box-shadow: 0 0 6px rgba(184,146,42,0.4); }
+  .energy-slider.level-high::-webkit-slider-thumb { border-color: var(--green); box-shadow: 0 0 6px rgba(74,130,196,0.4); }
+  .energy-slider::-moz-range-thumb {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--bg2);
+    border: 2px solid var(--green);
+    cursor: pointer;
+  }
+  /* ── Mood Buttons (kept for backward compat, hidden) ── */
   .mood-btn-group { display: flex; gap: 5px; align-items: center; }
   .mood-btn {
     padding: 3px 11px; border-radius: 20px; font-size: 12px;
@@ -894,11 +939,14 @@
     </div>
     <div class="header-right">
       <div class="energy-bar-wrap">
-        <span class="energy-label">mood</span>
-        <div class="mood-btn-group">
-          <button class="mood-btn" id="moodBtnLow"  onclick="setMoodLevel('low')" >🌙 低</button>
-          <button class="mood-btn" id="moodBtnMid"  onclick="setMoodLevel('mid')" >⚡ 中</button>
-          <button class="mood-btn" id="moodBtnHigh" onclick="setMoodLevel('high')">🔥 高</button>
+        <span class="energy-label" style="font-size:11px;color:var(--text-dim);font-weight:500">精力</span>
+        <div class="energy-slider-wrap">
+          <span class="energy-slider-label low" id="energySliderLabel">低</span>
+          <input type="range" min="0" max="2" step="1" value="1"
+            class="energy-slider level-mid" id="energySlider"
+            oninput="onEnergySliderChange(this.value)"
+            title="精力指數：低 / 中 / 高">
+          <span class="energy-slider-label high">高</span>
         </div>
       </div>
       <div id="syncDot" class="sync-dot" title="雲端同步狀態（長按 Logo 設定）"></div>
@@ -1956,10 +2004,26 @@ async function init() {
 // ── Mood Buttons ──
 function renderEnergyDots() {
   const v = state.energy || 0;
-  let level = '';
+  let level = 'mid';
   if (v > 0 && v <= 3)  level = 'low';
   else if (v <= 6)       level = 'mid';
   else if (v <= 10)      level = 'high';
+
+  // Update slider position & label
+  const slider = document.getElementById('energySlider');
+  const label  = document.getElementById('energySliderLabel');
+  const sliderMap = { low: 0, mid: 1, high: 2 };
+  const labelMap  = { low: '低', mid: '中', high: '高' };
+  if (slider) {
+    slider.value = sliderMap[level];
+    slider.className = 'energy-slider level-' + level;
+  }
+  if (label) {
+    label.textContent = labelMap[level];
+    label.className = 'energy-slider-label ' + level;
+  }
+
+  // Keep legacy mood buttons in sync (if they exist)
   ['low','mid','high'].forEach(l => {
     const btn = document.getElementById('moodBtn' + l.charAt(0).toUpperCase() + l.slice(1));
     if (btn) btn.className = 'mood-btn' + (level === l ? ' active-' + l : '');
@@ -1971,22 +2035,21 @@ function renderEnergyDots() {
   }
 }
 
+function onEnergySliderChange(val) {
+  const levels = ['low', 'mid', 'high'];
+  setMoodLevel(levels[parseInt(val)]);
+}
+
 function setMoodLevel(level) {
   const map = { low: 2, mid: 5, high: 9 };
-  // Toggle off if already selected
-  const v = state.energy || 0;
-  const current = v > 0 && v <= 3 ? 'low' : v <= 6 ? 'mid' : v <= 10 ? 'high' : '';
-  if (current === level) {
-    state.energy = 0;
-  } else {
-    state.energy = map[level];
-  }
+  state.energy = map[level] || 5;
   renderEnergyDots();
   syncToCloud();
 }
 
 function initMoodTrack() {
-  // no-op, buttons handle everything
+  // Sync slider to saved state on load
+  renderEnergyDots();
 }
 
 // ── Pages ──
