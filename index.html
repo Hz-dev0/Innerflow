@@ -1,11 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="application-name" content="INNER FLOW">
-<link rel="manifest" href="/manifest.json">
-<meta id="theme-color-meta" name="theme-color" content="#F0F4F8">
-<link rel="icon" sizes="192x192" href="https://hz-dev0.github.io/Innerflow/icon.png">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>內流 InnerFlow — 為內驅力而生的任務工具</title>
@@ -61,7 +56,7 @@
     background: var(--bg);
     color: var(--text);
     font-family: 'Lato', 'Noto Serif TC', sans-serif;
-    font-weight: 300;
+    font-weight: 400;
     min-height: 100vh;
     overflow-x: hidden;
   }
@@ -155,13 +150,13 @@
     overflow-y: auto;
     background: var(--aside-bg);
   }
-  .sidebar-section { padding: 6px 16px 2px; font-size: 10px; letter-spacing: 0.12em; color: var(--text-faint); text-transform: uppercase; }
+  .sidebar-section { padding: 6px 16px 2px; font-size: 11px; letter-spacing: 0.12em; color: var(--text-faint); text-transform: uppercase; }
   .nav-item {
     display: flex; align-items: center; gap: 10px;
-    padding: 8px 16px;
+    padding: 9px 16px;
     cursor: pointer;
     border-radius: 0;
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-dim);
     transition: all 0.2s;
     border-left: 2px solid transparent;
@@ -201,7 +196,7 @@
     padding: 20px;
     box-shadow: 0 1px 4px rgba(74,130,196,0.06);
   }
-  .card-title { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 16px; }
+  .card-title { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 16px; }
 
   /* ── Life Tree (card grid) ── */
   .tree-grid {
@@ -224,7 +219,7 @@
   .goal-card:hover { border-color: rgba(74,130,196,0.45); background: rgba(74,130,196,0.05); transform: translateY(-2px); box-shadow: 0 4px 14px rgba(74,130,196,0.1); }
   .goal-card.active-filter { border-color: var(--green); background: rgba(74,130,196,0.09); box-shadow: 0 0 0 2px rgba(74,130,196,0.15); }
   .goal-card-icon { font-size: 24px; }
-  .goal-card-label { font-size: 11px; color: var(--text-dim); text-align: center; line-height: 1.4; }
+  .goal-card-label { font-size: 12px; color: var(--text-dim); text-align: center; line-height: 1.4; }
   .goal-card-badge {
     position: absolute; top: 6px; right: 8px;
     background: var(--green); color: #fff;
@@ -271,23 +266,23 @@
   .task-check:hover { border-color: var(--green); }
   .task-check.checked { background: var(--green); border-color: var(--green); color: #fff; }
   .task-body { flex: 1; }
-  .task-name { font-size: 14px; line-height: 1.5; }
+  .task-name { font-size: 15px; line-height: 1.5; font-weight: 400; letter-spacing: 0.01em; }
   .task-item.done .task-name { text-decoration: line-through; color: var(--text-dim); }
   .task-meta { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
   .tag {
-    font-size: 10px; padding: 2px 8px; border-radius: 20px;
+    font-size: 11px; padding: 2px 9px; border-radius: 20px;
     border: 1px solid; display: inline-flex; align-items: center; gap: 4px;
     letter-spacing: 0.05em;
   }
   .tag-energy { border-color: rgba(200,169,110,0.4); color: var(--gold); background: rgba(200,169,110,0.08); }
   .tag-goal   { border-color: rgba(120,200,150,0.3); color: var(--green); background: rgba(120,200,150,0.08); }
   .tag-deep   { border-color: rgba(120,180,200,0.4); color: var(--sky);  background: rgba(120,180,200,0.08); }
-  .task-meaning { font-size: 11px; color: var(--text-faint); margin-top: 4px; font-style: italic; }
+  .task-meaning { font-size: 12px; color: var(--text-faint); margin-top: 4px; font-style: italic; }
 
   /* ── Energy Filter ── */
   .filter-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
   .filter-chip {
-    padding: 5px 14px; border-radius: 20px; font-size: 12px;
+    padding: 5px 15px; border-radius: 20px; font-size: 13px;
     border: 1px solid var(--border);
     color: var(--text-dim); background: transparent;
     cursor: pointer; transition: all 0.18s;
@@ -368,8 +363,8 @@
   .achievement-card:hover { border-color: rgba(184,146,42,0.45); transform: translateY(-2px); box-shadow: 0 4px 14px rgba(184,146,42,0.1); }
   .achievement-card.locked { opacity: 0.3; filter: grayscale(1); }
   .ach-icon { font-size: 28px; }
-  .ach-name { font-size: 12px; color: var(--text); line-height: 1.3; }
-  .ach-desc { font-size: 10px; color: var(--text-dim); line-height: 1.4; }
+  .ach-name { font-size: 13px; color: var(--text); line-height: 1.3; }
+  .ach-desc { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
 
   /* ── Stats ── */
   .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -388,7 +383,7 @@
     padding: 10px 14px; border-radius: 8px;
     border: 1px dashed rgba(200,169,110,0.2);
     background: rgba(200,169,110,0.03);
-    font-size: 13px; color: var(--text-dim);
+    font-size: 14px; color: var(--text-dim);
     transition: all 0.2s;
   }
   .sandbox-item:hover { border-color: rgba(184,146,42,0.4); color: var(--text); background: rgba(184,146,42,0.04); }
@@ -654,7 +649,7 @@
   .mobile-nav {
     display: none;
     position: fixed; bottom: 0; left: 0; right: 0;
-    background: rgba(255,255,255,0.95);
+    background: var(--header-bg);
     backdrop-filter: blur(10px);
     border-top: 1px solid var(--border);
     z-index: 50;
@@ -778,6 +773,20 @@
   .sync-dot.synced  { background: var(--green); border-color: var(--green); }
   @keyframes syncPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
+  /* ── Mood Buttons ── */
+  .mood-btn-group { display: flex; gap: 5px; align-items: center; }
+  .mood-btn {
+    padding: 3px 11px; border-radius: 20px; font-size: 12px;
+    border: 1px solid var(--border);
+    color: var(--text-dim); background: transparent;
+    cursor: pointer; transition: all 0.18s;
+    font-family: inherit; white-space: nowrap;
+  }
+  .mood-btn:hover { border-color: var(--green-dim); color: var(--text); }
+  .mood-btn.active-low  { border-color: var(--rose);  color: var(--rose);  background: rgba(192,86,90,0.09); }
+  .mood-btn.active-mid  { border-color: var(--gold);  color: var(--gold);  background: rgba(130,154,177,0.12); }
+  .mood-btn.active-high { border-color: var(--green); color: var(--green); background: rgba(74,130,196,0.09); }
+
   /* header settings icon */
   .header-settings-btn {
     font-size: 14px; cursor: pointer; padding: 4px 10px;
@@ -799,8 +808,11 @@
     <div class="header-right">
       <div class="energy-bar-wrap">
         <span class="energy-label">mood</span>
-        <div class="energy-dots" id="energyDots"></div>
-        <span class="energy-label" id="energyNum" style="color:var(--green);min-width:20px;font-size:12px">—</span>
+        <div class="mood-btn-group">
+          <button class="mood-btn" id="moodBtnLow"  onclick="setMoodLevel('low')" >🌙 低</button>
+          <button class="mood-btn" id="moodBtnMid"  onclick="setMoodLevel('mid')" >⚡ 中</button>
+          <button class="mood-btn" id="moodBtnHigh" onclick="setMoodLevel('high')">🔥 高</button>
+        </div>
       </div>
       <div id="syncDot" class="sync-dot" title="雲端同步狀態（長按 Logo 設定）"></div>
       <button id="themeToggleBtn" onclick="toggleThemeManual()" title="切換日間/夜間模式" style="
@@ -826,11 +838,8 @@
       <span class="nav-icon">🪐</span> 沙盒探索
     </div>
     <div class="sidebar-section" style="margin-top:8px">成長</div>
-    <div class="nav-item" onclick="showPage('achievements')" id="nav-achievements">
-      <span class="nav-icon">🎴</span> 抽獎區
-    </div>
-    <div class="nav-item" onclick="showPage('rewards')" id="nav-rewards">
-      <span class="nav-icon">🌊</span> 許願池
+    <div class="nav-item" onclick="showPage('wishzone')" id="nav-wishzone">
+      <span class="nav-icon">🎴</span> 許願池
     </div>
     <div class="nav-item" onclick="showPage('stats')" id="nav-stats">
       <span class="nav-icon">◎</span> 成長軌跡
@@ -857,20 +866,26 @@
       <div class="section-title">今日任務 <span class="sub" id="filtered-label"></span><span id="clear-filter-btn" onclick="clearGoalFilter()" style="display:none;font-size:11px;color:var(--rose);cursor:pointer;padding:3px 10px;border:1px solid rgba(192,86,90,0.3);border-radius:20px;font-family:'Lato',sans-serif;font-weight:300;transition:all 0.2s" onmouseover="this.style.background='rgba(192,86,90,0.06)'" onmouseout="this.style.background='transparent'">✕ 清除篩選</span></div>
 
       <div class="card">
-        <div class="card-title">能量適配篩選</div>
-        <div class="filter-row" id="energyFilter">
-          <div class="filter-chip active" onclick="filterEnergy('all')">全部顯示</div>
-          <div class="filter-chip" onclick="filterEnergy('deep')">🌊 深度思考</div>
-          <div class="filter-chip" onclick="filterEnergy('flow')">⚡ 靈感爆發</div>
-          <div class="filter-chip" onclick="filterEnergy('light')">🍃 輕鬆雜事</div>
-          <div class="filter-chip" onclick="filterEnergy('rest')">🌙 低耗能</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:0">任務清單</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="add-btn" onclick="openAddTask()" style="margin:0;padding:5px 14px;font-size:12px">＋ 新增任務</button>
+            <span id="taskSectionArrow" onclick="toggleTaskSection()" title="收合篩選區" style="font-size:11px;color:var(--text-faint);transition:transform 0.2s;display:inline-block;cursor:pointer;padding:2px 6px;border-radius:4px;border:1px solid var(--border)" title="收合篩選區">▼</span>
+          </div>
         </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">任務清單</div>
+        <div id="taskSectionBody" style="overflow:hidden;transition:max-height 0.3s ease,opacity 0.2s ease;max-height:200px;opacity:1">
+          <div style="border-top:1px solid var(--border);padding-top:10px;margin-bottom:10px">
+            <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px">能量適配篩選</div>
+            <div class="filter-row" id="energyFilter">
+              <div class="filter-chip active" onclick="filterEnergy('all')">全部顯示</div>
+              <div class="filter-chip" onclick="filterEnergy('deep')">🌊 深度思考</div>
+              <div class="filter-chip" onclick="filterEnergy('flow')">⚡ 靈感爆發</div>
+              <div class="filter-chip" onclick="filterEnergy('light')">🍃 輕鬆雜事</div>
+              <div class="filter-chip" onclick="filterEnergy('rest')">🌙 低耗能</div>
+            </div>
+          </div>
+        </div>
         <div class="task-list" id="taskList"></div>
-        <button class="add-btn" onclick="openAddTask()" style="margin-top:12px">＋ 新增任務</button>
       </div>
     </div>
 
@@ -888,44 +903,46 @@
       </div>
     </div>
 
-    <!-- Page: Lottery (抽獎區) -->
-    <div class="page" id="page-achievements">
-      <div class="section-title">抽獎區 <span class="sub">每天完成 3 個任務，換一次抽獎機會</span></div>
-      <div class="card">
-        <div class="lottery-info">
-          <div>
-            <div class="lottery-ticket">🎫 剩餘抽獎券 <strong id="lotteryTickets">0</strong> 張</div>
-            <div class="lottery-progress" style="margin-top:6px" id="lotteryProgress">今日已完成 <span id="todayDone">0</span> / 3 個任務</div>
-          </div>
-          <button class="lottery-draw-btn" id="lotteryDrawBtn" onclick="drawLottery()">✦ 翻牌抽獎</button>
-        </div>
-        <div class="lottery-grid" id="lotteryGrid"></div>
-        <div style="font-size:11px;color:var(--text-faint);margin-top:12px;text-align:center">點擊牌面翻開 · 格言來自智慧庫，★ 標記為許願池項目</div>
-      </div>
-    </div>
-
-    <!-- Page: Wish Pool (許願池) -->
-    <div class="page" id="page-rewards">
-      <div class="section-title">許願池 <span class="sub">寫下你想要的，等它成真</span></div>
+    <!-- Page: WishZone (許願池 + 抽獎區 combined) -->
+    <div class="page" id="page-wishzone">
+      <div class="section-title">許願池 <span class="sub">寫下願望，完成任務換取抽獎券</span></div>
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
           <div class="toggle-tabs">
-            <button class="toggle-tab active" id="tabWish" onclick="switchWishTab('wish')">🌊 許願池</button>
-            <button class="toggle-tab" id="tabQuote" onclick="switchWishTab('quote')">✦ 格言庫</button>
+            <button class="toggle-tab active" id="tabLotteryZone" onclick="switchWishZoneTab('lottery')">🎴 抽獎區</button>
+            <button class="toggle-tab" id="tabQuoteZone" onclick="switchWishZoneTab('quote')">✦ 格言庫</button>
+            <button class="toggle-tab" id="tabWishZone" onclick="switchWishZoneTab('wish')">🌊 許願池</button>
           </div>
-          <button class="add-btn" id="wishAddBtn" onclick="openAddWish()" style="margin:0;padding:5px 14px;font-size:12px">＋ 許個願</button>
+          <button class="add-btn" id="wishAddBtn" onclick="openAddWish()" style="margin:0;padding:5px 14px;font-size:12px;display:none">＋ 許個願</button>
         </div>
-        <div id="wishPoolPane">
+
+        <!-- Wish Pool pane -->
+        <div id="wishPoolPane" style="display:none">
           <div id="wishList" style="display:flex;flex-direction:column;gap:8px"></div>
           <div id="wishEmpty" style="color:var(--text-faint);font-size:13px;font-style:italic;padding:8px;display:none">池子是空的。許個願吧，它也許會出現在抽獎牌裡。</div>
         </div>
+
+        <!-- Lottery pane -->
+        <div id="lotteryPane">
+          <div class="lottery-info">
+            <div>
+              <div class="lottery-ticket">🎫 剩餘抽獎券 <strong id="lotteryTickets">0</strong> 張</div>
+              <div class="lottery-progress" style="margin-top:6px" id="lotteryProgress">今日已完成 <span id="todayDone">0</span> / 3 個任務</div>
+            </div>
+            <button class="lottery-draw-btn" id="lotteryDrawBtn" onclick="drawLottery()">✦ 翻牌抽獎</button>
+          </div>
+          <div class="lottery-grid" id="lotteryGrid"></div>
+          <div style="font-size:11px;color:var(--text-faint);margin-top:12px;text-align:center">點擊牌面翻開 · 格言來自智慧庫，★ 標記為許願池項目</div>
+        </div>
+
+        <!-- Quote pane -->
         <div id="quotePane" style="display:none">
-          <div style="font-size:11px;color:var(--text-faint);margin-bottom:12px">這些格言會混入抽獎牌中。你也可以新增自己的。</div>
-          <div id="quoteList" style="display:flex;flex-direction:column;gap:8px"></div>
-          <div style="display:flex;gap:10px;margin-top:14px">
+          <div style="display:flex;gap:10px;margin-bottom:14px">
             <input id="quoteInput" placeholder="新增一句讓你有力量的話…" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'" onkeydown="if(event.key==='Enter')addCustomQuote()">
             <button class="btn-confirm" onclick="addCustomQuote()">加入</button>
           </div>
+          <div style="font-size:12px;color:var(--text-faint);margin-bottom:12px">這些格言會混入抽獎牌中。你也可以新增自己的。</div>
+          <div id="quoteList" style="display:flex;flex-direction:column;gap:8px"></div>
         </div>
       </div>
     </div>
@@ -1044,11 +1061,8 @@
     <button class="mob-nav-item" id="mob-sandbox" onclick="showPage('sandbox')">
       <span class="mob-nav-icon">🪐</span>沙盒
     </button>
-    <button class="mob-nav-item" id="mob-achievements" onclick="showPage('achievements')">
-      <span class="mob-nav-icon">🎴</span>抽獎
-    </button>
-    <button class="mob-nav-item" id="mob-rewards" onclick="showPage('rewards')">
-      <span class="mob-nav-icon">🌊</span>許願
+    <button class="mob-nav-item" id="mob-wishzone" onclick="showPage('wishzone')">
+      <span class="mob-nav-icon">🎴</span>許願
     </button>
     <button class="mob-nav-item" id="mob-stats" onclick="showPage('stats')">
       <span class="mob-nav-icon">◎</span>軌跡
@@ -1437,14 +1451,36 @@ const defaultQuotes = [];
 
 let wishTab = 'wish'; // 'wish' or 'quote'
 
-function switchWishTab(tab) {
-  wishTab = tab;
-  document.getElementById('tabWish').classList.toggle('active', tab === 'wish');
-  document.getElementById('tabQuote').classList.toggle('active', tab === 'quote');
-  document.getElementById('wishPoolPane').style.display = tab === 'wish' ? '' : 'none';
-  document.getElementById('quotePane').style.display = tab === 'quote' ? '' : 'none';
-  document.getElementById('wishAddBtn').style.display = tab === 'wish' ? '' : 'none';
-  if (tab === 'quote') renderQuotes();
+function switchWishZoneTab(tab) {
+  const wishPane    = document.getElementById('wishPoolPane');
+  const lotteryPane = document.getElementById('lotteryPane');
+  const quotePane   = document.getElementById('quotePane');
+  const addBtn      = document.getElementById('wishAddBtn');
+  const tabWish    = document.getElementById('tabWishZone');
+  const tabLottery = document.getElementById('tabLotteryZone');
+  const tabQuote   = document.getElementById('tabQuoteZone');
+  [tabWish, tabLottery, tabQuote].forEach(t => t && t.classList.remove('active'));
+  if (wishPane)    wishPane.style.display    = 'none';
+  if (lotteryPane) lotteryPane.style.display = 'none';
+  if (quotePane)   quotePane.style.display   = 'none';
+  if (addBtn) addBtn.style.display = 'none';
+  if (tab === 'wish')    { if(tabWish) tabWish.classList.add('active');       if(wishPane) wishPane.style.display = 'block';       if (addBtn) addBtn.style.display = 'inline-flex'; }
+  if (tab === 'lottery') { if(tabLottery) tabLottery.classList.add('active'); if(lotteryPane) lotteryPane.style.display = 'block'; renderLottery(); }
+  if (tab === 'quote')   { if(tabQuote) tabQuote.classList.add('active');     if(quotePane) quotePane.style.display = 'block';     renderQuotes(); }
+}
+
+function switchWishTab(tab) { switchWishZoneTab(tab === 'wish' ? 'wish' : 'quote'); }
+
+let taskSectionOpen = true;
+function toggleTaskSection() {
+  taskSectionOpen = !taskSectionOpen;
+  const body  = document.getElementById('taskSectionBody');
+  const arrow = document.getElementById('taskSectionArrow');
+  if (body) {
+    body.style.maxHeight = taskSectionOpen ? '200px' : '0';
+    body.style.opacity   = taskSectionOpen ? '1' : '0';
+  }
+  if (arrow) arrow.style.transform = taskSectionOpen ? '' : 'rotate(-90deg)';
 }
 
 function getGoalCount(goal) {
@@ -1749,6 +1785,7 @@ async function init() {
   logo.addEventListener('touchend', () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; document.getElementById('onboardModal').classList.add('open'); } });
 
   renderEnergyDots();
+  initMoodTrack();
   renderTree();
   renderTasks();
   renderSandbox();
@@ -1762,30 +1799,40 @@ async function init() {
   }
 }
 
-// ── Energy Dots ──
+// ── Mood Buttons ──
 function renderEnergyDots() {
-  const wrap = document.getElementById('energyDots');
-  wrap.innerHTML = '';
-  for (let i = 1; i <= 10; i++) {
-    const d = document.createElement('div');
-    d.className = 'energy-dot' + (i <= state.energy ? ' active' : '');
-    d.onclick = () => setEnergy(i);
-    wrap.appendChild(d);
-  }
-  document.getElementById('energyNum').textContent = state.energy || '—';
-  if (state.energy > 0 && state.energy <= 3) {
-    document.getElementById('energyNum').style.color = 'var(--rose)';
+  const v = state.energy || 0;
+  let level = '';
+  if (v > 0 && v <= 3)  level = 'low';
+  else if (v <= 6)       level = 'mid';
+  else if (v <= 10)      level = 'high';
+  ['low','mid','high'].forEach(l => {
+    const btn = document.getElementById('moodBtn' + l.charAt(0).toUpperCase() + l.slice(1));
+    if (btn) btn.className = 'mood-btn' + (level === l ? ' active-' + l : '');
+  });
+  // Auto-filter for low energy
+  if (v > 0 && v <= 3) {
     showToast('能量偏低，已自動篩選出輕鬆任務 🍃');
     filterEnergy('light');
-  } else {
-    document.getElementById('energyNum').style.color = 'var(--green)';
   }
 }
 
-function setEnergy(n) {
-  state.energy = n;
+function setMoodLevel(level) {
+  const map = { low: 2, mid: 5, high: 9 };
+  // Toggle off if already selected
+  const v = state.energy || 0;
+  const current = v > 0 && v <= 3 ? 'low' : v <= 6 ? 'mid' : v <= 10 ? 'high' : '';
+  if (current === level) {
+    state.energy = 0;
+  } else {
+    state.energy = map[level];
+  }
   renderEnergyDots();
   syncToCloud();
+}
+
+function initMoodTrack() {
+  // no-op, buttons handle everything
 }
 
 // ── Pages ──
@@ -1801,8 +1848,7 @@ function showPage(id, skipRender) {
   if (!skipRender) {
     if (id === 'tasks') renderTasks();
     if (id === 'stats') renderStats();
-    if (id === 'rewards') renderRewards();
-    if (id === 'achievements') renderLottery();
+    if (id === 'wishzone') { renderRewards(); renderLottery(); }
   }
 }
 
@@ -1870,6 +1916,8 @@ function renderTasks() {
     activeTasks = activeTasks.filter(t => t.goal === state.goalFilter);
     doneTasks   = doneTasks.filter(t => t.goal === state.goalFilter);
   }
+  // Non-recurring tasks float to top
+  activeTasks.sort((a, b) => (a.recurring ? 1 : 0) - (b.recurring ? 1 : 0));
 
   let html = '';
   if (activeTasks.length === 0) {
@@ -2417,17 +2465,32 @@ function syncTheme() {
 
 function toggleThemeManual() {
   const isNight = document.documentElement.classList.contains('night-mode');
-  // Toggle and lock manual override
+  // Toggle and lock manual override until next natural boundary
   themeManualOverride = isNight ? 'day' : 'night';
   syncTheme();
   const modeName = themeManualOverride === 'night' ? '深邃海洋 🌊' : '清晨冰川 ☀';
-  showToast(`✦ 已切換為${modeName}`);
-  // Release manual override after 60s so auto mode resumes
+  showToast(`✦ 已切換為${modeName}（將於 ${isNightTime() !== (themeManualOverride === 'night') ? (themeManualOverride === 'night' ? '18:00' : '06:00') : (themeManualOverride === 'night' ? '06:00' : '18:00')} 自動恢復）`);
+  // Release manual override only when clock naturally crosses the boundary
   clearTimeout(window._themeOverrideTimer);
+  scheduleBoundaryRelease();
+}
+
+function scheduleBoundaryRelease() {
+  // Calculate ms until the next 06:00 or 18:00 boundary
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+  const todayMin = h * 60 + m + s / 60;
+  const dawn  = 6 * 60;   // 06:00
+  const dusk  = 18 * 60;  // 18:00
+  let nextBoundaryMin;
+  if (todayMin < dawn) nextBoundaryMin = dawn;
+  else if (todayMin < dusk) nextBoundaryMin = dusk;
+  else nextBoundaryMin = dawn + 24 * 60;
+  const msUntil = (nextBoundaryMin - todayMin) * 60 * 1000;
   window._themeOverrideTimer = setTimeout(() => {
     themeManualOverride = null;
     syncTheme();
-  }, 60000);
+  }, msUntil);
 }
 
 // Initial apply
