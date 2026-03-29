@@ -1050,7 +1050,7 @@
       <div class="energy-bar-wrap">
         <span class="energy-label" style="font-size:11px;color:var(--text-dim);font-weight:500">精力</span>
         <div class="energy-slider-wrap">
-          <span class="energy-slider-label low" id="energySliderLabel">低</span>
+          <span class="energy-slider-label mid" id="energySliderLabel">中</span>
           <input type="range" min="0" max="2" step="1" value="1"
             class="energy-slider level-mid" id="energySlider"
             oninput="onEnergySliderChange(this.value)"
@@ -1193,8 +1193,9 @@
       </div>
       <div class="card">
         <div class="card-title">已完成的任務</div>
-        <div style="font-size:11px;color:var(--text-faint);margin-bottom:12px">點擊 ✓ 勾勾可恢復為未完成，右側刪除</div>
+        <div style="font-size:11px;color:var(--text-faint);margin-bottom:12px">今日完成：點擊 ✓ 可恢復，× 可刪除。過去已完成：× 可從任務列表移除（熱力圖記錄保留）</div>
         <div class="task-list" id="doneList"></div>
+        <div id="pastDoneSection"></div>
       </div>
     </div>
 
@@ -2444,14 +2445,15 @@ function toggleTask(id) {
   const wasDone = t.done;
   t.done = !t.done;
   if (!wasDone) {
-    state.done++;
-    t.completedAt = new Date().toISOString().slice(0, 10); // track completion date
+    t.completedAt = new Date().toISOString().slice(0, 10);
+    state.done = state.tasks.filter(x => x.done).length; // recalculate
     showCelebration(t);
     checkRewardUnlocks();
     renderRewards();
     onTaskCompleted();
   } else {
-    if (state.done > 0) state.done--;
+    t.completedAt = null; // clear completion date when unchecking
+    state.done = state.tasks.filter(x => x.done).length; // recalculate
     state.doneOpen = true;
     renderRewards();
     onTaskUncompleted();
@@ -2849,22 +2851,31 @@ function renderAchievements() {
 
 // ── Stats ──
 function renderStats() {
+  const todayStr = new Date().toISOString().slice(0, 10);
   const allDoneTasks = state.tasks.filter(t => t.done);
   const historyTasks = state.doneHistory || [];
+  // Recalculate state.done to stay in sync with actual task data
+  state.done = allDoneTasks.length;
   const statsGrid = document.getElementById('statsGrid');
   statsGrid.innerHTML = `
     <div class="stat-card"><div class="stat-value">${allDoneTasks.length + historyTasks.length}</div><div class="stat-label">已完成任務</div></div>
     <div class="stat-card"><div class="stat-value">${state.sandbox.length}</div><div class="stat-label">探索中的好奇</div></div>
   `;
-  // Calendar heatmap — combine current done tasks + history
+  // Calendar heatmap — combine current done tasks + history, deduplicate by id+date
   const calContainer = document.getElementById('doneCalendarContainer');
   if (calContainer) {
-    const calTasks = [...allDoneTasks, ...historyTasks];
+    // Merge and deduplicate: tasks with completedAt take priority
+    const seen = new Set();
+    const calTasks = [];
+    [...allDoneTasks, ...historyTasks].forEach(t => {
+      if (!t.completedAt) return; // skip tasks without a completion date
+      const key = (t.id || t.name) + '|' + t.completedAt;
+      if (!seen.has(key)) { seen.add(key); calTasks.push(t); }
+    });
     renderDoneCalendar(calTasks, calContainer);
   }
-  // Done list — show only today's completed tasks
+  // Done list — show only today's completed tasks (from tasks array, must have completedAt = today)
   const doneList = document.getElementById('doneList');
-  const todayStr = new Date().toISOString().slice(0, 10);
   const todayDone = allDoneTasks.filter(t => t.completedAt === todayStr);
   if (todayDone.length === 0) {
     doneList.innerHTML = '<div style="color:var(--text-faint);font-size:13px;padding:8px;font-style:italic">今天還沒有完成任何任務，繼續加油！</div>';
@@ -2884,6 +2895,70 @@ function renderStats() {
       <span onclick="deleteTaskFromStats(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'">×</span>
     </div>`).join('');
   doneList.innerHTML = html;
+
+  // Past done tasks (done but completedAt is NOT today) — can delete from task list (heatmap preserved)
+  const pastDone = allDoneTasks.filter(t => t.completedAt && t.completedAt !== todayStr);
+  const pastDoneSection = document.getElementById('pastDoneSection');
+  if (pastDoneSection) {
+    if (pastDone.length === 0) {
+      pastDoneSection.innerHTML = '';
+    } else {
+      const isOpen = pastDoneSection.dataset.open === 'true';
+      let pastHtml = `
+        <div style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 0 6px;border-top:1px dashed var(--border);margin-top:10px;font-size:12px;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;user-select:none"
+          onclick="togglePastDoneSection()">
+          <span id="pastDoneArrow" style="font-size:10px;transition:transform 0.2s${isOpen ? ';transform:rotate(90deg)' : ''}">▶</span>
+          過去已完成 ${pastDone.length} 件
+        </div>
+        <div id="pastDoneWrap" style="overflow:hidden;transition:max-height 0.3s ease;max-height:${isOpen ? '3000px' : '0'}">
+          <div class="task-list" style="margin-top:4px">
+            ${pastDone.map(t => `
+              <div class="task-item done" style="opacity:0.7">
+                <div class="task-check checked" style="cursor:default">✓</div>
+                <div class="task-body">
+                  <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
+                  <div class="task-meta">
+                    <span class="tag tag-goal">${t.goal || ''}</span>
+                    ${t.completedAt ? `<span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>` : ''}
+                  </div>
+                </div>
+                <span onclick="deletePastDoneTask(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'" title="從任務列表刪除（熱力圖紀錄保留）">×</span>
+              </div>`).join('')}
+          </div>
+        </div>`;
+      pastDoneSection.innerHTML = pastHtml;
+    }
+  }
+}
+
+function togglePastDoneSection() {
+  const section = document.getElementById('pastDoneSection');
+  const wrap = document.getElementById('pastDoneWrap');
+  const arrow = document.getElementById('pastDoneArrow');
+  if (!section || !wrap) return;
+  const isOpen = section.dataset.open === 'true';
+  section.dataset.open = isOpen ? 'false' : 'true';
+  wrap.style.maxHeight = isOpen ? '0' : '3000px';
+  if (arrow) arrow.style.transform = isOpen ? '' : 'rotate(90deg)';
+}
+
+function deletePastDoneTask(id) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  // Archive to doneHistory first so heatmap is preserved
+  if (!state.doneHistory) state.doneHistory = [];
+  const histKey = t.id + '_' + (t.completedAt || '');
+  const alreadyInHistory = state.doneHistory.some(h => h.id === histKey);
+  if (!alreadyInHistory) {
+    state.doneHistory.push({ id: histKey, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt });
+  }
+  state.tasks = state.tasks.filter(x => x.id !== id);
+  state.done = state.tasks.filter(x => x.done).length;
+  renderStats();
+  renderTasks();
+  renderTree();
+  showToast('🗑 已從任務列表移除（熱力圖記錄保留）');
+  syncToCloud();
 }
 
 function undoneTask(id) {
