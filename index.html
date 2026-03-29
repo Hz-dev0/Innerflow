@@ -276,7 +276,7 @@
   .task-check:hover { border-color: var(--green); }
   .task-check.checked { background: var(--green); border-color: var(--green); color: #fff; }
   .task-body { flex: 1; }
-  .task-name { font-size: 15px; line-height: 1.5; font-weight: 500; letter-spacing: 0.01em; }
+  .task-name { font-size: 15px; line-height: 1.5; font-weight: 500; letter-spacing: 0.01em; color: var(--text-faint); }
   .task-item.done .task-name { text-decoration: line-through; color: var(--text-dim); }
   .task-meta { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
   .tag {
@@ -287,7 +287,7 @@
   .tag-energy { border-color: rgba(200,169,110,0.4); color: var(--gold); background: rgba(200,169,110,0.08); }
   .tag-goal   { border-color: rgba(120,200,150,0.3); color: var(--green); background: rgba(120,200,150,0.08); }
   .tag-deep   { border-color: rgba(120,180,200,0.4); color: var(--sky);  background: rgba(120,180,200,0.08); }
-  .task-meaning { font-size: 12px; color: var(--text-faint); margin-top: 4px; font-style: italic; }
+  .task-meaning { font-size: 12px; color: var(--text); margin-top: 4px; font-style: italic; font-weight: 500; }
 
   /* ── Energy Filter ── */
   .filter-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
@@ -919,39 +919,43 @@
   .mood-btn.active-mid  { border-color: var(--gold);  color: var(--gold);  background: rgba(130,154,177,0.12); }
   .mood-btn.active-high { border-color: var(--green); color: var(--green); background: rgba(74,130,196,0.09); }
 
-  /* ── Done Calendar ── */
-  .cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  /* ── Done Calendar (heatmap) ── */
+  .cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   .cal-nav-btn {
     background: transparent; border: 1px solid var(--border); border-radius: 8px;
-    color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 4px 12px;
+    color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 3px 10px;
     font-family: inherit; transition: all 0.2s;
   }
   .cal-nav-btn:hover { border-color: var(--green); color: var(--green); }
-  .cal-month-label { font-family: 'DM Serif Display', serif; font-size: 16px; color: var(--text); }
+  .cal-month-label { font-family: 'DM Serif Display', serif; font-size: 15px; color: var(--text); }
   .cal-grid {
-    display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px;
   }
   .cal-dow {
-    text-align: center; font-size: 11px; color: var(--text-faint);
-    padding: 4px 0; letter-spacing: 0.06em;
+    text-align: center; font-size: 10px; color: var(--text-faint);
+    padding: 2px 0; letter-spacing: 0.04em;
   }
   .cal-day {
-    aspect-ratio: 1; border-radius: 8px; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; font-size: 13px;
+    border-radius: 6px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; font-size: 11px;
     border: 1px solid transparent; cursor: default; position: relative;
     transition: all 0.18s; user-select: none;
+    padding: 5px 2px; min-height: 36px;
+    color: var(--text-dim);
   }
   .cal-day.empty { opacity: 0; pointer-events: none; }
-  .cal-day.has-done {
-    background: var(--green-dim); border-color: rgba(74,130,196,0.35);
-    color: var(--green); cursor: pointer; font-weight: 500;
-  }
-  .cal-day.has-done:hover { background: rgba(74,130,196,0.22); border-color: var(--green); transform: scale(1.06); }
-  .cal-day.today { border-color: var(--green) !important; }
-  .cal-done-dot {
-    width: 5px; height: 5px; border-radius: 50%;
-    background: var(--green); margin-top: 2px;
-  }
+  /* heatmap levels */
+  .cal-day.heat-0 { background: transparent; }
+  .cal-day.heat-1 { background: rgba(100,170,230,0.15); border-color: rgba(100,170,230,0.2); color: var(--text); cursor: pointer; }
+  .cal-day.heat-2 { background: rgba(60,130,200,0.32); border-color: rgba(60,130,200,0.4); color: var(--text); cursor: pointer; font-weight:500; }
+  .cal-day.heat-3 { background: rgba(30,90,170,0.55); border-color: rgba(30,90,170,0.6); color: #fff; cursor: pointer; font-weight:600; }
+  :root.night-mode .cal-day.heat-1 { background: rgba(100,180,240,0.18); border-color: rgba(100,180,240,0.25); }
+  :root.night-mode .cal-day.heat-2 { background: rgba(80,160,220,0.38); border-color: rgba(80,160,220,0.45); }
+  :root.night-mode .cal-day.heat-3 { background: rgba(60,140,200,0.62); border-color: rgba(60,140,200,0.7); color: #fff; }
+  .cal-day.heat-1:hover, .cal-day.heat-2:hover, .cal-day.heat-3:hover { transform: scale(1.08); box-shadow: 0 2px 10px rgba(60,130,200,0.2); }
+  .cal-day.today { outline: 2px solid var(--green); outline-offset: 1px; }
+  .cal-day-date { font-size: 10px; line-height: 1; }
+  .cal-day-count { font-size: 9px; opacity: 0.75; margin-top: 2px; }
   /* Bubble popup */
   .cal-popup {
     position: fixed; z-index: 500;
@@ -962,17 +966,20 @@
     animation: modalIn 0.2s ease;
     pointer-events: auto;
   }
-  .cal-popup-title { font-size: 12px; color: var(--text-dim); letter-spacing: 0.08em; margin-bottom: 10px; text-transform: uppercase; }
+  .cal-popup-title { font-size: 12px; color: var(--text-dim); letter-spacing: 0.08em; margin-bottom: 10px; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; }
   .cal-popup-item {
     padding: 7px 0; border-bottom: 1px solid var(--border);
     font-size: 13px; color: var(--text); display: flex; gap: 8px; align-items: flex-start;
   }
   .cal-popup-item:last-child { border-bottom: none; }
   .cal-popup-close {
-    float: right; cursor: pointer; color: var(--text-faint); font-size: 16px;
+    cursor: pointer; color: var(--text-faint); font-size: 16px;
     line-height: 1; padding: 0 2px; transition: color 0.15s;
   }
   .cal-popup-close:hover { color: var(--rose); }
+  /* heatmap legend */
+  .cal-legend { display:flex; align-items:center; gap:6px; font-size:10px; color:var(--text-faint); margin-top:8px; justify-content:flex-end; }
+  .cal-legend-box { width:10px; height:10px; border-radius:3px; }
 
   /* header settings icon */
   .header-settings-btn {
@@ -982,6 +989,53 @@
   }
   .header-settings-btn:hover { border-color: var(--green); color: var(--green); }
   .header-settings-btn.connected { border-color: rgba(74,130,196,0.4); color: var(--green); }
+
+  /* ── Random-Task Lottery Card ── */
+  /* Before flip: looks identical to normal cards */
+  .lottery-card.random-mission {
+    position: relative;
+  }
+  /* After flip (revealed): show gold styling */
+  .lottery-card.random-mission.revealed {
+    border: 2px solid #c9a227;
+    background: linear-gradient(135deg, rgba(201,162,39,0.10) 0%, rgba(184,146,42,0.04) 100%);
+    box-shadow: 0 0 0 1px rgba(201,162,39,0.18), 0 4px 18px rgba(201,162,39,0.12);
+  }
+  .lottery-card.random-mission.revealed::after {
+    content: '★'; position: absolute; top: 6px; right: 8px;
+    font-size: 11px; color: #c9a227; opacity: 0.8;
+  }
+  .rm-tasks-list { display:flex; flex-direction:column; gap:4px; margin-top:4px; width:100%; }
+  .rm-task-row {
+    display:flex; align-items:center; gap:5px; font-size:9px;
+    padding: 2px 4px; border-radius:4px;
+    background: rgba(201,162,39,0.10); color:var(--text);
+    line-height:1.3;
+  }
+  .rm-task-row.done-task { text-decoration:line-through; color:var(--text-faint); }
+  .rm-task-check { font-size:8px; flex-shrink:0; color:#c9a227; }
+  .rm-badge {
+    font-size:9px; padding: 2px 6px; border-radius:10px;
+    background: rgba(201,162,39,0.18); color:#b8922a;
+    letter-spacing:0.04em; white-space:nowrap;
+  }
+
+  /* ── Theme Schedule Modal ── */
+  .theme-schedule-modal {
+    background: var(--bg2); border: 1px solid rgba(74,130,196,0.25);
+    border-radius: 16px; padding: 24px; width: 340px; max-width: 95vw;
+    box-shadow: 0 20px 60px rgba(74,130,196,0.15);
+    animation: modalIn 0.25s ease;
+  }
+  .theme-schedule-modal h3 { font-family: 'DM Serif Display', serif; font-size: 18px; margin-bottom: 16px; color: var(--text); }
+  .theme-schedule-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:10px; }
+  .theme-schedule-label { font-size: 13px; color: var(--text-dim); }
+  .theme-time-input {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: inherit; font-size: 14px;
+    padding: 7px 10px; outline: none; transition: border-color 0.2s; width: 110px;
+  }
+  .theme-time-input:focus { border-color: var(--green); }
 </style>
 </head>
 <body>
@@ -1005,13 +1059,6 @@
         </div>
       </div>
       <div id="syncDot" class="sync-dot" title="雲端同步狀態（長按 Logo 設定）"></div>
-      <button id="themeToggleBtn" onclick="toggleThemeManual()" title="切換日間/夜間模式" style="
-        font-size:18px; cursor:pointer; padding:4px 8px;
-        border:1px solid var(--border); border-radius:20px;
-        color:var(--text-dim); background:transparent;
-        font-family:inherit; white-space:nowrap;
-        transition:all 0.3s ease; line-height:1;
-      ">☀️</button>
     </div>
   </header>
 
@@ -1022,17 +1069,17 @@
       <span class="nav-icon">🌿</span> 生命樹
     </div>
     <div class="nav-item" onclick="showPage('tasks')" id="nav-tasks">
-      <span class="nav-icon">✦</span> 今日任務
+      <span class="nav-icon">✦</span> 任務總覽
     </div>
     <div class="nav-item" onclick="showPage('sandbox')" id="nav-sandbox">
       <span class="nav-icon">🪐</span> 沙盒探索
     </div>
     <div class="sidebar-section" style="margin-top:8px">成長</div>
     <div class="nav-item" onclick="showPage('wishzone')" id="nav-wishzone">
-      <span class="nav-icon">🎴</span> 許願池
+      <span class="nav-icon">✨</span> 許願池
     </div>
     <div class="nav-item" onclick="showPage('stats')" id="nav-stats">
-      <span class="nav-icon">◎</span> 成長軌跡
+      <span class="nav-icon">🐾</span> 成長軌跡
     </div>
   </aside>
 
@@ -1053,7 +1100,7 @@
 
     <!-- Page: Tasks -->
     <div class="page" id="page-tasks">
-      <div class="section-title">今日任務 <span class="sub" id="filtered-label"></span><span id="clear-filter-btn" onclick="clearGoalFilter()" style="display:none;font-size:11px;color:var(--rose);cursor:pointer;padding:3px 10px;border:1px solid rgba(192,86,90,0.3);border-radius:20px;font-family:'Lato',sans-serif;font-weight:300;transition:all 0.2s" onmouseover="this.style.background='rgba(192,86,90,0.06)'" onmouseout="this.style.background='transparent'">✕ 清除篩選</span></div>
+      <div class="section-title">任務總覽 <span class="sub" id="filtered-label"></span><span id="clear-filter-btn" onclick="clearGoalFilter()" style="display:none;font-size:11px;color:var(--rose);cursor:pointer;padding:3px 10px;border:1px solid rgba(192,86,90,0.3);border-radius:20px;font-family:'Lato',sans-serif;font-weight:300;transition:all 0.2s" onmouseover="this.style.background='rgba(192,86,90,0.06)'" onmouseout="this.style.background='transparent'">✕ 清除篩選</span></div>
 
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -1122,7 +1169,7 @@
             <button class="lottery-draw-btn" id="lotteryDrawBtn" onclick="drawLottery()">✦ 翻牌抽獎</button>
           </div>
           <div class="lottery-grid" id="lotteryGrid"></div>
-          <div style="font-size:11px;color:var(--text-faint);margin-top:12px;text-align:center">點擊牌面翻開 · 格言來自智慧庫，★ 標記為許願池項目</div>
+          <div style="font-size:11px;color:var(--text-faint);margin-top:12px;text-align:center">點擊牌面翻開 · ⭐ 為當日隨機任務，★ 為許願池，格言來自智慧庫</div>
         </div>
 
         <!-- Quote pane -->
@@ -1141,6 +1188,10 @@
     <div class="page" id="page-stats">
       <div class="section-title">成長軌跡 <span class="sub">看見你累積的深度</span></div>
       <div class="stats-grid" id="statsGrid"></div>
+      <div class="card">
+        <div class="card-title">月曆熱力圖 <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-faint)">點擊日期查看當天完成的任務</span></div>
+        <div id="doneCalendarContainer"></div>
+      </div>
       <div class="card">
         <div class="card-title">已完成的任務</div>
         <div style="font-size:11px;color:var(--text-faint);margin-bottom:12px">點擊 ✓ 勾勾可恢復為未完成，右側刪除</div>
@@ -1252,10 +1303,10 @@
       <span class="mob-nav-icon">🪐</span>沙盒
     </button>
     <button class="mob-nav-item" id="mob-wishzone" onclick="showPage('wishzone')">
-      <span class="mob-nav-icon">🎴</span>許願
+      <span class="mob-nav-icon">✨</span>許願
     </button>
     <button class="mob-nav-item" id="mob-stats" onclick="showPage('stats')">
-      <span class="mob-nav-icon">◎</span>軌跡
+      <span class="mob-nav-icon">🐾</span>軌跡
     </button>
   </div>
 </nav>
@@ -1325,27 +1376,63 @@
 </div>
 
 <!-- API Setup Modal -->
-<div class="api-modal-overlay" id="apiModal">
-  <div class="api-modal-box" style="position:relative">
-    <button id="apiModalCloseBtn" onclick="closeApiModal()" style="display:none;position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;color:var(--text-faint);cursor:pointer;line-height:1;padding:2px 6px;border-radius:6px;transition:all 0.2s" onmouseover="this.style.color='var(--text)';this.style.background='var(--bg3)'" onmouseout="this.style.color='var(--text-faint)';this.style.background='none'">×</button>
-    <div class="api-modal-title">☁️ 雲端連線設定</div>
-    <div class="api-modal-desc">
-      貼上你的 <code>Google Apps Script</code> 部署網址。<br>
-      網址只會儲存在你的瀏覽器（<code>localStorage</code>），不會出現在 GitHub 原始碼中。
+<div class="api-modal-overlay" id="apiModal" onclick="handleApiModalOverlayClick(event)">
+  <div class="api-modal-box" style="position:relative" onclick="event.stopPropagation()">
+    <button id="apiModalCloseBtn" onclick="closeApiModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;color:var(--text-faint);cursor:pointer;line-height:1;padding:2px 6px;border-radius:6px;transition:all 0.2s" onmouseover="this.style.color='var(--text)';this.style.background='var(--bg3)'" onmouseout="this.style.color='var(--text-faint)';this.style.background='none'">×</button>
+    <div class="api-modal-title">⚙️ 使用設定</div>
+
+    <!-- Cloud section -->
+    <div style="font-size:11px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:10px;margin-top:4px">☁️ 雲端連線</div>
+    <div style="font-size:12px;color:var(--text-faint);margin-bottom:8px;line-height:1.6">輸入連線密碼完成雲端設定</div>
+    <div style="display:flex;align-items:center;gap:0;margin-bottom:8px">
+      <input class="api-modal-input" id="apiKeyFragment"
+        placeholder="連線密碼" maxlength="3" type="password"
+        style="width:100%;text-align:center;border-radius:9px;margin-bottom:0;font-size:15px;font-weight:600;letter-spacing:0.2em;padding:10px 14px"
+        oninput="this.value=this.value.toUpperCase()">
     </div>
-    <input class="api-modal-input" id="apiUrlInput"
-      placeholder="https://script.google.com/macros/s/.../exec" />
     <div class="api-status" id="apiStatus"></div>
-    <div style="margin-top:4px;margin-bottom:4px">
-      <div style="font-size:11px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px">每日重置時間 <span style="font-size:10px;color:var(--text-faint);text-transform:none;letter-spacing:0">（以你的設備時區為準）</span></div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <input type="time" id="resetTimeInput" value="04:00" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:14px;font-weight:300;padding:8px 12px;outline:none;transition:border-color 0.2s;width:140px" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
-        <span style="font-size:12px;color:var(--text-faint)">重複任務將在此時間自動重置</span>
+
+    <!-- Reset time -->
+    <div style="font-size:11px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px;margin-top:16px">⏰ 每日重置時間</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+      <input type="time" id="resetTimeInput" value="04:00" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:14px;font-weight:300;padding:8px 12px;outline:none;transition:border-color 0.2s;width:140px" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
+      <span style="font-size:12px;color:var(--text-faint)">重複任務在此時間自動重置</span>
+    </div>
+
+    <!-- Theme schedule -->
+    <div style="font-size:11px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px;margin-top:16px">🌗 主題切換模式</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <span style="font-size:13px;color:var(--text-dim)">自動依時間切換</span>
+        <label style="position:relative;display:inline-block;width:42px;height:24px;cursor:pointer;text-transform:none;letter-spacing:0;margin-bottom:0">
+          <input type="checkbox" id="themeAutoToggle" style="opacity:0;width:0;height:0;position:absolute" onchange="onThemeAutoChange(this.checked)">
+          <span id="themeAutoSlider" style="position:absolute;inset:0;background:var(--bg3);border:1px solid var(--border);border-radius:24px;transition:all 0.25s">
+            <span style="position:absolute;left:3px;top:50%;transform:translateY(-50%);width:16px;height:16px;border-radius:50%;background:var(--text-dim);transition:all 0.25s;display:block" id="themeAutoKnob"></span>
+          </span>
+        </label>
+      </div>
+      <div id="themeTimeInputs" style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <span style="font-size:13px;color:var(--text-dim)">☀️ 切換白天模式（清晨）</span>
+          <input type="time" id="themeDawnInput" value="06:00" class="theme-time-input">
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <span style="font-size:13px;color:var(--text-dim)">🌙 切換夜間模式（傍晚）</span>
+          <input type="time" id="themeDuskInput" value="18:00" class="theme-time-input">
+        </div>
+      </div>
+      <div id="themeManualRow" style="display:none;align-items:center;justify-content:space-between;gap:10px">
+        <span style="font-size:13px;color:var(--text-dim)">目前主題</span>
+        <div style="display:flex;gap:6px">
+          <button id="themeBtnDay" onclick="setManualTheme('day')" style="padding:5px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.2s;border:1px solid var(--border);background:transparent;color:var(--text-dim)" onmouseover="this.style.borderColor='var(--green)'" onmouseout="updateThemeBtnStyle()">☀️ 白天</button>
+          <button id="themeBtnNight" onclick="setManualTheme('night')" style="padding:5px 14px;border-radius:8px;font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.2s;border:1px solid var(--border);background:transparent;color:var(--text-dim)" onmouseover="this.style.borderColor='var(--sky)'" onmouseout="updateThemeBtnStyle()">🌙 夜間</button>
+        </div>
       </div>
     </div>
-    <div class="api-modal-actions" style="margin-top:12px">
+
+    <div class="api-modal-actions" style="margin-top:16px">
       <button class="api-btn-clear" id="apiClearBtn" onclick="clearApiUrl()" style="display:none">✕ 清除連線</button>
-      <button class="api-btn-skip" onclick="closeApiModal()">暫時略過</button>
+      <button class="api-btn-skip" onclick="closeApiModal()">關閉</button>
       <button class="api-btn-save" onclick="saveApiSettings()">儲存設定 →</button>
     </div>
   </div>
@@ -1360,24 +1447,14 @@
   min-width:180px;
   animation: modalIn 0.18s ease;
 ">
-  <div onclick="toggleThemeManual();closeLogo Menu()" style="
-    display:flex;align-items:center;gap:10px;
-    padding:10px 14px;border-radius:9px;
-    font-size:14px;color:var(--text-dim);cursor:pointer;
-    transition:all 0.15s;
-  " onmouseover="this.style.background='var(--bg3)';this.style.color='var(--text)'" onmouseout="this.style.background='transparent';this.style.color='var(--text-dim)'" id="logoMenuThemeRow">
-    <span id="logoMenuThemeIcon" style="font-size:17px">🌙</span>
-    <span id="logoMenuThemeLabel">切換夜間模式</span>
-  </div>
-  <div style="height:1px;background:var(--border);margin:4px 6px"></div>
   <div onclick="openApiModal();closeLogoMenu()" style="
     display:flex;align-items:center;gap:10px;
     padding:10px 14px;border-radius:9px;
     font-size:14px;color:var(--text-dim);cursor:pointer;
     transition:all 0.15s;
   " onmouseover="this.style.background='var(--bg3)';this.style.color='var(--text)'" onmouseout="this.style.background='transparent';this.style.color='var(--text-dim)'">
-    <span style="font-size:17px">☁️</span>
-    <span>雲端連線設定</span>
+    <span style="font-size:17px">⚙️</span>
+    <span>使用設定</span>
   </div>
   <div onclick="document.getElementById('onboardModal').classList.add('open');closeLogoMenu()" style="
     display:flex;align-items:center;gap:10px;
@@ -1481,22 +1558,45 @@
 <!-- Toast -->
 <div class="toast" id="toast"><span id="toastMsg"></span></div>
 <script>
-// ── Cloud API (URL stored in localStorage, never in source code) ──
+// ── Cloud API — partial URL stored in localStorage ──
 const API_STORAGE_KEY = 'innerflow_api_url';
+const API_KEY_FRAGMENT_STORE = 'innerflow_api_fragment';
+const BASE_URL_PREFIX = 'https://script.google.com/macros/s/AKfycbxiKuWxPq-M3Qpp4sB5Vsy';
+const BASE_URL_SUFFIX = 'A31CYCTdiYkSMnyYT0Ap_KICk9ED9qSgNNYp15WdOndw/exec';
 
-function getApiUrl() { return localStorage.getItem(API_STORAGE_KEY) || ''; }
+function buildFullUrl(fragment) {
+  return BASE_URL_PREFIX + fragment + BASE_URL_SUFFIX;
+}
+
+function getApiUrl() {
+  // Try stored full URL (legacy), or build from fragment
+  const frag = localStorage.getItem(API_KEY_FRAGMENT_STORE);
+  if (frag) return buildFullUrl(frag);
+  return localStorage.getItem(API_STORAGE_KEY) || '';
+}
+
+function handleApiModalOverlayClick(e) {
+  if (e.target === document.getElementById('apiModal')) closeApiModal();
+}
 
 function openApiModal() {
-  const existing = getApiUrl();
-  const input = document.getElementById('apiUrlInput');
+  const frag = localStorage.getItem(API_KEY_FRAGMENT_STORE) || '';
+  const fragInput = document.getElementById('apiKeyFragment');
   const clearBtn = document.getElementById('apiClearBtn');
-  const closeBtn = document.getElementById('apiModalCloseBtn');
-  input.value = existing;
-  clearBtn.style.display = existing ? 'block' : 'none';
-  closeBtn.style.display = existing ? 'block' : 'none';
+  if (fragInput) fragInput.value = frag;
+  clearBtn.style.display = frag ? 'block' : 'none';
   // Load saved reset time
   const savedTime = localStorage.getItem('innerflow_reset_time') || '04:00';
   document.getElementById('resetTimeInput').value = savedTime;
+  // Load saved theme times
+  const dawn = localStorage.getItem('innerflow_theme_dawn') || '06:00';
+  const dusk = localStorage.getItem('innerflow_theme_dusk') || '18:00';
+  document.getElementById('themeDawnInput').value = dawn;
+  document.getElementById('themeDuskInput').value = dusk;
+  // Load theme auto mode
+  const themeAuto = localStorage.getItem('innerflow_theme_auto') !== 'false'; // default true
+  const autoToggle = document.getElementById('themeAutoToggle');
+  if (autoToggle) { autoToggle.checked = themeAuto; updateThemeAutoUI(themeAuto); }
   setApiStatus('');
   document.getElementById('apiModal').classList.add('open');
 }
@@ -1511,17 +1611,17 @@ function setApiStatus(type, msg) {
   el.textContent = msg || '';
 }
 
-async function saveApiUrl() {
-  const url = document.getElementById('apiUrlInput').value.trim();
-  if (!url) { setApiStatus('err', '請貼上你的 GAS 部署網址'); return; }
-  if (!url.startsWith('https://script.google.com')) {
-    setApiStatus('err', '網址格式不正確，應以 https://script.google.com 開頭');
-    return;
+async function saveApiUrl(fragment) {
+  if (!fragment || fragment.length !== 3) {
+    setApiStatus('err', '請輸入正確的三位金鑰');
+    return false;
   }
+  const url = buildFullUrl(fragment);
   setApiStatus('', '連線測試中…');
   try {
     const res = await fetch(url + '?action=load');
     const data = await res.json();
+    localStorage.setItem(API_KEY_FRAGMENT_STORE, fragment);
     localStorage.setItem(API_STORAGE_KEY, url);
     setApiStatus('ok', '✓ 連線成功！資料已載入');
     const sb = document.getElementById('settingsBtn');
@@ -1533,34 +1633,63 @@ async function saveApiUrl() {
       state.rewards = data.rewards || [];
       state.customQuotes = data.customQuotes || [];
       state.energy  = data.energy  || 0;
+      // Restore theme preference
+      if (data.themeManualPref) {
+        state.themeManualPref = data.themeManualPref;
+        const themeAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
+        if (!themeAuto) { themeManualOverride = data.themeManualPref; syncTheme(); }
+      }
       renderTasks(); renderSandbox(); renderStats(); renderRewards(); renderTree(); renderEnergyDots();
     }
-    setTimeout(closeApiModal, 1200);
+    return true;
   } catch (e) {
-    setApiStatus('err', '無法連線，請確認網址正確且 GAS 已部署為「所有人可存取」');
+    setApiStatus('err', '金鑰錯誤或無法連線，請確認後重試');
+    return false;
   }
 }
 
 async function saveApiSettings() {
-  // Save reset time first (always)
+  // Save reset time
   const resetTime = document.getElementById('resetTimeInput').value || '04:00';
   localStorage.setItem('innerflow_reset_time', resetTime);
   scheduleNextReset();
 
-  const url = document.getElementById('apiUrlInput').value.trim();
-  if (!url) {
-    showToast('⏰ 重置時間已儲存：' + resetTime);
-    setTimeout(closeApiModal, 800);
-    return;
+  // Save theme schedule
+  const dawn = document.getElementById('themeDawnInput').value || '06:00';
+  const dusk = document.getElementById('themeDuskInput').value || '18:00';
+  localStorage.setItem('innerflow_theme_dawn', dawn);
+  localStorage.setItem('innerflow_theme_dusk', dusk);
+  // Save theme auto mode
+  const themeAuto = document.getElementById('themeAutoToggle') ? document.getElementById('themeAutoToggle').checked : true;
+  localStorage.setItem('innerflow_theme_auto', themeAuto ? 'true' : 'false');
+  if (themeAuto) {
+    themeManualOverride = null;
+  } else {
+    // Keep current manual override, persist it to cloud via state
+    state.themeManualPref = document.documentElement.classList.contains('night-mode') ? 'night' : 'day';
+    syncToCloud();
   }
-  await saveApiUrl();
+  themeManualOverride = themeAuto ? null : (document.documentElement.classList.contains('night-mode') ? 'night' : 'day');
+  syncTheme();
+
+  // Save API fragment if provided
+  const frag = (document.getElementById('apiKeyFragment').value || '').trim().toUpperCase();
+  const existingFrag = localStorage.getItem(API_KEY_FRAGMENT_STORE) || '';
+  if (frag && frag !== existingFrag) {
+    const ok = await saveApiUrl(frag);
+    if (ok) setTimeout(closeApiModal, 1200);
+  } else {
+    showToast('✓ 設定已儲存');
+    setTimeout(closeApiModal, 600);
+  }
 }
 
 function clearApiUrl() {
   localStorage.removeItem(API_STORAGE_KEY);
-  document.getElementById('apiUrlInput').value = '';
+  localStorage.removeItem(API_KEY_FRAGMENT_STORE);
+  const fragInput = document.getElementById('apiKeyFragment');
+  if (fragInput) fragInput.value = '';
   document.getElementById('apiClearBtn').style.display = 'none';
-  document.getElementById('apiModalCloseBtn').style.display = 'none';
   const sb2 = document.getElementById('settingsBtn');
   if (sb2) { sb2.classList.remove('connected'); sb2.textContent = '⚙ Cloud'; }
   setApiStatus('ok', '已清除，目前為本機模式');
@@ -1581,6 +1710,16 @@ async function loadFromCloud() {
       state.rewards = data.rewards || [];
       state.customQuotes = data.customQuotes || [];
       state.energy  = data.energy  || 0;
+      state.doneHistory = data.doneHistory || [];
+      // Restore manual theme preference from cloud
+      if (data.themeManualPref) {
+        state.themeManualPref = data.themeManualPref;
+        const themeAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
+        if (!themeAuto) {
+          themeManualOverride = data.themeManualPref;
+          syncTheme();
+        }
+      }
       return true;
     }
   } catch (e) {
@@ -1602,7 +1741,7 @@ async function syncToCloud() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'save',
-        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0 }
+        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], themeManualPref: state.themeManualPref || null }
       })
     });
     if (dot) { dot.className = 'sync-dot synced'; setTimeout(() => { if (dot) dot.className = 'sync-dot synced'; }, 2000); }
@@ -1633,6 +1772,8 @@ let state = {
   done: 1,
   doneOpen: false,
   pendingClaimId: null,
+  doneHistory: [], // archive of completed tasks after reset
+  themeManualPref: null, // 'day' | 'night' | null — synced to cloud in manual mode
 };
 
 const energyLabels = { deep: '深度思考', flow: '靈感爆發', light: '輕鬆雜事', rest: '低耗能' };
@@ -1657,17 +1798,16 @@ const treeNodes = [
 function renderTree() {
   const grid = document.getElementById('treeGrid');
   if (!grid) return;
-  const totalDone = state.tasks.filter(t => t.done).length;
+  const todayStr = new Date().toISOString().slice(0, 10);
   grid.innerHTML = treeNodes.map(n => {
-    const doneCnt = state.tasks.filter(t => t.done && t.goal === n.key).length;
-    const totalCnt = state.tasks.filter(t => t.goal === n.key).length;
-    const pct = totalCnt > 0 ? Math.round(doneCnt / totalCnt * 100) : 0;
+    const todayDoneCnt = state.tasks.filter(t => t.done && t.goal === n.key && t.completedAt === todayStr).length;
+    const pct = Math.min(100, Math.round(todayDoneCnt / 3 * 100)); // 3 = full
     const isActive = state.goalFilter === n.key;
     return `<div class="goal-card${isActive ? ' active-filter' : ''}" onclick="filterByGoal('${n.key}')">
-      ${doneCnt > 0 ? `<div class="goal-card-badge">${doneCnt}</div>` : ''}
+      ${todayDoneCnt > 0 ? `<div class="goal-card-badge">${todayDoneCnt}</div>` : ''}
       <div class="goal-card-icon">${n.icon}</div>
       <div class="goal-card-label">${n.label}</div>
-      ${totalCnt > 0 ? `<div class="goal-card-bar"><div class="goal-card-bar-fill" style="width:${pct}%"></div></div>` : ''}
+      <div class="goal-card-bar"><div class="goal-card-bar-fill" style="width:${pct}%"></div></div>
     </div>`;
   }).join('');
 }
@@ -1940,25 +2080,45 @@ function runDailyReset() {
   if (lastReset === todayKey) { scheduleNextReset(); return; }
   localStorage.setItem(LAST_RESET_KEY, todayKey);
 
+  if (!state.doneHistory) state.doneHistory = [];
+
   let resetCount = 0;
+  const toDelete = [];
+
   state.tasks.forEach(t => {
-    if (!t.recurring) return;
-    if (t.done) {
-      // Task was completed — reset it back to undone for new day, but keep a done record
-      // Decrement done counter carefully
+    if (!t.done) return;
+    // Archive to history before any change
+    state.doneHistory.push({ id: t.id + '_' + t.completedAt, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt });
+    if (t.recurring) {
+      // Reset recurring task back to undone
       if (state.done > 0) state.done--;
       t.done = false;
       t.postponed = 0;
       resetCount++;
+    } else {
+      // Non-recurring done task → delete after reset
+      toDelete.push(t.id);
+      if (state.done > 0) state.done--;
     }
-    // If task was not done — it just stays (no duplicate)
   });
 
-  if (resetCount > 0) {
+  // Delete non-recurring completed tasks
+  if (toDelete.length > 0) {
+    state.tasks = state.tasks.filter(t => !toDelete.includes(t.id));
+  }
+
+  if (resetCount > 0 || toDelete.length > 0) {
     renderTasks(); renderStats(); renderTree(); renderRewards();
     showToast(`🔁 ${resetCount} 個重複任務已重置，新的一天開始！`);
     syncToCloud();
   }
+  // Reset random mission for the new day
+  lotteryState.randomMission = generateRandomMission();
+  lotteryState.todayDate = todayKey;
+  lotteryState.todayDone = 0;
+  lotteryState.rmSlot = undefined;
+  saveLottery();
+  renderLottery();
   scheduleNextReset();
 }
 
@@ -1989,12 +2149,6 @@ function checkMissedReset() {
 // ── Logo Long-Press Menu ──
 function openLogoMenu(e) {
   const menu = document.getElementById('logoMenu');
-  // Update theme label
-  const isNight = document.documentElement.classList.contains('night-mode');
-  document.getElementById('logoMenuThemeIcon').textContent = isNight ? '☀️' : '🌙';
-  document.getElementById('logoMenuThemeLabel').textContent = isNight ? '切換日間模式' : '切換夜間模式';
-  // Also fix the onclick to call toggleThemeManual then closeLogoMenu
-  document.getElementById('logoMenuThemeRow').onclick = function() { toggleThemeManual(); closeLogoMenu(); };
   menu.style.display = 'block';
   // Position near logo
   const rect = document.getElementById('logoBtn').getBoundingClientRect();
@@ -2027,19 +2181,19 @@ async function init() {
     else { showToast('⚠ 雲端讀取失敗，使用本機資料'); if (dot) dot.className = 'sync-dot'; }
   }
 
-  // Logo: click = help, longpress = logo menu (theme + cloud)
+  // Logo: click = toggle theme, longpress = logo menu (settings + cloud)
   const logo = document.getElementById('logoBtn');
   let pressTimer = null;
   logo.addEventListener('mousedown', (e) => {
     pressTimer = setTimeout(() => { pressTimer = null; openLogoMenu(e); }, 600);
   });
   logo.addEventListener('mouseup', () => {
-    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; document.getElementById('onboardModal').classList.add('open'); }
+    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; toggleThemeManual(); }
   });
   logo.addEventListener('mouseleave', () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
   // Touch support
   logo.addEventListener('touchstart', (e) => { e.preventDefault(); pressTimer = setTimeout(() => { pressTimer = null; openLogoMenu(e.touches[0]); }, 600); }, { passive: false });
-  logo.addEventListener('touchend', () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; document.getElementById('onboardModal').classList.add('open'); } });
+  logo.addEventListener('touchend', () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; toggleThemeManual(); } });
 
   renderEnergyDots();
   initMoodTrack();
@@ -2083,16 +2237,53 @@ function renderEnergyDots() {
     const btn = document.getElementById('moodBtn' + l.charAt(0).toUpperCase() + l.slice(1));
     if (btn) btn.className = 'mood-btn' + (level === l ? ' active-' + l : '');
   });
-  // Auto-filter for low energy
-  if (v > 0 && v <= 3) {
-    showToast('能量偏低，已自動篩選出輕鬆任務 🍃');
-    filterEnergy('light');
+  // Auto-filter based on energy level (stored in state, not slider directly)
+}
+
+function applyEnergyFilter(level) {
+  if (level === 'low') {
+    state.energyFilter = 'rest';
+    updateFilterChips('rest');
+  } else if (level === 'mid') {
+    state.energyFilter = 'mid';
+    // highlight flow and light chips
+    const types = ['all','deep','flow','light','rest'];
+    document.querySelectorAll('.filter-chip').forEach((c, i) => {
+      c.classList.toggle('active', types[i] === 'flow' || types[i] === 'light');
+    });
+  } else if (level === 'high') {
+    state.energyFilter = 'deep';
+    updateFilterChips('deep');
   }
+  renderTasks();
+}
+
+function updateFilterChips(active) {
+  const types = ['all','deep','flow','light','rest'];
+  document.querySelectorAll('.filter-chip').forEach((c, i) => {
+    c.classList.toggle('active', types[i] === active);
+  });
 }
 
 function onEnergySliderChange(val) {
   const levels = ['low', 'mid', 'high'];
-  setMoodLevel(levels[parseInt(val)]);
+  const level = levels[parseInt(val)];
+  setMoodLevel(level);
+  // Auto-filter by energy level
+  applyEnergyFilter(level);
+  const toastMap = {
+    low: '精力偏低，已篩選低耗能任務 🌙',
+    mid: '精力適中，已顯示輕鬆雜事與靈感爆發 ⚡',
+    high: '精力充沛，已篩選深度思考任務 🌊',
+  };
+  showToast(toastMap[level]);
+}
+
+// Override filterEnergy to update chip state correctly
+function filterEnergy(type) {
+  state.energyFilter = type;
+  updateFilterChips(type);
+  renderTasks();
 }
 
 function setMoodLevel(level) {
@@ -2125,14 +2316,7 @@ function showPage(id, skipRender) {
 }
 
 // ── Filter ──
-function filterEnergy(type) {
-  state.energyFilter = type;
-  document.querySelectorAll('.filter-chip').forEach((c, i) => {
-    const types = ['all','deep','flow','light','rest'];
-    c.classList.toggle('active', types[i] === type);
-  });
-  renderTasks();
-}
+// filterEnergy defined above near onEnergySliderChange
 
 function filterByGoal(goal) {
   // Set filter state BEFORE navigating so renderTasks sees the correct value
@@ -2183,7 +2367,12 @@ function renderTasks() {
   const list = document.getElementById('taskList');
   let activeTasks = state.tasks.filter(t => !t.done);
   let doneTasks   = state.tasks.filter(t =>  t.done);
-  if (state.energyFilter !== 'all') activeTasks = activeTasks.filter(t => t.energy === state.energyFilter);
+  // Energy filter: 'mid' shows flow AND light
+  if (state.energyFilter === 'mid') {
+    activeTasks = activeTasks.filter(t => t.energy === 'flow' || t.energy === 'light');
+  } else if (state.energyFilter && state.energyFilter !== 'all') {
+    activeTasks = activeTasks.filter(t => t.energy === state.energyFilter);
+  }
   if (state.goalFilter) {
     activeTasks = activeTasks.filter(t => t.goal === state.goalFilter);
     doneTasks   = doneTasks.filter(t => t.goal === state.goalFilter);
@@ -2200,15 +2389,17 @@ function renderTasks() {
 
   // Done section
   if (doneTasks.length > 0) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayDoneTasks = doneTasks.filter(t => t.completedAt === todayStr);
     const isOpen = state.doneOpen;
     html += `
       <div class="done-section-header" onclick="toggleDoneSection()">
         <span class="done-toggle-arrow ${isOpen ? 'open' : ''}">▶</span>
-        已完成 ${doneTasks.length} 件
-        <span style="font-size:10px;color:var(--text-faint);margin-left:4px">（點擊可取消勾選）</span>
+        今日已完成 ${todayDoneTasks.length} 件
+        <span style="font-size:10px;color:var(--text-faint);margin-left:4px">（今日完成可取消勾選）</span>
       </div>
       <div class="done-tasks-wrap ${isOpen ? 'open' : ''}" id="doneTasksWrap">
-        ${doneTasks.map(t => taskHTML(t)).join('')}
+        ${todayDoneTasks.map(t => taskHTML(t)).join('')}
       </div>`;
   }
 
@@ -2271,7 +2462,13 @@ function toggleTask(id) {
 
 function showCelebration(task) {
   const cel = document.getElementById('celebration');
-  const egg = easterEggs[Math.floor(Math.random() * easterEggs.length)];
+  // Use custom quotes if available, else fall back to easter eggs
+  const allQuotes = [];
+  if (state.customQuotes && state.customQuotes.length > 0) {
+    state.customQuotes.forEach(q => allQuotes.push(q));
+  }
+  easterEggs.forEach(q => allQuotes.push(q));
+  const egg = allQuotes[Math.floor(Math.random() * allQuotes.length)];
   document.getElementById('celebSub').textContent = egg;
   cel.classList.add('show');
   setTimeout(() => cel.classList.remove('show'), 2800);
@@ -2370,24 +2567,56 @@ const quotes = [
 
 let lotteryState = {
   tickets: 0,
-  cards: [],       // 9 cards, each { revealed, content, isWish }
+  cards: [],       // 9 cards, each { revealed, content, isWish, isRandomMission }
   todayDate: '',
   todayDone: 0,
+  randomMission: null, // { taskIds: [], requiredCount: N, resetDate: '' }
 };
 
 function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function generateRandomMission() {
+  // Pick 1–3 random undone tasks as mission targets
+  const undone = state.tasks.filter(t => !t.done);
+  if (undone.length === 0) return null;
+  const shuffled = [...undone].sort(() => Math.random() - 0.5);
+  const count = Math.min(Math.floor(Math.random() * 3) + 1, shuffled.length); // 1–3
+  const picked = shuffled.slice(0, count);
+  return {
+    taskIds: picked.map(t => t.id),
+    taskNames: picked.map(t => t.name),
+    requiredCount: count,
+    resetDate: getTodayKey(),
+    completedTaskIds: [],
+  };
+}
+
 function initLottery() {
   const saved = localStorage.getItem('innerflow_lottery');
   if (saved) {
-    try { lotteryState = JSON.parse(saved); } catch(e) {}
+    try { lotteryState = { ...lotteryState, ...JSON.parse(saved) }; } catch(e) {}
   }
   const today = getTodayKey();
   if (lotteryState.todayDate !== today) {
     lotteryState.todayDate = today;
     lotteryState.todayDone = 0;
+    lotteryState.rmSlot = undefined;
+  }
+  // Reset random mission if it's from a different day
+  if (lotteryState.randomMission && lotteryState.randomMission.resetDate !== today) {
+    lotteryState.randomMission = null;
+    lotteryState.rmSlot = undefined;
+    // Also clear any random mission card from the deck
+    if (lotteryState.cards) {
+      lotteryState.cards = lotteryState.cards.map(c => c.isRandomMission ? { ...c, isRandomMission: false, revealed: true } : c);
+    }
+  }
+  // Ensure randomMission exists
+  if (!lotteryState.randomMission) {
+    lotteryState.randomMission = generateRandomMission();
+    saveLottery();
   }
   renderLottery();
 }
@@ -2397,8 +2626,38 @@ function saveLottery() {
 }
 
 function countTodayDone() {
-  // count tasks completed today — we track via a simple counter reset per day
   return lotteryState.todayDone;
+}
+
+function checkRandomMissionProgress() {
+  const rm = lotteryState.randomMission;
+  if (!rm) return;
+  // Check which mission tasks are now done
+  const completedNow = rm.taskIds.filter(id => {
+    const t = state.tasks.find(x => x.id === id);
+    return t && t.done;
+  });
+  rm.completedTaskIds = completedNow;
+  // If all completed and not yet awarded
+  if (completedNow.length >= rm.requiredCount && !rm.awarded) {
+    rm.awarded = true;
+    const ticketsEarned = rm.requiredCount;
+    lotteryState.tickets += ticketsEarned;
+    saveLottery();
+    setTimeout(() => showToast(`🏆 隨機任務完成！獲得 ${ticketsEarned} 張抽獎券！`), 800);
+    renderLottery();
+    // If mission card is in deck, mark it revealed as complete
+    if (lotteryState.cards) {
+      lotteryState.cards.forEach((c, i) => {
+        if (c.isRandomMission && !c.revealed) {
+          lotteryState.cards[i].revealed = true;
+          lotteryState.cards[i].missionComplete = true;
+          saveLottery();
+        }
+      });
+    }
+  }
+  saveLottery();
 }
 
 function onTaskCompleted() {
@@ -2412,18 +2671,20 @@ function onTaskCompleted() {
     lotteryState.tickets++;
     showToast('🎫 獲得抽獎券！去抽獎區翻牌吧');
   }
+  checkRandomMissionProgress();
   saveLottery();
   renderLottery();
 }
 
 function onTaskUncompleted() {
   if (lotteryState.todayDone > 0) lotteryState.todayDone--;
+  checkRandomMissionProgress();
   saveLottery();
   renderLottery();
 }
 
 function buildCardPool() {
-  // Gather unlocked wishes
+  // Gather unlocked wishes (not claimed)
   const unlockedWishes = [];
   if (state.rewards) {
     state.rewards.forEach(r => {
@@ -2440,30 +2701,23 @@ function buildCardPool() {
   }
   quotes.forEach(q => allQuotes.push({ text: q.text, icon: q.icon, isWish: false }));
 
-  // Shuffle helpers
   const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
-
   const TOTAL = 9;
 
-  if (unlockedWishes.length === 0) {
-    // No wishes → all 9 are quotes
-    const pool = shuffle(allQuotes);
-    return Array.from({ length: TOTAL }, (_, i) => pool[i % pool.length]);
+  // 1 random mission card + 3 wish cards (if available) + rest quotes
+  const rmCard = { isRandomMission: true };
+  const WISH_SLOTS = 3;
+  const wishCards = shuffle(unlockedWishes).slice(0, Math.min(WISH_SLOTS, unlockedWishes.length));
+  // Fill remaining wish slots with duplicates if fewer wishes available
+  while (wishCards.length > 0 && wishCards.length < WISH_SLOTS) {
+    wishCards.push({ ...wishCards[wishCards.length % wishCards.length] });
   }
 
-  // Pick exactly 2 wish slots (positions), fill rest with quotes
-  const wishCards = shuffle(unlockedWishes).slice(0, Math.min(2, unlockedWishes.length));
-  // If only 1 unlocked wish, duplicate it for the 2nd slot
-  while (wishCards.length < 2) wishCards.push({ ...wishCards[0] });
-
+  const QUOTE_SLOTS = TOTAL - 1 - wishCards.length; // 1 for rm card
   const quoteCards = shuffle(allQuotes);
-  const WISH_COUNT = 2;
-  const QUOTE_COUNT = TOTAL - WISH_COUNT;
-
-  // Build the 9-card deck: 2 wish + 7 quote, then shuffle positions
-  const deck = [];
-  for (let i = 0; i < WISH_COUNT; i++) deck.push(wishCards[i]);
-  for (let i = 0; i < QUOTE_COUNT; i++) deck.push(quoteCards[i % quoteCards.length]);
+  const deck = [rmCard];
+  for (let i = 0; i < wishCards.length; i++) deck.push(wishCards[i]);
+  for (let i = 0; i < QUOTE_SLOTS; i++) deck.push(quoteCards[i % quoteCards.length]);
   return shuffle(deck);
 }
 
@@ -2472,8 +2726,12 @@ function drawLottery() {
   lotteryState.tickets--;
   const deck = buildCardPool();
   lotteryState.cards = deck.map(item => ({
-    revealed: false, text: item.text, icon: item.icon,
-    isWish: item.isWish || false, wishId: item.wishId || null
+    revealed: false,
+    text: item.text || '',
+    icon: item.icon || '',
+    isWish: item.isWish || false,
+    wishId: item.wishId || null,
+    isRandomMission: item.isRandomMission || false,
   }));
   saveLottery();
   renderLottery();
@@ -2491,9 +2749,11 @@ function flipCard(i) {
       cardEl.classList.remove('flipping');
       cardEl.classList.add('revealed');
       if (lotteryState.cards[i].isWish) cardEl.classList.add('is-wish');
+      if (lotteryState.cards[i].isRandomMission) cardEl.classList.add('random-mission');
       cardEl.querySelector('.lottery-card-back').style.display = 'none';
       const front = cardEl.querySelector('.lottery-card-front');
-      front.style.display = 'flex';
+      if (front) front.style.display = 'flex';
+      renderLottery(); // re-render to show mission content
     }, 220);
   }
 }
@@ -2507,10 +2767,26 @@ function renderLottery() {
   if (progressEl) progressEl.textContent = lotteryState.todayDone;
   if (drawBtn) drawBtn.disabled = lotteryState.tickets <= 0;
 
+  // Update progress text
+  const lotteryProgress = document.getElementById('lotteryProgress');
+  if (lotteryProgress) {
+    const need = 3 - (lotteryState.todayDone % 3);
+    lotteryProgress.innerHTML = `今日已完成 <span id="todayDone">${lotteryState.todayDone}</span> 個任務 · 再完成 ${need === 3 ? 3 : need} 個獲得券`;
+  }
+
   const grid = document.getElementById('lotteryGrid');
   if (!grid) return;
 
+  const rm = lotteryState.randomMission;
+  const today = getTodayKey();
+
   if (!lotteryState.cards || lotteryState.cards.length === 0) {
+    // Persist RM slot so it doesn't jump on re-render
+    if (rm && lotteryState.rmSlot === undefined) {
+      lotteryState.rmSlot = Math.floor(Math.random() * 9);
+      saveLottery();
+    }
+    const rmSlot = rm ? (lotteryState.rmSlot !== undefined ? lotteryState.rmSlot : 0) : -1;
     grid.innerHTML = Array.from({length:9}, (_, i) => `
       <div class="lottery-card" id="lcard-${i}">
         <div class="lottery-card-back">
@@ -2524,16 +2800,37 @@ function renderLottery() {
 
   grid.innerHTML = lotteryState.cards.map((c, i) => {
     const isRevealed = c.revealed;
-    return `<div class="lottery-card${isRevealed ? ' revealed' + (c.isWish ? ' is-wish' : '') : ''}" id="lcard-${i}" ${!isRevealed ? `onclick="flipCard(${i})"` : ''}>
+    const isRM = c.isRandomMission;
+
+    // Build random mission front content
+    let rmFrontHtml = '';
+    if (isRM && rm) {
+      const completedCount = (rm.completedTaskIds || []).length;
+      const missionDone = rm.awarded;
+      rmFrontHtml = `
+        <div class="card-reveal-icon">${missionDone ? '🏆' : '⭐'}</div>
+        <div style="font-size:9px;color:var(--text-dim);letter-spacing:0.06em;margin-bottom:2px">隨機任務</div>
+        <div class="rm-tasks-list">
+          ${rm.taskNames.map((name, j) => {
+            const done = (rm.completedTaskIds || []).includes(rm.taskIds[j]);
+            return `<div class="rm-task-row${done ? ' done-task' : ''}"><span class="rm-task-check">${done ? '✓' : '○'}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70px">${name}</span></div>`;
+          }).join('')}
+        </div>
+        <div class="rm-badge" style="margin-top:4px">${missionDone ? `🎫 已獲 ${rm.requiredCount} 券` : `完成得 ${rm.requiredCount} 券`}</div>
+      `;
+    }
+
+    return `<div class="lottery-card${isRevealed ? ' revealed' + (c.isWish ? ' is-wish' : '') + (isRM ? ' random-mission' : '') : ''}" id="lcard-${i}" ${!isRevealed ? `onclick="flipCard(${i})"` : ''}>
       <div class="lottery-card-back" style="${isRevealed ? 'display:none' : ''}">
         <div class="card-face-icon">✦</div>
         <div class="card-face-hint">點擊翻牌</div>
       </div>
       <div class="lottery-card-front" style="${isRevealed ? 'display:flex' : 'display:none'}">
+        ${isRM ? rmFrontHtml : `
         <div class="card-reveal-icon">${c.icon}</div>
         <div class="card-reveal-text">${c.text}</div>
         <div class="card-reveal-badge ${c.isWish ? 'wish' : 'quote'}">${c.isWish ? '★ 許願' : '格言'}</div>
-        ${c.isWish && c.wishId ? `<div onclick="openClaimReward(${c.wishId})" style="font-size:10px;cursor:pointer;color:var(--gold);margin-top:2px;text-decoration:underline">領取</div>` : ''}
+        ${c.isWish && c.wishId ? `<div onclick="openClaimReward(${c.wishId})" style="font-size:10px;cursor:pointer;color:var(--gold);margin-top:2px;text-decoration:underline">領取</div>` : ''}`}
       </div>
     </div>`;
   }).join('');
@@ -2550,27 +2847,89 @@ function renderAchievements() {
 
 // ── Stats ──
 function renderStats() {
-  const doneTasks = state.tasks.filter(t => t.done);
+  const allDoneTasks = state.tasks.filter(t => t.done);
+  const historyTasks = state.doneHistory || [];
   const statsGrid = document.getElementById('statsGrid');
   statsGrid.innerHTML = `
-    <div class="stat-card"><div class="stat-value">${doneTasks.length}</div><div class="stat-label">已完成任務</div></div>
+    <div class="stat-card"><div class="stat-value">${allDoneTasks.length + historyTasks.length}</div><div class="stat-label">已完成任務</div></div>
     <div class="stat-card"><div class="stat-value">${state.sandbox.length}</div><div class="stat-label">探索中的好奇</div></div>
   `;
+  // Calendar heatmap — combine current done tasks + history
+  const calContainer = document.getElementById('doneCalendarContainer');
+  if (calContainer) {
+    const calTasks = [...allDoneTasks, ...historyTasks];
+    renderDoneCalendar(calTasks, calContainer);
+  }
+  // Done list — show currently-done tasks; only today's can be unchecked
   const doneList = document.getElementById('doneList');
-  if (doneTasks.length === 0) {
-    doneList.innerHTML = '<div style="color:var(--text-faint);font-size:13px;padding:8px;font-style:italic">完成任務後，它們會出現在月曆上。</div>';
+  const todayStr = new Date().toISOString().slice(0, 10);
+  if (allDoneTasks.length === 0 && historyTasks.length === 0) {
+    doneList.innerHTML = '<div style="color:var(--text-faint);font-size:13px;padding:8px;font-style:italic">完成任務後，它們會出現在這裡。</div>';
     return;
   }
-  renderDoneCalendar(doneTasks, doneList);
+  // Show currently-done tasks (today's can be unchecked)
+  const todayDone = allDoneTasks.filter(t => t.completedAt === todayStr);
+  const olderDone = allDoneTasks.filter(t => t.completedAt !== todayStr);
+  let html = '';
+  if (todayDone.length > 0) {
+    html += `<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px">今日完成</div>`;
+    html += todayDone.map(t => `
+      <div class="task-item done" style="opacity:0.85">
+        <div class="task-check checked" onclick="undoneTask(${t.id})" title="取消完成">✓</div>
+        <div class="task-body">
+          <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
+          <div class="task-meta">
+            <span class="tag tag-goal">${t.goal || ''}</span>
+            ${t.completedAt ? `<span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>` : ''}
+          </div>
+        </div>
+        <span onclick="deleteTaskFromStats(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'">×</span>
+      </div>`).join('');
+  }
+  if (olderDone.length > 0) {
+    html += `<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-top:12px;margin-bottom:6px">歷史完成</div>`;
+    html += olderDone.map(t => `
+      <div class="task-item done" style="opacity:0.55">
+        <div class="task-check checked" style="cursor:default;opacity:0.5">✓</div>
+        <div class="task-body">
+          <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
+          <div class="task-meta">
+            <span class="tag tag-goal">${t.goal || ''}</span>
+            ${t.completedAt ? `<span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>` : ''}
+          </div>
+        </div>
+      </div>`).join('');
+  }
+  if (historyTasks.length > 0) {
+    html += `<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-top:12px;margin-bottom:6px">已歸檔（重置後）</div>`;
+    html += historyTasks.map((t, i) => `
+      <div class="task-item done" style="opacity:0.45">
+        <div class="task-check checked" style="cursor:default;opacity:0.4">✓</div>
+        <div class="task-body">
+          <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
+          <div class="task-meta">
+            <span class="tag tag-goal">${t.goal || ''}</span>
+            ${t.completedAt ? `<span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>` : ''}
+          </div>
+        </div>
+      </div>`).join('');
+  }
+  doneList.innerHTML = html;
 }
 
 function undoneTask(id) {
   const t = state.tasks.find(x => x.id === id);
   if (!t) return;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  if (t.completedAt !== todayStr) {
+    showToast('⚠ 只能取消當日完成的任務');
+    return;
+  }
   t.done = false;
   if (state.done > 0) state.done--;
   renderStats();
   renderTasks();
+  renderTree();
   checkAchievements();
   renderRewards();
   showToast('↩ 已恢復為未完成');
@@ -2683,33 +3042,37 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
 });
 
 // ── 五行主題：補水補金 Dark/Light Mode ──
-// 方案 A（夜間 / 深邃海洋）：18:00 – 06:00
-// 方案 B（日間 / 清晨冰川）：06:00 – 18:00
+// 方案 A（夜間 / 深邃海洋）：dusk – dawn
+// 方案 B（日間 / 清晨冰川）：dawn – dusk
+
+const THEME_DAWN_KEY = 'innerflow_theme_dawn'; // default '06:00'
+const THEME_DUSK_KEY = 'innerflow_theme_dusk'; // default '18:00'
+
+function getThemeBoundaries() {
+  const dawn = localStorage.getItem(THEME_DAWN_KEY) || '06:00';
+  const dusk = localStorage.getItem(THEME_DUSK_KEY) || '18:00';
+  return { dawn, dusk };
+}
 
 let themeManualOverride = null; // null = auto, 'day' | 'night' = manual
 
 function isNightTime() {
-  const h = new Date().getHours();
-  return h >= 18 || h < 6;
+  const { dawn, dusk } = getThemeBoundaries();
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const [dh, dm] = dawn.split(':').map(Number);
+  const [sh, sm] = dusk.split(':').map(Number);
+  const dawnMin = dh * 60 + dm;
+  const duskMin = sh * 60 + sm;
+  return nowMin >= duskMin || nowMin < dawnMin;
 }
 
 function applyTheme(isNight) {
   const root = document.documentElement;
-  const btn = document.getElementById('themeToggleBtn');
   if (isNight) {
     root.classList.add('night-mode');
-    if (btn) {
-      btn.textContent = '🌙';
-      btn.style.color = 'var(--green)';
-      btn.style.borderColor = 'var(--green)';
-    }
   } else {
     root.classList.remove('night-mode');
-    if (btn) {
-      btn.textContent = '☀️';
-      btn.style.color = 'var(--green)';
-      btn.style.borderColor = 'var(--green)';
-    }
   }
 }
 
@@ -2721,35 +3084,97 @@ function syncTheme() {
   }
 }
 
+function onThemeAutoChange(checked) {
+  localStorage.setItem('innerflow_theme_auto', checked ? 'true' : 'false');
+  updateThemeAutoUI(checked);
+  if (checked) {
+    themeManualOverride = null;
+    syncTheme();
+  } else {
+    // Default manual to current theme
+    themeManualOverride = document.documentElement.classList.contains('night-mode') ? 'night' : 'day';
+    state.themeManualPref = themeManualOverride;
+    updateThemeBtnStyle();
+  }
+}
+
+function updateThemeAutoUI(isAuto) {
+  const timeInputs = document.getElementById('themeTimeInputs');
+  const manualRow  = document.getElementById('themeManualRow');
+  const knob       = document.getElementById('themeAutoKnob');
+  const sliderBg   = document.getElementById('themeAutoSlider');
+  if (timeInputs) timeInputs.style.display = isAuto ? 'flex' : 'none';
+  if (manualRow)  manualRow.style.display  = isAuto ? 'none' : 'flex';
+  if (knob)       knob.style.left = isAuto ? '20px' : '3px';
+  if (sliderBg)   sliderBg.style.background = isAuto ? 'var(--green)' : 'var(--bg3)';
+  if (!isAuto) updateThemeBtnStyle();
+}
+
+function updateThemeBtnStyle() {
+  const isNight = document.documentElement.classList.contains('night-mode');
+  const btnDay   = document.getElementById('themeBtnDay');
+  const btnNight = document.getElementById('themeBtnNight');
+  if (!btnDay || !btnNight) return;
+  if (isNight) {
+    btnDay.style.background = 'transparent'; btnDay.style.color = 'var(--text-dim)'; btnDay.style.borderColor = 'var(--border)';
+    btnNight.style.background = 'var(--green-dim)'; btnNight.style.color = 'var(--text)'; btnNight.style.borderColor = 'var(--green)';
+  } else {
+    btnDay.style.background = 'var(--green-dim)'; btnDay.style.color = 'var(--text)'; btnDay.style.borderColor = 'var(--green)';
+    btnNight.style.background = 'transparent'; btnNight.style.color = 'var(--text-dim)'; btnNight.style.borderColor = 'var(--border)';
+  }
+}
+
+function setManualTheme(mode) {
+  themeManualOverride = mode;
+  state.themeManualPref = mode;
+  applyTheme(mode === 'night');
+  updateThemeBtnStyle();
+  syncToCloud();
+  showToast(mode === 'night' ? '🌊 已切換為深邃海洋' : '☀️ 已切換為清晨冰川');
+}
+
 function toggleThemeManual() {
   const isNight = document.documentElement.classList.contains('night-mode');
-  // Toggle and lock manual override until next natural boundary
-  themeManualOverride = isNight ? 'day' : 'night';
+  const newMode = isNight ? 'day' : 'night';
+  themeManualOverride = newMode;
+  state.themeManualPref = newMode;
   syncTheme();
-  const modeName = themeManualOverride === 'night' ? '深邃海洋 🌊' : '清晨冰川 ☀';
-  showToast(`✦ 已切換為${modeName}（將於 ${isNightTime() !== (themeManualOverride === 'night') ? (themeManualOverride === 'night' ? '18:00' : '06:00') : (themeManualOverride === 'night' ? '06:00' : '18:00')} 自動恢復）`);
-  // Release manual override only when clock naturally crosses the boundary
-  clearTimeout(window._themeOverrideTimer);
-  scheduleBoundaryRelease();
+  const modeName = newMode === 'night' ? '深邃海洋 🌊' : '清晨冰川 ☀';
+  showToast(`✦ 已切換為${modeName}`);
+  const isAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
+  if (isAuto) {
+    // In auto mode: temporary override, release at next boundary
+    clearTimeout(window._themeOverrideTimer);
+    scheduleBoundaryRelease();
+  } else {
+    // In manual mode: persist choice to cloud
+    syncToCloud();
+  }
 }
 
 function scheduleBoundaryRelease() {
-  // Calculate ms until the next 06:00 or 18:00 boundary
+  const { dawn, dusk } = getThemeBoundaries();
   const now = new Date();
-  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
-  const todayMin = h * 60 + m + s / 60;
-  const dawn  = 6 * 60;   // 06:00
-  const dusk  = 18 * 60;  // 18:00
+  const nowMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  const [dh, dm] = dawn.split(':').map(Number);
+  const [sh, sm] = dusk.split(':').map(Number);
+  const dawnMin = dh * 60 + dm;
+  const duskMin = sh * 60 + sm;
   let nextBoundaryMin;
-  if (todayMin < dawn) nextBoundaryMin = dawn;
-  else if (todayMin < dusk) nextBoundaryMin = dusk;
-  else nextBoundaryMin = dawn + 24 * 60;
-  const msUntil = (nextBoundaryMin - todayMin) * 60 * 1000;
+  if (nowMin < dawnMin) nextBoundaryMin = dawnMin;
+  else if (nowMin < duskMin) nextBoundaryMin = duskMin;
+  else nextBoundaryMin = dawnMin + 24 * 60;
+  const msUntil = (nextBoundaryMin - nowMin) * 60 * 1000;
   window._themeOverrideTimer = setTimeout(() => {
-    themeManualOverride = null;
-    syncTheme();
+    const isAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
+    if (isAuto) {
+      themeManualOverride = null;
+      syncTheme();
+    }
   }, msUntil);
 }
+
+// Theme schedule is now handled inside saveApiSettings / openApiModal
 
 // ── PWA Service Worker ──
 if ('serviceWorker' in navigator) {
@@ -2781,6 +3206,14 @@ function renderDoneCalendar(doneTasks, container) {
   const monthNames = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
   const dowNames = ['日','一','二','三','四','五','六'];
 
+  // heat level: 0=none, 1=1-4, 2=5-9, 3=10+
+  function heatLevel(n) {
+    if (n === 0) return 0;
+    if (n <= 4)  return 1;
+    if (n <= 9)  return 2;
+    return 3;
+  }
+
   let html = `
     <div class="cal-nav">
       <button class="cal-nav-btn" onclick="calPrevMonth()">‹</button>
@@ -2791,7 +3224,6 @@ function renderDoneCalendar(doneTasks, container) {
       ${dowNames.map(d => `<div class="cal-dow">${d}</div>`).join('')}
   `;
 
-  // Empty cells before month start
   for (let i = 0; i < firstDay; i++) {
     html += `<div class="cal-day empty"></div>`;
   }
@@ -2799,18 +3231,27 @@ function renderDoneCalendar(doneTasks, container) {
   for (let day = 1; day <= daysInMonth; day++) {
     const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     const tasks = byDate[dateStr] || [];
-    const hasDone = tasks.length > 0;
+    const n = tasks.length;
+    const heat = heatLevel(n);
     const isToday = dateStr === today;
-    html += `<div class="cal-day${hasDone ? ' has-done' : ''}${isToday ? ' today' : ''}"
-      ${hasDone ? `onclick="showCalPopup(event,'${dateStr}')"` : ''}
-      title="${hasDone ? tasks.length + ' 件完成' : ''}"
+    const clickable = n > 0;
+    html += `<div class="cal-day heat-${heat}${isToday ? ' today' : ''}"
+      ${clickable ? `onclick="showCalPopup(event,'${dateStr}')"` : ''}
+      title="${n > 0 ? n + ' 件完成' : ''}"
     >
-      ${day}
-      ${hasDone ? `<div class="cal-done-dot"></div>` : ''}
+      <span class="cal-day-date">${day}</span>
+      ${n > 0 ? `<span class="cal-day-count">${n}</span>` : ''}
     </div>`;
   }
 
-  html += `</div>`;
+  html += `</div>
+  <div class="cal-legend">
+    <span>少</span>
+    <div class="cal-legend-box" style="background:rgba(100,170,230,0.15);border:1px solid rgba(100,170,230,0.3)"></div>
+    <div class="cal-legend-box" style="background:rgba(60,130,200,0.32);border:1px solid rgba(60,130,200,0.4)"></div>
+    <div class="cal-legend-box" style="background:rgba(30,90,170,0.55);border:1px solid rgba(30,90,170,0.6)"></div>
+    <span>多</span>
+  </div>`;
   container.innerHTML = html;
 }
 
@@ -2830,7 +3271,17 @@ function showCalPopup(e, dateStr) {
   e.stopPropagation();
   closeCalPopup();
 
-  const doneTasks = state.tasks.filter(t => t.done && t.completedAt === dateStr);
+  // Gather tasks from both current done and doneHistory
+  const currentDone = state.tasks.filter(t => t.done && t.completedAt === dateStr);
+  const historyDone = (state.doneHistory || []).filter(t => t.completedAt === dateStr);
+  // Merge, deduplicate by name+date
+  const seen = new Set();
+  const doneTasks = [];
+  [...currentDone, ...historyDone].forEach(t => {
+    const key = t.name + '|' + t.completedAt;
+    if (!seen.has(key)) { seen.add(key); doneTasks.push(t); }
+  });
+
   const [y, m, d] = dateStr.split('-');
   const label = `${parseInt(m)} 月 ${parseInt(d)} 日`;
 
@@ -2838,7 +3289,7 @@ function showCalPopup(e, dateStr) {
   popup.className = 'cal-popup';
   popup.id = 'calPopup';
   popup.innerHTML = `
-    <div class="cal-popup-title">${label} 完成的任務 <span class="cal-popup-close" onclick="closeCalPopup()">×</span></div>
+    <div class="cal-popup-title">${label} 完成 ${doneTasks.length} 件 <span class="cal-popup-close" onclick="closeCalPopup()">×</span></div>
     ${doneTasks.map(t => `
       <div class="cal-popup-item">
         <span style="color:var(--green);flex-shrink:0">✓</span>
@@ -2868,11 +3319,20 @@ document.addEventListener('click', (e) => {
 });
 
 // ── Initial apply
-syncTheme();
+const _themeAutoOnLoad = localStorage.getItem('innerflow_theme_auto') !== 'false';
+if (!_themeAutoOnLoad) {
+  // Manual mode: apply saved preference or current theme
+  const savedPref = state.themeManualPref || null;
+  if (savedPref) { themeManualOverride = savedPref; applyTheme(savedPref === 'night'); }
+  else { syncTheme(); }
+} else {
+  syncTheme();
+}
 
-// Check every minute if time crosses the 06:00 / 18:00 boundary
+// Check every minute if time crosses the boundary (only in auto mode)
 setInterval(() => {
-  if (themeManualOverride === null) syncTheme();
+  const isAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
+  if (isAuto && themeManualOverride === null) syncTheme();
 }, 60000);
 
 init();
