@@ -1129,6 +1129,66 @@
   }
   .task-collapse-arrow.open { transform: rotate(90deg); }
 
+  /* ── Task Status Badges ── */
+  .task-status-btn {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 8px; border-radius: 20px; font-size: 11px;
+    cursor: pointer; border: 1px solid; transition: all 0.18s;
+    white-space: nowrap; user-select: none;
+    font-family: inherit;
+  }
+  .task-status-today {
+    border-color: var(--green); color: var(--green);
+    background: rgba(74,130,196,0.10);
+  }
+  .task-status-today:hover { background: rgba(74,130,196,0.18); }
+  .task-status-cancel {
+    border-color: rgba(130,154,177,0.5); color: var(--text-faint);
+    background: transparent;
+  }
+  .task-status-cancel:hover { border-color: var(--rose); color: var(--rose); background: rgba(192,86,90,0.06); }
+  .task-status-overdue {
+    border-color: rgba(192,86,90,0.5); color: var(--rose);
+    background: rgba(192,86,90,0.08);
+    cursor: pointer;
+  }
+  .task-status-overdue:hover { background: rgba(192,86,90,0.15); }
+  .task-item.is-today { border-left: 2px solid var(--green) !important; }
+  .task-item.is-overdue { border-left: 2px solid var(--rose) !important; }
+
+  /* ── Today Tasks Panel (under Life Tree) ── */
+  .today-panel {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 20px;
+    box-shadow: 0 1px 4px rgba(74,130,196,0.06);
+    margin-top: 0;
+  }
+  .today-panel-title {
+    font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .today-task-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--bg3);
+    font-size: 13px; color: var(--text);
+    margin-bottom: 6px; transition: all 0.2s;
+  }
+  .today-task-chip:last-child { margin-bottom: 0; }
+  .today-task-chip.done-chip { opacity: 0.45; text-decoration: line-through; color: var(--text-dim); }
+  .today-chip-check {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 1.5px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; cursor: pointer; transition: all 0.2s;
+  }
+  .today-chip-check.checked { background: var(--green); border-color: var(--green); color: #fff; }
+  .today-chip-check:hover { border-color: var(--green); }
+  .today-chip-goal { font-size: 10px; color: var(--text-faint); flex-shrink: 0; }
+  .today-chip-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .today-panel-empty { font-size: 12px; color: var(--text-faint); font-style: italic; padding: 4px 0; }
+
   /* ── Theme Schedule Modal ── */
   .theme-schedule-modal {
     background: var(--bg2); border: 1px solid rgba(74,130,196,0.25);
@@ -1203,6 +1263,11 @@
           <!-- Rendered by renderTree() -->
         </div>
         <div style="text-align:center;font-size:12px;color:var(--text-faint);margin-top:8px">點擊目標卡片，篩選相關任務並新增任務時自動帶入分類</div>
+      </div>
+      <!-- Today Tasks Panel -->
+      <div class="today-panel" id="todayPanel">
+        <div class="today-panel-title">☀ 今日任務 <span id="todayPanelCount" style="font-size:10px;background:var(--green-dim);color:var(--green);border-radius:20px;padding:1px 8px;font-weight:600;letter-spacing:0"></span></div>
+        <div id="todayPanelList"></div>
       </div>
     </div>
 
@@ -1332,6 +1397,7 @@
           <option value="健康">🌿 身心健康</option>
           <option value="探索">🔭 好奇探索</option>
           <option value="貢獻">✨ 為世界貢獻</option>
+          <option value="日常">🏠 日常維運</option>
         </select>
       </div>
       <div>
@@ -1450,6 +1516,7 @@
           <option value="健康">🌿 身心健康</option>
           <option value="探索">🔭 好奇探索</option>
           <option value="貢獻">✨ 為世界貢獻</option>
+          <option value="日常">🏠 日常維運</option>
         </select>
       </div>
       <div>
@@ -1900,6 +1967,7 @@ const treeNodes = [
   { key: '健康', icon: '🌿', label: '身心健康', cx: 0.33, cy: 0.10, r: 20, color: 'rgba(150,200,120,0.5)', bg: 'rgba(150,200,120,0.08)' },
   { key: '探索', icon: '🔭', label: '好奇探索', cx: 0.60, cy: 0.10, r: 20, color: 'rgba(200,170,200,0.5)', bg: 'rgba(200,170,200,0.08)' },
   { key: '貢獻', icon: '✨', label: '為世界貢獻', cx: 0.92, cy: 0.12, r: 20, color: 'rgba(200,200,120,0.5)', bg: 'rgba(200,200,120,0.08)' },
+  { key: '日常', icon: '🏠', label: '日常維運', cx: 0.75, cy: 0.10, r: 20, color: 'rgba(160,160,160,0.5)', bg: 'rgba(160,160,160,0.08)' },
 ];
 
 function renderTree() {
@@ -1917,10 +1985,11 @@ function renderTree() {
       <div class="goal-card-bar"><div class="goal-card-bar-fill" style="width:${pct}%"></div></div>
     </div>`;
   }).join('');
+  renderTodayPanel();
 }
 
 // ── Wish Pool (許願池) ──
-const goalIcons = { 成長:'🌟', 創作:'🎨', 關係:'🤝', 技能:'💡', 健康:'🌿', 探索:'🔭', 貢獻:'✨', 任意:'🌈' };
+const goalIcons = { 成長:'🌟', 創作:'🎨', 關係:'🤝', 技能:'💡', 健康:'🌿', 探索:'🔭', 貢獻:'✨', 任意:'🌈', 日常:'🏠' };
 
 const defaultQuotes = [];
 
@@ -1992,13 +2061,7 @@ function renderRewards() {
         </div>
       </div>`;
     }).join('');
-    // Attach long-press to wish items
-    wishes.forEach(r => {
-      if (r.claimed) return;
-      const el = document.getElementById('wish-' + r.id);
-      if (!el) return;
-      attachLongPress(el, () => openEditWish(r.id));
-    });
+    // No long-press: only pencil icon triggers edit
   }
   renderQuotes();
 }
@@ -2020,10 +2083,7 @@ function renderQuotes() {
         <span class="sandbox-del" onclick="removeCustomQuote(${i})">×</span>
       </div>
     </div>`).join('');
-  custom.forEach((_, i) => {
-    const el2 = document.getElementById('cq-' + i);
-    if (el2) attachLongPress(el2, () => openEditCustomQuote(i));
-  });
+  // No long-press: only pencil icon triggers edit
 }
 
 // ── Long-press helper ──
@@ -2540,10 +2600,30 @@ function renderTasks() {
 function taskHTML(t) {
   const eIcon = energyIcons[t.energy] || '●';
   const eLabel = energyLabels[t.energy] || t.energy;
-  const borderColor = t.goal === '成長' ? 'var(--green)' : t.goal === '創作' ? 'var(--gold)' : t.goal === '關係' ? 'var(--rose)' : 'var(--sky)';
+  const borderColor = t.goal === '成長' ? 'var(--green)' : t.goal === '創作' ? 'var(--gold)' : t.goal === '關係' ? 'var(--rose)' : t.goal === '日常' ? 'rgba(160,160,160,0.7)' : 'var(--sky)';
   const steps = t.steps || [];
   const hasSteps = steps.length > 0;
   const isOpen = t._breakdownOpen || false;
+
+  // Due date / status logic
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isToday = t.scheduledFor === todayStr;
+  const isCancelled = t.status === 'cancelled';
+  const isOverdue = t.scheduledFor && t.scheduledFor < todayStr && !t.done && !isCancelled;
+
+  // Status badge HTML (only for undone tasks)
+  let statusBadge = '';
+  if (!t.done) {
+    if (isCancelled) {
+      statusBadge = `<span class="task-status-btn task-status-cancel" onclick="setTaskStatus(${t.id},'none')" title="取消標記">✕ 已取消</span>`;
+    } else if (isOverdue) {
+      statusBadge = `<span class="task-status-btn task-status-overdue" onclick="setTaskStatus(${t.id},'today')" title="設為今日處理">⚠ 逾期</span>`;
+    } else if (isToday) {
+      statusBadge = `<span class="task-status-btn task-status-today" onclick="cycleTaskStatus(${t.id})" title="點擊取消今日標記">◉ 今日</span>`;
+    } else {
+      statusBadge = `<span class="task-status-btn" style="border-color:var(--border);color:var(--text-faint);background:transparent;font-size:11px" onclick="setTaskStatus(${t.id},'today')" title="標記為今日處理">○ 今日</span>`;
+    }
+  }
 
   const stepsHTML = hasSteps ? steps.map((s, i) => `
     <div class="breakdown-step" id="bstep-${t.id}-${i}" draggable="true"
@@ -2568,8 +2648,10 @@ function taskHTML(t) {
     </div>
   </div>` : '';
 
+  const todayClass = isToday ? ' is-today' : isOverdue ? ' is-overdue' : '';
+
   return `
-  <div class="task-item${t.done ? ' done' : ''}" id="task-${t.id}" style="flex-direction:column;padding:0;gap:0">
+  <div class="task-item${t.done ? ' done' : ''}${todayClass}" id="task-${t.id}" style="flex-direction:column;padding:0;gap:0">
     <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;width:100%">
       <div style="position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;background:${borderColor};opacity:0.6"></div>
       <div class="task-check${t.done ? ' checked' : ''}" onclick="toggleTask(${t.id})" style="margin-top:1px;flex-shrink:0">${t.done ? '✓' : ''}</div>
@@ -2584,6 +2666,7 @@ function taskHTML(t) {
           <span class="tag tag-goal">${t.goal}</span>
           ${t.postponed >= 3 ? '<span class="tag" style="border-color:rgba(200,120,120,0.4);color:var(--rose);background:rgba(200,120,120,0.06)">⚠ 已多次延期</span>' : ''}
           ${t.recurring ? '<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 重複</span>' : ''}
+          ${statusBadge}
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;align-items:center;flex-shrink:0">
@@ -2599,6 +2682,68 @@ function toggleDoneSection() {
   state.doneOpen = !state.doneOpen;
   renderTasks();
 }
+
+// ── Task Status (Today / Cancel / Overdue) ──
+function setTaskStatus(id, status) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  if (status === 'today') {
+    t.scheduledFor = todayStr;
+    t.status = 'active';
+    showToast('◉ 已標記為今日處理');
+  } else if (status === 'none') {
+    t.scheduledFor = null;
+    t.status = null;
+    showToast('已取消標記');
+  } else if (status === 'cancelled') {
+    t.status = 'cancelled';
+    t.scheduledFor = null;
+    showToast('✕ 已取消今日處理');
+  }
+  renderTasks();
+  renderTodayPanel();
+  syncToCloud();
+}
+
+function cycleTaskStatus(id) {
+  // Today → Cancel
+  setTaskStatus(id, 'cancelled');
+}
+
+// ── Today Panel (under Life Tree) ──
+function renderTodayPanel() {
+  const list = document.getElementById('todayPanelList');
+  const countBadge = document.getElementById('todayPanelCount');
+  if (!list) return;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayTasks = state.tasks.filter(t => t.scheduledFor === todayStr && t.status !== 'cancelled');
+  // Also include overdue tasks that are still pending
+  const overdueTasks = state.tasks.filter(t =>
+    t.scheduledFor && t.scheduledFor < todayStr && !t.done && t.status !== 'cancelled'
+  );
+  const allToday = [...todayTasks, ...overdueTasks.filter(t => !todayTasks.find(x => x.id === t.id))];
+
+  if (countBadge) countBadge.textContent = allToday.length > 0 ? allToday.length : '';
+
+  if (allToday.length === 0) {
+    list.innerHTML = '<div class="today-panel-empty">今天還沒有標記任何任務。在任務旁點 ○ 今日 來安排。</div>';
+    return;
+  }
+  const goalIconMap = { 成長:'🌟', 創作:'🎨', 關係:'🤝', 技能:'💡', 健康:'🌿', 探索:'🔭', 貢獻:'✨', 日常:'🏠', 任意:'🌈' };
+  list.innerHTML = allToday.map(t => {
+    const gIcon = goalIconMap[t.goal] || '●';
+    const isOverdue = t.scheduledFor < todayStr;
+    return `<div class="today-task-chip${t.done ? ' done-chip' : ''}">
+      <div class="today-chip-check${t.done ? ' checked' : ''}" onclick="toggleTask(${t.id});renderTodayPanel()">${t.done ? '✓' : ''}</div>
+      <span class="today-chip-goal">${gIcon}</span>
+      <span class="today-chip-name">${t.name}</span>
+      ${isOverdue && !t.done ? '<span style="font-size:10px;color:var(--rose);flex-shrink:0">逾期</span>' : ''}
+      ${!t.done ? `<span style="font-size:10px;color:var(--text-faint);cursor:pointer;flex-shrink:0;padding:1px 5px;border-radius:4px;transition:all 0.2s" onclick="setTaskStatus(${t.id},'none')" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'" title="移除今日標記">✕</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
 
 function toggleTask(id) {
   const t = state.tasks.find(x => x.id === id);
