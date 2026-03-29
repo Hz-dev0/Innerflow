@@ -1191,8 +1191,10 @@
         <div class="card-title">月曆熱力圖 <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-faint)">點擊日期查看當天完成的任務</span></div>
         <div id="doneCalendarContainer"></div>
       </div>
-      <div class="card">
-        <div class="card-title">已完成的任務</div>
+      <div class="card" id="doneTasksCard">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div class="card-title" style="margin-bottom:0">已完成的任務 <span id="doneCountBadge" style="font-size:11px;background:var(--green-dim);color:var(--green);border-radius:20px;padding:1px 8px;margin-left:6px;font-weight:600;letter-spacing:0"></span></div>
+        </div>
         <div style="font-size:11px;color:var(--text-faint);margin-bottom:12px">今日完成：點擊 ✓ 可恢復，× 可刪除。過去已完成：× 可從任務列表移除（熱力圖記錄保留）</div>
         <div class="task-list" id="doneList"></div>
         <div id="pastDoneSection"></div>
@@ -2874,8 +2876,14 @@ function renderStats() {
   state.done = allDoneTasks.length;
   const statsGrid = document.getElementById('statsGrid');
   statsGrid.innerHTML = `
-    <div class="stat-card"><div class="stat-value">${allDoneTasks.length + historyTasks.length}</div><div class="stat-label">已完成任務</div></div>
-    <div class="stat-card"><div class="stat-value">${state.sandbox.length}</div><div class="stat-label">探索中的好奇</div></div>
+    <div class="stat-card" onclick="scrollToDoneList()" style="cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--green)';this.style.boxShadow='0 0 0 2px rgba(74,130,196,0.15)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'" title="點擊查看所有已完成任務">
+      <div class="stat-value">${allDoneTasks.length + historyTasks.length}</div>
+      <div class="stat-label">已完成任務 <span style="font-size:9px;opacity:0.6">↓</span></div>
+    </div>
+    <div class="stat-card" onclick="showPage('sandbox')" style="cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--gold)';this.style.boxShadow='0 0 0 2px rgba(130,154,177,0.2)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'" title="前往沙盒探索">
+      <div class="stat-value">${state.sandbox.length}</div>
+      <div class="stat-label">探索中的好奇 <span style="font-size:9px;opacity:0.6">→</span></div>
+    </div>
   `;
   // Calendar heatmap — combine current done tasks + history, deduplicate by id+date
   const calContainer = document.getElementById('doneCalendarContainer');
@@ -2892,6 +2900,9 @@ function renderStats() {
   }
   // Done list — today's completed tasks
   const doneList = document.getElementById('doneList');
+  const badge = document.getElementById('doneCountBadge');
+  const totalDoneCount = allDoneTasks.length + historyTasks.length;
+  if (badge) badge.textContent = totalDoneCount > 0 ? `${totalDoneCount} 件` : '';
   const todayDone = allDoneTasks.filter(t => t.completedAt === todayStr);
   if (todayDone.length === 0) {
     doneList.innerHTML = '<div style="color:var(--text-faint);font-size:13px;padding:8px;font-style:italic">今天還沒有完成任何任務，繼續加油！</div>';
@@ -2945,6 +2956,25 @@ function renderStats() {
       pastDoneSection.innerHTML = pastHtml;
     }
   }
+}
+
+function scrollToDoneList() {
+  // Expand past done section and scroll to done list
+  const section = document.getElementById('pastDoneSection');
+  if (section) {
+    section.dataset.open = 'true';
+    const wrap = document.getElementById('pastDoneWrap');
+    const arrow = document.getElementById('pastDoneArrow');
+    if (wrap) wrap.style.maxHeight = '3000px';
+    if (arrow) arrow.style.transform = 'rotate(90deg)';
+  }
+  // Scroll the done list card into view
+  setTimeout(() => {
+    const doneCard = document.getElementById('doneTasksCard');
+    if (doneCard) {
+      doneCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 80);
 }
 
 function togglePastDoneSection() {
