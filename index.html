@@ -2198,6 +2198,22 @@ async function init() {
   logo.addEventListener('touchstart', (e) => { e.preventDefault(); pressTimer = setTimeout(() => { pressTimer = null; openLogoMenu(e.touches[0]); }, 600); }, { passive: false });
   logo.addEventListener('touchend', () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; toggleThemeManual(); } });
 
+  // ── One-time cleanup: done tasks without completedAt are orphans from old data.
+  // Archive to doneHistory (heatmap safe) then remove from tasks so counter is accurate.
+  if (!state.doneHistory) state.doneHistory = [];
+  const orphans = state.tasks.filter(t => t.done && !t.completedAt);
+  if (orphans.length > 0) {
+    orphans.forEach(t => {
+      const histKey = String(t.id) + '_nodate';
+      if (!state.doneHistory.some(h => h.id === histKey)) {
+        state.doneHistory.push({ id: histKey, name: t.name, goal: t.goal, energy: t.energy, completedAt: null });
+      }
+    });
+    state.tasks = state.tasks.filter(t => !(t.done && !t.completedAt));
+    state.done = state.tasks.filter(t => t.done).length;
+    syncToCloud();
+  }
+
   renderEnergyDots();
   initMoodTrack();
   renderTree();
