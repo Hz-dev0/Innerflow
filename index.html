@@ -1020,6 +1020,115 @@
     letter-spacing:0.04em; white-space:nowrap;
   }
 
+  /* ── Task Breakdown Steps ── */
+  .task-breakdown {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease, opacity 0.25s ease;
+    opacity: 0;
+  }
+  .task-breakdown.open {
+    max-height: 1000px;
+    opacity: 1;
+  }
+  .task-breakdown-inner {
+    border-top: 1px dashed var(--border);
+    margin: 6px 14px 10px 14px;
+    padding-top: 10px;
+  }
+  .breakdown-header {
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .breakdown-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-bottom: 8px;
+  }
+  .breakdown-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    cursor: grab;
+    transition: all 0.15s;
+  }
+  .breakdown-step:active { cursor: grabbing; }
+  .breakdown-step.dragging { opacity: 0.4; border-style: dashed; }
+  .breakdown-step.drag-over { border-color: var(--green); background: rgba(74,130,196,0.06); }
+  .step-drag-handle {
+    color: var(--text-faint);
+    font-size: 12px;
+    cursor: grab;
+    flex-shrink: 0;
+    padding: 0 2px;
+    line-height: 1;
+    user-select: none;
+  }
+  .step-name {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text);
+    cursor: text;
+    outline: none;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    min-width: 0;
+  }
+  .step-name:focus {
+    color: var(--text);
+  }
+  .step-del {
+    flex-shrink: 0;
+    font-size: 13px;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: 1px 4px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    line-height: 1;
+  }
+  .step-del:hover { color: var(--rose); background: rgba(192,86,90,0.08); }
+  .breakdown-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 5px;
+    border: 1px dashed var(--border);
+    background: transparent;
+    font-family: inherit;
+    transition: all 0.18s;
+  }
+  .breakdown-add-btn:hover { border-color: var(--green); color: var(--green); }
+
+  /* Task name collapsible cursor when breakdown exists */
+  .task-name.collapsible { cursor: pointer; }
+  .task-name.collapsible:hover { color: var(--text) !important; }
+  .task-collapse-arrow {
+    display: inline-block;
+    font-size: 9px;
+    margin-left: 5px;
+    transition: transform 0.2s;
+    color: var(--text-faint);
+    vertical-align: middle;
+  }
+  .task-collapse-arrow.open { transform: rotate(90deg); }
+
   /* ── Theme Schedule Modal ── */
   .theme-schedule-modal {
     background: var(--bg2); border: 1px solid rgba(74,130,196,0.25);
@@ -1316,6 +1425,7 @@
 <!-- Context Menu -->
 <div class="ctx-menu" id="ctxMenu">
   <div class="ctx-item" id="ctxEdit" onclick="ctxAction('edit')">✏️ 編輯任務</div>
+  <div class="ctx-item" id="ctxBreakdown" onclick="ctxAction('breakdown')">🔀 拆解流程</div>
   <div class="ctx-item" id="ctxToggle" onclick="ctxAction('toggle')">↩ 取消完成</div>
   <div class="ctx-sep"></div>
   <div class="ctx-item danger" onclick="ctxAction('delete')">🗑 刪除任務</div>
@@ -2431,24 +2541,57 @@ function taskHTML(t) {
   const eIcon = energyIcons[t.energy] || '●';
   const eLabel = energyLabels[t.energy] || t.energy;
   const borderColor = t.goal === '成長' ? 'var(--green)' : t.goal === '創作' ? 'var(--gold)' : t.goal === '關係' ? 'var(--rose)' : 'var(--sky)';
+  const steps = t.steps || [];
+  const hasSteps = steps.length > 0;
+  const isOpen = t._breakdownOpen || false;
+
+  const stepsHTML = hasSteps ? steps.map((s, i) => `
+    <div class="breakdown-step" id="bstep-${t.id}-${i}" draggable="true"
+      ondragstart="stepDragStart(event,${t.id},${i})"
+      ondragover="stepDragOver(event,${t.id},${i})"
+      ondrop="stepDrop(event,${t.id},${i})"
+      ondragend="stepDragEnd(event,${t.id})">
+      <span class="step-drag-handle" title="拖曳排序">⠿</span>
+      <input class="step-name" type="text" value="${s.replace(/"/g,'&quot;')}"
+        onblur="updateStepName(${t.id},${i},this.value)"
+        onkeydown="if(event.key==='Enter'){this.blur()}"
+        onclick="event.stopPropagation()">
+      <span class="step-del" onclick="deleteStep(event,${t.id},${i})" title="刪除步驟">×</span>
+    </div>`).join('') : '';
+
+  const breakdownHTML = hasSteps ? `
+  <div class="task-breakdown${isOpen ? ' open' : ''}" id="breakdown-${t.id}">
+    <div class="task-breakdown-inner">
+      <div class="breakdown-header">🔀 拆解流程</div>
+      <div class="breakdown-steps" id="bsteps-${t.id}">${stepsHTML}</div>
+      <button class="breakdown-add-btn" onclick="addStep(event,${t.id})">＋ 新增步驟</button>
+    </div>
+  </div>` : '';
+
   return `
-  <div class="task-item${t.done ? ' done' : ''}" id="task-${t.id}">
-    <div style="position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;background:${borderColor};opacity:0.6"></div>
-    <div class="task-check${t.done ? ' checked' : ''}" onclick="toggleTask(${t.id})">${t.done ? '✓' : ''}</div>
-    <div class="task-body">
-      <div class="task-name">${t.name}</div>
-      ${t.meaning ? `<div class="task-meaning">${t.meaning}</div>` : ''}
-      <div class="task-meta">
-        <span class="tag tag-energy">${eIcon} ${eLabel}</span>
-        <span class="tag tag-goal">${t.goal}</span>
-        ${t.postponed >= 3 ? '<span class="tag" style="border-color:rgba(200,120,120,0.4);color:var(--rose);background:rgba(200,120,120,0.06)">⚠ 已多次延期</span>' : ''}
-        ${t.recurring ? '<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 重複</span>' : ''}
+  <div class="task-item${t.done ? ' done' : ''}" id="task-${t.id}" style="flex-direction:column;padding:0;gap:0">
+    <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;width:100%">
+      <div style="position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px;background:${borderColor};opacity:0.6"></div>
+      <div class="task-check${t.done ? ' checked' : ''}" onclick="toggleTask(${t.id})" style="margin-top:1px;flex-shrink:0">${t.done ? '✓' : ''}</div>
+      <div class="task-body" style="flex:1;min-width:0">
+        <div class="task-name${hasSteps ? ' collapsible' : ''}" onclick="${hasSteps ? `toggleBreakdown(${t.id})` : ''}">
+          ${t.name}
+          ${hasSteps ? `<span class="task-collapse-arrow${isOpen ? ' open' : ''}">▶</span>` : ''}
+        </div>
+        ${t.meaning ? `<div class="task-meaning">${t.meaning}</div>` : ''}
+        <div class="task-meta">
+          <span class="tag tag-energy">${eIcon} ${eLabel}</span>
+          <span class="tag tag-goal">${t.goal}</span>
+          ${t.postponed >= 3 ? '<span class="tag" style="border-color:rgba(200,120,120,0.4);color:var(--rose);background:rgba(200,120,120,0.06)">⚠ 已多次延期</span>' : ''}
+          ${t.recurring ? '<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 重複</span>' : ''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:center;flex-shrink:0">
+        <div onclick="postponeTask(${t.id})" style="font-size:16px;cursor:pointer;opacity:0.3;transition:opacity 0.2s;padding:2px 4px" title="延期" onmouseover="this.style.opacity=0.9" onmouseout="this.style.opacity=0.3">↷</div>
+        <div onclick="openCtxMenu(event,${t.id})" style="font-size:16px;cursor:pointer;opacity:0.3;transition:opacity 0.2s;padding:2px 4px;line-height:1;letter-spacing:1px" title="更多" onmouseover="this.style.opacity=0.9" onmouseout="this.style.opacity=0.3">⋯</div>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
-      <div onclick="postponeTask(${t.id})" style="font-size:16px;cursor:pointer;opacity:0.3;transition:opacity 0.2s;padding:2px 4px" title="延期" onmouseover="this.style.opacity=0.9" onmouseout="this.style.opacity=0.3">↷</div>
-      <div onclick="openCtxMenu(event,${t.id})" style="font-size:16px;cursor:pointer;opacity:0.3;transition:opacity 0.2s;padding:2px 4px;line-height:1;letter-spacing:1px" title="更多" onmouseover="this.style.opacity=0.9" onmouseout="this.style.opacity=0.3">⋯</div>
-    </div>
+    ${breakdownHTML}
   </div>`;
 }
 
@@ -3064,6 +3207,7 @@ function ctxAction(action) {
   const t = state.tasks.find(x => x.id === ctxTargetId);
   if (!t) return;
   if (action === 'edit') openEditTask(t);
+  if (action === 'breakdown') openBreakdown(t);
   if (action === 'toggle') {
     const wasDone = t.done;
     t.done = !t.done;
@@ -3086,6 +3230,117 @@ function ctxAction(action) {
 document.addEventListener('click', () => {
   document.getElementById('ctxMenu').classList.remove('open');
 });
+
+// ── Task Breakdown (拆解流程) ──
+
+function openBreakdown(t) {
+  if (!t.steps) t.steps = [];
+  if (t.steps.length === 0) {
+    t.steps.push('步驟一');
+    syncToCloud();
+  }
+  t._breakdownOpen = true;
+  renderTasks();
+  // Scroll to the breakdown panel
+  setTimeout(() => {
+    const el = document.getElementById('breakdown-' + t.id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 80);
+}
+
+function toggleBreakdown(id) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t || !t.steps || t.steps.length === 0) return;
+  t._breakdownOpen = !t._breakdownOpen;
+  // Animate without full re-render
+  const el = document.getElementById('breakdown-' + id);
+  const arrow = document.querySelector(`#task-${id} .task-collapse-arrow`);
+  if (el) el.classList.toggle('open', t._breakdownOpen);
+  if (arrow) arrow.classList.toggle('open', t._breakdownOpen);
+}
+
+function addStep(e, id) {
+  e.stopPropagation();
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  if (!t.steps) t.steps = [];
+  t.steps.push('新步驟');
+  renderTasks();
+  // Focus the new input
+  setTimeout(() => {
+    const inputs = document.querySelectorAll(`#bsteps-${id} .step-name`);
+    if (inputs.length) {
+      const last = inputs[inputs.length - 1];
+      last.focus();
+      last.select();
+    }
+  }, 30);
+  syncToCloud();
+}
+
+function deleteStep(e, id, idx) {
+  e.stopPropagation();
+  const t = state.tasks.find(x => x.id === id);
+  if (!t || !t.steps) return;
+  t.steps.splice(idx, 1);
+  if (t.steps.length === 0) {
+    t._breakdownOpen = false;
+    delete t.steps;
+  }
+  renderTasks();
+  syncToCloud();
+}
+
+function updateStepName(id, idx, val) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t || !t.steps) return;
+  t.steps[idx] = val.trim() || t.steps[idx];
+  syncToCloud();
+}
+
+// ── Drag-to-reorder steps ──
+let _dragStepTaskId = null;
+let _dragStepIdx = null;
+
+function stepDragStart(e, id, idx) {
+  _dragStepTaskId = id;
+  _dragStepIdx = idx;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => {
+    const el = document.getElementById(`bstep-${id}-${idx}`);
+    if (el) el.classList.add('dragging');
+  }, 0);
+}
+
+function stepDragOver(e, id, idx) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.breakdown-step').forEach(el => el.classList.remove('drag-over'));
+  const el = document.getElementById(`bstep-${id}-${idx}`);
+  if (el && idx !== _dragStepIdx) el.classList.add('drag-over');
+}
+
+function stepDrop(e, id, idx) {
+  e.preventDefault();
+  document.querySelectorAll('.breakdown-step').forEach(el => el.classList.remove('drag-over'));
+  if (_dragStepTaskId !== id || _dragStepIdx === null || _dragStepIdx === idx) return;
+  const t = state.tasks.find(x => x.id === id);
+  if (!t || !t.steps) return;
+  const moved = t.steps.splice(_dragStepIdx, 1)[0];
+  t.steps.splice(idx, 0, moved);
+  _dragStepIdx = null;
+  renderTasks();
+  syncToCloud();
+}
+
+function stepDragEnd(e, id) {
+  document.querySelectorAll('.breakdown-step').forEach(el => {
+    el.classList.remove('dragging');
+    el.classList.remove('drag-over');
+  });
+  _dragStepTaskId = null;
+  _dragStepIdx = null;
+}
 
 // ── Edit Task ──
 let editTargetId = null;
