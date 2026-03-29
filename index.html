@@ -1055,7 +1055,6 @@
             class="energy-slider level-mid" id="energySlider"
             oninput="onEnergySliderChange(this.value)"
             title="精力指數：低 / 中 / 高">
-          <span class="energy-slider-label high">高</span>
         </div>
       </div>
       <div id="syncDot" class="sync-dot" title="雲端同步狀態（長按 Logo 設定）"></div>
@@ -1633,6 +1632,7 @@ async function saveApiUrl(fragment) {
       state.rewards = data.rewards || [];
       state.customQuotes = data.customQuotes || [];
       state.energy  = data.energy  || 0;
+      state.doneHistory = data.doneHistory || [];
       // Restore theme preference
       if (data.themeManualPref) {
         state.themeManualPref = data.themeManualPref;
@@ -1755,21 +1755,15 @@ async function syncToCloud() {
 
 // ── State ──
 let state = {
-  tasks: [
-    { id: 1, name: '閱讀《心流》第三章', meaning: '理解深度投入的心理機制，應用到自己的工作中', goal: '成長', energy: 'deep', done: false, postponed: 0 },
-    { id: 2, name: '整理筆記資料夾', meaning: '讓思緒有更清晰的空間', goal: '成長', energy: 'light', done: false, postponed: 0 },
-    { id: 3, name: '寫一段關於孤獨的散文', meaning: '把內心深處的感受轉化為語言，留下痕跡', goal: '創作', energy: 'flow', done: false, postponed: 1 },
-    { id: 4, name: '給老朋友發一封真誠的信', meaning: '維繫珍貴的情感連結，不讓忙碌侵蝕關係', goal: '關係', energy: 'rest', done: false, postponed: 0 },
-    { id: 5, name: '練習30分鐘冥想', meaning: '照顧自己的心理健康，保持清明', goal: '健康', energy: 'rest', done: true, postponed: 0 },
-  ],
-  sandbox: ['學習如何製作蠟燭', '研究古埃及語言', '嘗試用聲音創作音樂'],
+  tasks: [],
+  sandbox: [],
   rewards: [],
   customQuotes: [],
   energy: 0,
   energyFilter: 'all',
   goalFilter: null,
   postponeTarget: null,
-  done: 1,
+  done: 0,
   doneOpen: false,
   pendingClaimId: null,
   doneHistory: [], // archive of completed tasks after reset
@@ -2177,8 +2171,16 @@ async function init() {
     if (dot) dot.className = 'sync-dot syncing';
     showToast('☁️ 同步雲端資料中…');
     const ok = await loadFromCloud();
-    if (ok) { showToast('🌿 雲端同步完成'); if (dot) dot.className = 'sync-dot synced'; }
-    else { showToast('⚠ 雲端讀取失敗，使用本機資料'); if (dot) dot.className = 'sync-dot'; }
+    if (ok) {
+      showToast('🌿 雲端同步完成');
+      if (dot) dot.className = 'sync-dot synced';
+      renderEnergyDots();
+      renderTree();
+      renderTasks();
+      renderSandbox();
+      renderStats();
+      renderRewards();
+    } else { showToast('⚠ 雲端讀取失敗，使用本機資料'); if (dot) dot.className = 'sync-dot'; }
   }
 
   // Logo: click = toggle theme, longpress = logo menu (settings + cloud)
@@ -2860,60 +2862,27 @@ function renderStats() {
     const calTasks = [...allDoneTasks, ...historyTasks];
     renderDoneCalendar(calTasks, calContainer);
   }
-  // Done list — show currently-done tasks; only today's can be unchecked
+  // Done list — show only today's completed tasks
   const doneList = document.getElementById('doneList');
   const todayStr = new Date().toISOString().slice(0, 10);
-  if (allDoneTasks.length === 0 && historyTasks.length === 0) {
-    doneList.innerHTML = '<div style="color:var(--text-faint);font-size:13px;padding:8px;font-style:italic">完成任務後，它們會出現在這裡。</div>';
+  const todayDone = allDoneTasks.filter(t => t.completedAt === todayStr);
+  if (todayDone.length === 0) {
+    doneList.innerHTML = '<div style="color:var(--text-faint);font-size:13px;padding:8px;font-style:italic">今天還沒有完成任何任務，繼續加油！</div>';
     return;
   }
-  // Show currently-done tasks (today's can be unchecked)
-  const todayDone = allDoneTasks.filter(t => t.completedAt === todayStr);
-  const olderDone = allDoneTasks.filter(t => t.completedAt !== todayStr);
-  let html = '';
-  if (todayDone.length > 0) {
-    html += `<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px">今日完成</div>`;
-    html += todayDone.map(t => `
-      <div class="task-item done" style="opacity:0.85">
-        <div class="task-check checked" onclick="undoneTask(${t.id})" title="取消完成">✓</div>
-        <div class="task-body">
-          <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
-          <div class="task-meta">
-            <span class="tag tag-goal">${t.goal || ''}</span>
-            ${t.completedAt ? `<span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>` : ''}
-          </div>
+  let html = `<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px">今日完成</div>`;
+  html += todayDone.map(t => `
+    <div class="task-item done" style="opacity:0.85">
+      <div class="task-check checked" onclick="undoneTask(${t.id})" title="取消完成">✓</div>
+      <div class="task-body">
+        <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
+        <div class="task-meta">
+          <span class="tag tag-goal">${t.goal || ''}</span>
+          ${t.completedAt ? `<span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>` : ''}
         </div>
-        <span onclick="deleteTaskFromStats(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'">×</span>
-      </div>`).join('');
-  }
-  if (olderDone.length > 0) {
-    html += `<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-top:12px;margin-bottom:6px">歷史完成</div>`;
-    html += olderDone.map(t => `
-      <div class="task-item done" style="opacity:0.55">
-        <div class="task-check checked" style="cursor:default;opacity:0.5">✓</div>
-        <div class="task-body">
-          <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
-          <div class="task-meta">
-            <span class="tag tag-goal">${t.goal || ''}</span>
-            ${t.completedAt ? `<span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>` : ''}
-          </div>
-        </div>
-      </div>`).join('');
-  }
-  if (historyTasks.length > 0) {
-    html += `<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-top:12px;margin-bottom:6px">已歸檔（重置後）</div>`;
-    html += historyTasks.map((t, i) => `
-      <div class="task-item done" style="opacity:0.45">
-        <div class="task-check checked" style="cursor:default;opacity:0.4">✓</div>
-        <div class="task-body">
-          <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
-          <div class="task-meta">
-            <span class="tag tag-goal">${t.goal || ''}</span>
-            ${t.completedAt ? `<span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>` : ''}
-          </div>
-        </div>
-      </div>`).join('');
-  }
+      </div>
+      <span onclick="deleteTaskFromStats(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'">×</span>
+    </div>`).join('');
   doneList.innerHTML = html;
 }
 
