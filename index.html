@@ -2874,30 +2874,30 @@ function renderStats() {
     });
     renderDoneCalendar(calTasks, calContainer);
   }
-  // Done list — show only today's completed tasks (from tasks array, must have completedAt = today)
+  // Done list — today's completed tasks
   const doneList = document.getElementById('doneList');
   const todayDone = allDoneTasks.filter(t => t.completedAt === todayStr);
   if (todayDone.length === 0) {
     doneList.innerHTML = '<div style="color:var(--text-faint);font-size:13px;padding:8px;font-style:italic">今天還沒有完成任何任務，繼續加油！</div>';
-    return;
-  }
-  let html = `<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px">今日完成</div>`;
-  html += todayDone.map(t => `
-    <div class="task-item done" style="opacity:0.85">
-      <div class="task-check checked" onclick="undoneTask(${t.id})" title="取消完成">✓</div>
-      <div class="task-body">
-        <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
-        <div class="task-meta">
-          <span class="tag tag-goal">${t.goal || ''}</span>
-          ${t.completedAt ? `<span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>` : ''}
+  } else {
+    let html = `<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px">今日完成</div>`;
+    html += todayDone.map(t => `
+      <div class="task-item done" style="opacity:0.85">
+        <div class="task-check checked" onclick="undoneTask(${t.id})" title="取消完成">✓</div>
+        <div class="task-body">
+          <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
+          <div class="task-meta">
+            <span class="tag tag-goal">${t.goal || ''}</span>
+            <span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>
+          </div>
         </div>
-      </div>
-      <span onclick="deleteTaskFromStats(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'">×</span>
-    </div>`).join('');
-  doneList.innerHTML = html;
+        <span onclick="deleteTaskFromStats(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'">×</span>
+      </div>`).join('');
+    doneList.innerHTML = html;
+  }
 
-  // Past done tasks (done but completedAt is NOT today) — can delete from task list (heatmap preserved)
-  const pastDone = allDoneTasks.filter(t => t.completedAt && t.completedAt !== todayStr);
+  // Past done tasks: completedAt is a past date, OR completedAt is missing (orphan/legacy data)
+  const pastDone = allDoneTasks.filter(t => !t.completedAt || t.completedAt !== todayStr);
   const pastDoneSection = document.getElementById('pastDoneSection');
   if (pastDoneSection) {
     if (pastDone.length === 0) {
@@ -2908,7 +2908,7 @@ function renderStats() {
         <div style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 0 6px;border-top:1px dashed var(--border);margin-top:10px;font-size:12px;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;user-select:none"
           onclick="togglePastDoneSection()">
           <span id="pastDoneArrow" style="font-size:10px;transition:transform 0.2s${isOpen ? ';transform:rotate(90deg)' : ''}">▶</span>
-          過去已完成 ${pastDone.length} 件
+          過去 / 未記錄日期 已完成 ${pastDone.length} 件
         </div>
         <div id="pastDoneWrap" style="overflow:hidden;transition:max-height 0.3s ease;max-height:${isOpen ? '3000px' : '0'}">
           <div class="task-list" style="margin-top:4px">
@@ -2919,7 +2919,7 @@ function renderStats() {
                   <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
                   <div class="task-meta">
                     <span class="tag tag-goal">${t.goal || ''}</span>
-                    ${t.completedAt ? `<span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>` : ''}
+                    <span style="font-size:10px;color:var(--text-faint)">${t.completedAt || '日期不明'}</span>
                   </div>
                 </div>
                 <span onclick="deletePastDoneTask(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'" title="從任務列表刪除（熱力圖紀錄保留）">×</span>
