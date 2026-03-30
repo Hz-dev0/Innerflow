@@ -2428,14 +2428,25 @@ async function init() {
 
   // Logo: click = open logo menu (settings + guide)
   const logo = document.getElementById('logoBtn');
-  let pressTimer = null;
   logo.addEventListener('click', (e) => {
-    openLogoMenu(e);
+    e.stopPropagation();
+    const menu = document.getElementById('logoMenu');
+    if (menu && menu.style.display === 'block') {
+      closeLogoMenu();
+    } else {
+      openLogoMenu(e);
+    }
   });
   // Touch support (prevent double-fire on mobile)
   logo.addEventListener('touchend', (e) => {
     e.preventDefault();
-    openLogoMenu(e.changedTouches[0]);
+    e.stopPropagation();
+    const menu = document.getElementById('logoMenu');
+    if (menu && menu.style.display === 'block') {
+      closeLogoMenu();
+    } else {
+      openLogoMenu(e.changedTouches[0]);
+    }
   });
 
   // ── One-time cleanup: done tasks without completedAt are orphans from old data.
@@ -3384,6 +3395,7 @@ function renderLottery() {
   const ticketEl = document.getElementById('lotteryTickets');
   const progressEl = document.getElementById('todayDone');
   const drawBtn = document.getElementById('lotteryDrawBtn');
+  const rm = lotteryState.randomMission;
   if (!ticketEl) return;
   ticketEl.textContent = lotteryState.tickets;
   if (progressEl) progressEl.textContent = lotteryState.todayDone;
