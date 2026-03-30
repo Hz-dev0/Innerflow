@@ -2426,19 +2426,17 @@ async function init() {
     } else { showToast('⚠ 雲端讀取失敗，使用本機資料'); if (dot) dot.className = 'sync-dot'; }
   }
 
-  // Logo: longpress = logo menu (settings + cloud)
+  // Logo: click = open logo menu (settings + guide)
   const logo = document.getElementById('logoBtn');
   let pressTimer = null;
-  logo.addEventListener('mousedown', (e) => {
-    pressTimer = setTimeout(() => { pressTimer = null; openLogoMenu(e); }, 600);
+  logo.addEventListener('click', (e) => {
+    openLogoMenu(e);
   });
-  logo.addEventListener('mouseup', () => {
-    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+  // Touch support (prevent double-fire on mobile)
+  logo.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    openLogoMenu(e.changedTouches[0]);
   });
-  logo.addEventListener('mouseleave', () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
-  // Touch support
-  logo.addEventListener('touchstart', (e) => { e.preventDefault(); pressTimer = setTimeout(() => { pressTimer = null; openLogoMenu(e.touches[0]); }, 600); }, { passive: false });
-  logo.addEventListener('touchend', () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } });
 
   // ── One-time cleanup: done tasks without completedAt are orphans from old data.
   // Archive to doneHistory (heatmap safe) then remove from tasks so counter is accurate.
@@ -2578,7 +2576,12 @@ function showPage(id, skipRender) {
   if (mobNav)  mobNav.classList.add('active');
   if (!skipRender) {
     if (id === 'tasks') renderTasks();
-    if (id === 'stats') renderStats();
+    if (id === 'stats') {
+      // Reset showAll when navigating to stats so it defaults to today-only view
+      const doneList = document.getElementById('doneList');
+      if (doneList) doneList.dataset.showAll = 'false';
+      renderStats();
+    }
     if (id === 'wishzone') { renderRewards(); renderLottery(); }
   }
 }
@@ -3276,17 +3279,19 @@ function buildCardPool() {
   const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
   const TOTAL = 9;
 
-  // Guaranteed: 1 gold mission card + 1 wish card (if any unlocked) + rest quotes
+  // Guaranteed: 1 gold mission card + 1–3 wish cards (if any unlocked) + rest quotes
   const rmCard = { isRandomMission: true };
   const deck = [rmCard];
 
   if (unlockedWishes.length > 0) {
-    // Pick 1 random wish card (guaranteed slot)
-    const pickedWish = shuffle(unlockedWishes)[0];
-    deck.push(pickedWish);
-    // Fill remaining 7 slots with quotes
+    // Pick 1–3 random wish cards (minimum 1 guaranteed)
+    const maxWish = Math.min(3, unlockedWishes.length);
+    const wishCount = Math.floor(Math.random() * maxWish) + 1; // 1 to maxWish
+    const pickedWishes = shuffle(unlockedWishes).slice(0, wishCount);
+    pickedWishes.forEach(w => deck.push(w));
+    // Fill remaining slots with quotes
     const quoteCards = shuffle(allQuotes);
-    for (let i = 0; i < TOTAL - 2; i++) deck.push(quoteCards[i % quoteCards.length]);
+    for (let i = 0; i < TOTAL - 1 - wishCount; i++) deck.push(quoteCards[i % quoteCards.length]);
   } else {
     // No wishes: fill remaining 8 slots with quotes
     const quoteCards = shuffle(allQuotes);
@@ -3481,7 +3486,7 @@ function renderStats() {
   statsGrid.innerHTML = `
     <div class="stat-card" onclick="scrollToDoneList()" style="cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--green)';this.style.boxShadow='0 0 0 2px rgba(74,130,196,0.15)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'" title="點擊查看所有已完成任務">
       <div class="stat-value">${allDoneTasks.length + historyTasks.length}</div>
-      <div class="stat-label">已完成任務 <span style="font-size:9px;opacity:0.6">↓</span></div>
+      <div class="stat-label">已完成任務 <span style="font-size:9px;opacity:0.6">↓ 點擊展開全部</span></div>
     </div>
     <div class="stat-card" onclick="showPage('sandbox')" style="cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--gold)';this.style.boxShadow='0 0 0 2px rgba(130,154,177,0.2)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'" title="前往沙盒探索">
       <div class="stat-value">${state.sandbox.length}</div>
@@ -3501,48 +3506,74 @@ function renderStats() {
     });
     renderDoneCalendar(calTasks, calContainer);
   }
-  // Done list — today's completed tasks
+  // Done list — default: today's completed tasks only
+  // Clicking the stat card (scrollToDoneList) expands to show all history
   const doneList = document.getElementById('doneList');
   const badge = document.getElementById('doneCountBadge');
   const totalDoneCount = allDoneTasks.length + historyTasks.length;
   if (badge) badge.textContent = totalDoneCount > 0 ? `${totalDoneCount} 件` : '';
   const todayDone = allDoneTasks.filter(t => t.completedAt === todayStr);
-  if (todayDone.length === 0) {
-    doneList.innerHTML = '<div style="color:var(--text-faint);font-size:13px;padding:8px;font-style:italic">今天還沒有完成任何任務，繼續加油！</div>';
-  } else {
-    let html = `<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px">今日完成</div>`;
-    html += todayDone.map(t => `
-      <div class="task-item done" style="opacity:0.85">
-        <div class="task-check checked" onclick="undoneTask(${t.id})" title="取消完成">✓</div>
-        <div class="task-body">
-          <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
-          <div class="task-meta">
-            <span class="tag tag-goal">${t.goal || ''}</span>
-            <span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>
-          </div>
-        </div>
-        <span onclick="deleteTaskFromStats(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'">×</span>
-      </div>`).join('');
-    doneList.innerHTML = html;
-  }
 
-  // Past done tasks: completedAt is a past date, OR completedAt is missing (orphan/legacy data)
-  const pastDone = allDoneTasks.filter(t => !t.completedAt || t.completedAt !== todayStr);
-  const pastDoneSection = document.getElementById('pastDoneSection');
-  if (pastDoneSection) {
-    if (pastDone.length === 0) {
-      pastDoneSection.innerHTML = '';
+  // Check if "show all" mode is active (toggled by clicking the stat card)
+  const showAll = document.getElementById('doneList')?.dataset.showAll === 'true';
+
+  if (!showAll) {
+    // Default: today only
+    if (todayDone.length === 0) {
+      doneList.innerHTML = '<div style="color:var(--text-faint);font-size:13px;padding:8px;font-style:italic">今天還沒有完成任何任務，繼續加油！</div>';
     } else {
-      const isOpen = pastDoneSection.dataset.open === 'true';
-      let pastHtml = `
-        <div style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 0 6px;border-top:1px dashed var(--border);margin-top:10px;font-size:12px;color:var(--text-dim);letter-spacing:0.08em;text-transform:uppercase;user-select:none"
-          onclick="togglePastDoneSection()">
-          <span id="pastDoneArrow" style="font-size:10px;transition:transform 0.2s${isOpen ? ';transform:rotate(90deg)' : ''}">▶</span>
-          過去 / 未記錄日期 已完成 ${pastDone.length} 件
-        </div>
-        <div id="pastDoneWrap" style="overflow:hidden;transition:max-height 0.3s ease;max-height:${isOpen ? '3000px' : '0'}">
-          <div class="task-list" style="margin-top:4px">
-            ${pastDone.map(t => `
+      let html = `<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px">今日完成</div>`;
+      html += todayDone.map(t => `
+        <div class="task-item done" style="opacity:0.85">
+          <div class="task-check checked" onclick="undoneTask(${t.id})" title="取消完成">✓</div>
+          <div class="task-body">
+            <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
+            <div class="task-meta">
+              <span class="tag tag-goal">${t.goal || ''}</span>
+              <span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>
+            </div>
+          </div>
+          <span onclick="deleteTaskFromStats(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'">×</span>
+        </div>`).join('');
+      doneList.innerHTML = html;
+    }
+    // Hide past done section in default mode
+    const pastDoneSection = document.getElementById('pastDoneSection');
+    if (pastDoneSection) pastDoneSection.innerHTML = '';
+  } else {
+    // Show-all mode: today + past
+    let html = '';
+    if (todayDone.length > 0) {
+      html += `<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px">今日完成</div>`;
+      html += todayDone.map(t => `
+        <div class="task-item done" style="opacity:0.85">
+          <div class="task-check checked" onclick="undoneTask(${t.id})" title="取消完成">✓</div>
+          <div class="task-body">
+            <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
+            <div class="task-meta">
+              <span class="tag tag-goal">${t.goal || ''}</span>
+              <span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>
+            </div>
+          </div>
+          <span onclick="deleteTaskFromStats(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'">×</span>
+        </div>`).join('');
+    } else {
+      html += '<div style="color:var(--text-faint);font-size:13px;padding:8px;font-style:italic">今天還沒有完成任何任務，繼續加油！</div>';
+    }
+    doneList.innerHTML = html;
+
+    // Past done tasks section in show-all mode
+    const pastDone = allDoneTasks.filter(t => !t.completedAt || t.completedAt !== todayStr);
+    const allHistory = [...pastDone, ...historyTasks];
+    const pastDoneSection = document.getElementById('pastDoneSection');
+    if (pastDoneSection) {
+      if (allHistory.length === 0) {
+        pastDoneSection.innerHTML = '';
+      } else {
+        let pastHtml = `
+          <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin:14px 0 6px;padding-top:10px;border-top:1px dashed var(--border)">過去完成</div>
+          <div class="task-list">
+            ${allHistory.map(t => `
               <div class="task-item done" style="opacity:0.7">
                 <div class="task-check checked" style="cursor:default">✓</div>
                 <div class="task-body">
@@ -3552,25 +3583,20 @@ function renderStats() {
                     <span style="font-size:10px;color:var(--text-faint)">${t.completedAt || '日期不明'}</span>
                   </div>
                 </div>
-                <span onclick="deletePastDoneTask(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'" title="從任務列表刪除（熱力圖紀錄保留）">×</span>
+                ${t.id ? `<span onclick="deletePastDoneTask(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'" title="從任務列表刪除（熱力圖紀錄保留）">×</span>` : ''}
               </div>`).join('')}
-          </div>
-        </div>`;
-      pastDoneSection.innerHTML = pastHtml;
+          </div>`;
+        pastDoneSection.innerHTML = pastHtml;
+      }
     }
   }
 }
 
 function scrollToDoneList() {
-  // Expand past done section and scroll to done list
-  const section = document.getElementById('pastDoneSection');
-  if (section) {
-    section.dataset.open = 'true';
-    const wrap = document.getElementById('pastDoneWrap');
-    const arrow = document.getElementById('pastDoneArrow');
-    if (wrap) wrap.style.maxHeight = '3000px';
-    if (arrow) arrow.style.transform = 'rotate(90deg)';
-  }
+  // Switch to show-all mode and re-render
+  const doneList = document.getElementById('doneList');
+  if (doneList) doneList.dataset.showAll = 'true';
+  renderStats();
   // Scroll the done list card into view
   setTimeout(() => {
     const doneCard = document.getElementById('doneTasksCard');
