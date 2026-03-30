@@ -1905,6 +1905,7 @@ function clearApiUrl() {
 }
 
 let isSyncing = false;
+let _pendingSync = false; // Bug 1 fix: don't silently drop concurrent sync requests
 
 async function loadFromCloud() {
   const url = getApiUrl();
@@ -1921,6 +1922,15 @@ async function loadFromCloud() {
       state.energy  = data.energy  || 0;
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
+      // Bug 7 fix: restore manual theme override from cloud so it survives page reload
+      if (data.themeManualPref) {
+        state.themeManualPref = data.themeManualPref;
+        const isAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
+        if (!isAuto) {
+          themeManualOverride = data.themeManualPref;
+          syncTheme();
+        }
+      }
       return true;
     }
   } catch (e) {
@@ -1931,8 +1941,10 @@ async function loadFromCloud() {
 
 async function syncToCloud() {
   const url = getApiUrl();
-  if (!url || isSyncing) return;
+  if (!url) return;
+  if (isSyncing) { _pendingSync = true; return; } // queue a retry instead of dropping
   isSyncing = true;
+  _pendingSync = false;
   const dot = document.getElementById('syncDot');
   if (dot) dot.className = 'sync-dot syncing';
   try {
@@ -1951,6 +1963,7 @@ async function syncToCloud() {
     if (dot) dot.className = 'sync-dot';
   } finally {
     isSyncing = false;
+    if (_pendingSync) { _pendingSync = false; syncToCloud(); } // retry the queued write
   }
 }
 
@@ -2263,10 +2276,13 @@ function getNextResetMs() {
   return next.getTime() - now.getTime();
 }
 
+let _resetRunning = false; // Bug 3 fix: prevent concurrent/double reset runs
 function runDailyReset() {
+  if (_resetRunning) return; // already running, skip
+  _resetRunning = true;
   const todayKey = new Date().toISOString().slice(0, 10);
   const lastReset = localStorage.getItem(LAST_RESET_KEY);
-  if (lastReset === todayKey) { scheduleNextReset(); return; }
+  if (lastReset === todayKey) { _resetRunning = false; scheduleNextReset(); return; }
   localStorage.setItem(LAST_RESET_KEY, todayKey);
 
   if (!state.doneHistory) state.doneHistory = [];
@@ -2276,8 +2292,11 @@ function runDailyReset() {
 
   state.tasks.forEach(t => {
     if (!t.done) return;
-    // Archive to history before any change
-    state.doneHistory.push({ id: t.id + '_' + t.completedAt, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt });
+    // Bug 3 fix: de-duplicate archive entries before pushing
+    const archiveKey = t.id + '_' + t.completedAt;
+    if (!state.doneHistory.some(h => h.id === archiveKey)) {
+      state.doneHistory.push({ id: archiveKey, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt });
+    }
     if (t.recurring && t.recurMode !== 'interval') {
       // Daily recurring: reset back to undone
       if (state.done > 0) state.done--;
@@ -2309,6 +2328,7 @@ function runDailyReset() {
   lotteryState.rmSlot = undefined;
   saveLottery();
   renderLottery();
+  _resetRunning = false;
   scheduleNextReset();
 }
 
@@ -2368,6 +2388,15 @@ async function init() {
     showToast('☁️ 同步雲端資料中…');
     const ok = await loadFromCloud();
     if (ok) {
+      // Bug 2 fix: after cloud load, re-calibrate lotteryState.todayDone
+      // against actual task completion data so ticket count stays accurate
+      const _today = new Date().toISOString().slice(0, 10);
+      if (lotteryState.todayDate === _today) {
+        const _actualDoneToday = state.tasks.filter(t => t.done && t.completedAt === _today).length;
+        // Only correct downward if actual count is lower (avoid stripping legitimately earned tickets)
+        if (_actualDoneToday < lotteryState.todayDone) lotteryState.todayDone = _actualDoneToday;
+        saveLottery();
+      }
       showToast('🌿 雲端同步完成');
       if (dot) dot.className = 'sync-dot synced';
       renderEnergyDots();
@@ -2418,6 +2447,13 @@ async function init() {
   renderRewards();
   initLottery();
   checkMissedReset();
+  // Bug 8 fix: apply theme AFTER all state is loaded (cloud or local)
+  // so manual pref and auto schedule both work correctly on first render
+  const _isAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
+  if (!_isAuto && state.themeManualPref) {
+    themeManualOverride = state.themeManualPref;
+  }
+  syncTheme();
   if (!localStorage.getItem('innerflow_onboarded')) {
     document.getElementById('onboardModal').classList.add('open');
     localStorage.setItem('innerflow_onboarded', 'true');
@@ -2872,7 +2908,9 @@ function todayChipDrop(e, toIdx) {
   // Reorder
   const moved = allToday.splice(_todayDragIdx, 1)[0];
   allToday.splice(toIdx, 0, moved);
-  state.todayOrder = allToday.map(t => t.id);
+  // Bug 11 fix: only keep IDs that still exist in the task list to prevent unbounded growth
+  const validIds = new Set(state.tasks.map(t => t.id));
+  state.todayOrder = allToday.map(t => t.id).filter(id => validIds.has(id));
 
   document.querySelectorAll('.today-task-chip').forEach(el => el.classList.remove('drag-over-chip', 'dragging-chip'));
   _todayDragIdx = null;
@@ -3244,9 +3282,12 @@ function buildCardPool() {
   const rmCard = { isRandomMission: true };
   const WISH_SLOTS = 3;
   const wishCards = shuffle(unlockedWishes).slice(0, Math.min(WISH_SLOTS, unlockedWishes.length));
-  // Fill remaining wish slots with duplicates if fewer wishes available
+  // Fill remaining wish slots with round-robin duplicates if fewer wishes available
+  // Bug 9 fix: was wishCards[wishCards.length % wishCards.length] which is always index 0
+  let _wFillIdx = 0;
   while (wishCards.length > 0 && wishCards.length < WISH_SLOTS) {
-    wishCards.push({ ...wishCards[wishCards.length % wishCards.length] });
+    wishCards.push({ ...wishCards[_wFillIdx % wishCards.length] });
+    _wFillIdx++;
   }
 
   const QUOTE_SLOTS = TOTAL - 1 - wishCards.length; // 1 for rm card
@@ -3530,7 +3571,8 @@ function undoneTask(id) {
     return;
   }
   t.done = false;
-  if (state.done > 0) state.done--;
+  t.completedAt = null;
+  state.done = state.tasks.filter(x => x.done).length; // Bug 6 fix: recalculate
   renderStats();
   renderTasks();
   renderTree();
@@ -3544,7 +3586,15 @@ function deleteTaskFromStats(id) {
   const t = state.tasks.find(x => x.id === id);
   if (!t) return;
   if (confirm(`確定刪除「${t.name}」嗎？`)) {
-    if (t.done && state.done > 0) state.done--;
+    // Bug 4 fix: archive to doneHistory first so heatmap is preserved
+    if (t.done) {
+      if (!state.doneHistory) state.doneHistory = [];
+      const histKey = t.id + '_' + (t.completedAt || '');
+      if (!state.doneHistory.some(h => h.id === histKey)) {
+        state.doneHistory.push({ id: histKey, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt });
+      }
+      if (state.done > 0) state.done--;
+    }
     state.tasks = state.tasks.filter(x => x.id !== id);
     renderStats();
     renderTasks();
@@ -3582,8 +3632,16 @@ function ctxAction(action) {
   if (action === 'toggle') {
     const wasDone = t.done;
     t.done = !t.done;
-    if (!wasDone) { t.completedAt = new Date().toISOString().slice(0, 10); state.done++; showCelebration(t); checkRewardUnlocks(); renderRewards(); onTaskCompleted(); }
-    else { if (state.done > 0) state.done--; renderRewards(); onTaskUncompleted(); }
+    if (!wasDone) {
+      t.completedAt = new Date().toISOString().slice(0, 10);
+      state.done = state.tasks.filter(x => x.done).length; // Bug 5 fix: recalculate
+      showCelebration(t); checkRewardUnlocks(); renderRewards(); onTaskCompleted();
+      if (t.recurring && t.recurMode === 'interval') scheduleIntervalTask(t);
+    } else {
+      t.completedAt = null;
+      state.done = state.tasks.filter(x => x.done).length; // Bug 5 fix: recalculate
+      renderRewards(); onTaskUncompleted();
+    }
     renderTasks(); renderStats(); renderTree();
     syncToCloud();
   }
@@ -4037,15 +4095,18 @@ function showCalPopup(e, dateStr) {
   document.body.appendChild(popup);
   calPopupEl = popup;
 
-  // Position near click
+  // Bug 10 fix: offsetHeight is 0 immediately after appendChild (browser hasn't laid out yet).
+  // Use requestAnimationFrame so the browser has a chance to compute the height first.
   const rect = e.target.getBoundingClientRect();
-  let left = rect.left + rect.width / 2 - 110;
-  let top = rect.bottom + 8;
-  if (left < 8) left = 8;
-  if (left + 310 > window.innerWidth) left = window.innerWidth - 318;
-  if (top + 200 > window.innerHeight) top = rect.top - 8 - popup.offsetHeight;
-  popup.style.left = left + 'px';
-  popup.style.top = top + 'px';
+  requestAnimationFrame(() => {
+    let left = rect.left + rect.width / 2 - 110;
+    let top = rect.bottom + 8;
+    if (left < 8) left = 8;
+    if (left + 310 > window.innerWidth) left = window.innerWidth - 318;
+    if (top + popup.offsetHeight > window.innerHeight) top = rect.top - 8 - popup.offsetHeight;
+    popup.style.left = left + 'px';
+    popup.style.top = top + 'px';
+  });
 }
 
 function closeCalPopup() {
@@ -4056,9 +4117,9 @@ document.addEventListener('click', (e) => {
   if (calPopupEl && !calPopupEl.contains(e.target)) closeCalPopup();
 });
 
-// ── Always light mode ──
-document.documentElement.classList.remove('night-mode');
-
+// Bug 8 fix: removed unconditional night-mode removal here.
+// Theme is now applied correctly inside init() after cloud state is loaded,
+// respecting both auto-schedule and manual preference.
 init();
 </script>
 </body>
