@@ -1411,11 +1411,29 @@
         </select>
       </div>
     </div>
-    <div class="modal-actions">
-      <div style="display:flex;align-items:center;gap:8px;margin-right:auto">
-        <input type="checkbox" id="newTaskRecurring" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer">
-        <label for="newTaskRecurring" style="font-size:12px;color:var(--text-dim);cursor:pointer;text-transform:none;letter-spacing:0;margin-bottom:0">🔁 重複任務（每天自動重置）</label>
+    <div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <input type="checkbox" id="newTaskRecurring" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer" onchange="toggleRecurringOptions('new')">
+        <label for="newTaskRecurring" style="font-size:12px;color:var(--text-dim);cursor:pointer;text-transform:none;letter-spacing:0;margin-bottom:0">🔁 重複任務</label>
       </div>
+      <div id="newRecurringOptions" style="display:none;margin-left:23px;padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.05em">重複模式</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-bottom:0">
+            <input type="radio" name="newRecurMode" value="daily" checked style="accent-color:var(--green)" onchange="toggleIntervalInput('new')"> 每天自動重置
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-bottom:0">
+            <input type="radio" name="newRecurMode" value="interval" style="accent-color:var(--green)" onchange="toggleIntervalInput('new')"> 完成後幾天再出現
+          </label>
+        </div>
+        <div id="newIntervalInput" style="display:none;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--text-dim)">完成後</span>
+          <input type="number" id="newTaskInterval" min="1" max="365" value="7" style="width:64px;padding:6px 10px;margin-bottom:0;font-size:13px;text-align:center">
+          <span style="font-size:12px;color:var(--text-dim)">天後，自動新增一次相同任務</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('addModal')">取消</button>
       <button class="btn-confirm" onclick="addTask()">種下這顆種子 🌱</button>
     </div>
@@ -1528,6 +1546,28 @@
           <option value="light">🍃 輕鬆雜事</option>
           <option value="rest">🌙 低耗能</option>
         </select>
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <input type="checkbox" id="editTaskRecurring" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer" onchange="toggleRecurringOptions('edit')">
+        <label for="editTaskRecurring" style="font-size:12px;color:var(--text-dim);cursor:pointer;text-transform:none;letter-spacing:0;margin-bottom:0">🔁 重複任務</label>
+      </div>
+      <div id="editRecurringOptions" style="display:none;margin-left:23px;padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.05em">重複模式</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-bottom:0">
+            <input type="radio" name="editRecurMode" value="daily" checked style="accent-color:var(--green)" onchange="toggleIntervalInput('edit')"> 每天自動重置
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-bottom:0">
+            <input type="radio" name="editRecurMode" value="interval" style="accent-color:var(--green)" onchange="toggleIntervalInput('edit')"> 完成後幾天再出現
+          </label>
+        </div>
+        <div id="editIntervalInput" style="display:none;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--text-dim)">完成後</span>
+          <input type="number" id="editTaskInterval" min="1" max="365" value="7" style="width:64px;padding:6px 10px;margin-bottom:0;font-size:13px;text-align:center">
+          <span style="font-size:12px;color:var(--text-dim)">天後，自動新增一次相同任務</span>
+        </div>
       </div>
     </div>
     <div class="modal-actions">
@@ -2185,14 +2225,14 @@ function runDailyReset() {
     if (!t.done) return;
     // Archive to history before any change
     state.doneHistory.push({ id: t.id + '_' + t.completedAt, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt });
-    if (t.recurring) {
-      // Reset recurring task back to undone
+    if (t.recurring && t.recurMode !== 'interval') {
+      // Daily recurring: reset back to undone
       if (state.done > 0) state.done--;
       t.done = false;
       t.postponed = 0;
       resetCount++;
     } else {
-      // Non-recurring done task → delete after reset
+      // Non-recurring done task or interval task → delete after reset
       toDelete.push(t.id);
       if (state.done > 0) state.done--;
     }
@@ -2602,7 +2642,7 @@ function taskHTML(t) {
           <span class="tag tag-energy">${eIcon} ${eLabel}</span>
           <span class="tag tag-goal">${t.goal}</span>
           ${t.postponed >= 3 ? '<span class="tag" style="border-color:rgba(200,120,120,0.4);color:var(--rose);background:rgba(200,120,120,0.06)">⚠ 已多次延期</span>' : ''}
-          ${t.recurring ? '<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 重複</span>' : ''}
+          ${t.recurring && t.recurMode === 'interval' ? `<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 每${t.recurInterval || '?'}天</span>` : t.recurring ? '<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 重複</span>' : ''}
           ${isOverdue && !t.done ? '<span class="tag" style="border-color:rgba(192,86,90,0.4);color:var(--rose);background:rgba(192,86,90,0.07)">逾期</span>' : ''}
         </div>
       </div>
@@ -2719,6 +2759,10 @@ function toggleTask(id) {
     checkRewardUnlocks();
     renderRewards();
     onTaskCompleted();
+    // If interval-recurring, schedule next occurrence
+    if (t.recurring && t.recurMode === 'interval') {
+      scheduleIntervalTask(t);
+    }
   } else {
     t.completedAt = null; // clear completion date when unchecking
     state.done = state.tasks.filter(x => x.done).length; // recalculate
@@ -2769,6 +2813,41 @@ function rethinkTask() {
   closeModal('postponeModal');
 }
 
+// ── Recurring UI helpers ──
+function toggleRecurringOptions(prefix) {
+  const isChecked = document.getElementById(prefix + 'TaskRecurring').checked;
+  const optionsEl = document.getElementById(prefix + 'RecurringOptions');
+  if (optionsEl) optionsEl.style.display = isChecked ? 'block' : 'none';
+  if (!isChecked) {
+    const intervalEl = document.getElementById(prefix + 'IntervalInput');
+    if (intervalEl) intervalEl.style.display = 'none';
+  }
+}
+
+function toggleIntervalInput(prefix) {
+  const modeEl = document.querySelector(`input[name="${prefix}RecurMode"]:checked`);
+  const intervalEl = document.getElementById(prefix + 'IntervalInput');
+  if (intervalEl) intervalEl.style.display = (modeEl && modeEl.value === 'interval') ? 'flex' : 'none';
+}
+
+// Schedule a future cloned task for interval-recurring tasks
+function scheduleIntervalTask(t) {
+  const days = t.recurInterval || 7;
+  const future = new Date();
+  future.setDate(future.getDate() + days);
+  const futureStr = future.toISOString().slice(0, 10);
+  const clone = {
+    id: Date.now() + Math.floor(Math.random() * 1000),
+    name: t.name, meaning: t.meaning || '', goal: t.goal, energy: t.energy,
+    done: false, postponed: 0,
+    recurring: true, recurMode: 'interval', recurInterval: days,
+    scheduledFor: futureStr,
+    _intervalScheduled: true
+  };
+  state.tasks.push(clone);
+  showToast(`🔁 ${days} 天後將自動新增「${t.name}」`);
+}
+
 // ── Add Task ──
 
 function addTask() {
@@ -2778,10 +2857,26 @@ function addTask() {
   const goal = document.getElementById('newTaskGoal').value;
   const energy = document.getElementById('newTaskEnergy').value;
   const recurring = document.getElementById('newTaskRecurring').checked;
-  state.tasks.push({ id: Date.now(), name, meaning, goal, energy, done: false, postponed: 0, recurring: recurring || false });
+  let recurMode = 'daily';
+  let recurInterval = 0;
+  if (recurring) {
+    const modeEl = document.querySelector('input[name="newRecurMode"]:checked');
+    recurMode = modeEl ? modeEl.value : 'daily';
+    if (recurMode === 'interval') {
+      recurInterval = parseInt(document.getElementById('newTaskInterval').value) || 7;
+    }
+  }
+  state.tasks.push({ id: Date.now(), name, meaning, goal, energy, done: false, postponed: 0,
+    recurring: recurring || false,
+    recurMode: recurring ? recurMode : null,
+    recurInterval: recurring && recurMode === 'interval' ? recurInterval : 0
+  });
   document.getElementById('newTaskName').value = '';
   document.getElementById('newTaskMeaning').value = '';
   document.getElementById('newTaskRecurring').checked = false;
+  document.getElementById('newRecurringOptions').style.display = 'none';
+  document.getElementById('newIntervalInput').style.display = 'none';
+  document.querySelectorAll('input[name="newRecurMode"]')[0].checked = true;
   closeModal('addModal');
   showPage('tasks');
   renderTasks();
@@ -3458,6 +3553,17 @@ function openEditTask(t) {
   document.getElementById('editTaskMeaning').value = t.meaning || '';
   document.getElementById('editTaskGoal').value = t.goal;
   document.getElementById('editTaskEnergy').value = t.energy;
+  // Recurring
+  const isRecurring = !!t.recurring;
+  document.getElementById('editTaskRecurring').checked = isRecurring;
+  const optionsEl = document.getElementById('editRecurringOptions');
+  optionsEl.style.display = isRecurring ? 'block' : 'none';
+  const mode = t.recurMode || 'daily';
+  const radios = document.querySelectorAll('input[name="editRecurMode"]');
+  radios.forEach(r => r.checked = (r.value === mode));
+  const intervalEl = document.getElementById('editIntervalInput');
+  intervalEl.style.display = mode === 'interval' ? 'flex' : 'none';
+  document.getElementById('editTaskInterval').value = t.recurInterval || 7;
   document.getElementById('editModal').classList.add('open');
   setTimeout(() => document.getElementById('editTaskName').focus(), 50);
 }
@@ -3471,6 +3577,17 @@ function saveEdit() {
   t.meaning = document.getElementById('editTaskMeaning').value.trim();
   t.goal = document.getElementById('editTaskGoal').value;
   t.energy = document.getElementById('editTaskEnergy').value;
+  const isRecurring = document.getElementById('editTaskRecurring').checked;
+  t.recurring = isRecurring;
+  if (isRecurring) {
+    const modeEl = document.querySelector('input[name="editRecurMode"]:checked');
+    const mode = modeEl ? modeEl.value : 'daily';
+    t.recurMode = mode;
+    t.recurInterval = mode === 'interval' ? (parseInt(document.getElementById('editTaskInterval').value) || 7) : 0;
+  } else {
+    t.recurMode = null;
+    t.recurInterval = 0;
+  }
   closeModal('editModal');
   renderTasks(); renderStats();
   showToast('✦ 任務已更新');
