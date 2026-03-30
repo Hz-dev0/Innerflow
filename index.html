@@ -1999,6 +1999,17 @@ let state = {
   todayOrder: [], // ordered task ids for the today panel
 };
 
+// ── Local-timezone date helper ──
+// Always returns YYYY-MM-DD in the device's local timezone (not UTC).
+// This prevents tasks completed after 8 PM in UTC+8 from being attributed to the previous day.
+function localDateStr(date) {
+  const d = date || new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
 const energyLabels = { deep: '深度思考', flow: '靈感爆發', light: '輕鬆雜事', rest: '低耗能' };
 const energyIcons  = { deep: '🌊', flow: '⚡', light: '🍃', rest: '🌙' };
 
@@ -2022,7 +2033,7 @@ const treeNodes = [
 function renderTree() {
   const grid = document.getElementById('treeGrid');
   if (!grid) return;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateStr();
   grid.innerHTML = treeNodes.map(n => {
     const todayDoneCnt = state.tasks.filter(t => t.done && t.goal === n.key && t.completedAt === todayStr).length;
     const pct = Math.min(100, Math.round(todayDoneCnt / 3 * 100)); // 3 = full
@@ -2294,7 +2305,7 @@ let _resetRunning = false; // Bug 3 fix: prevent concurrent/double reset runs
 function runDailyReset() {
   if (_resetRunning) return; // already running, skip
   _resetRunning = true;
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = localDateStr();
   const lastReset = localStorage.getItem(LAST_RESET_KEY);
   if (lastReset === todayKey) { _resetRunning = false; scheduleNextReset(); return; }
   localStorage.setItem(LAST_RESET_KEY, todayKey);
@@ -2363,7 +2374,7 @@ function checkMissedReset() {
   const now = new Date();
   const todayReset = new Date(now);
   todayReset.setHours(h, m, 0, 0);
-  const todayKey = now.toISOString().slice(0, 10);
+  const todayKey = localDateStr(now);
   const lastReset = localStorage.getItem(LAST_RESET_KEY);
   // If reset time for today has already passed and we haven't reset today
   if (now > todayReset && lastReset !== todayKey) {
@@ -2407,7 +2418,7 @@ async function init() {
     if (ok) {
       // Bug 2 fix: after cloud load, re-calibrate lotteryState.todayDone
       // against actual task completion data so ticket count stays accurate
-      const _today = new Date().toISOString().slice(0, 10);
+      const _today = localDateStr();
       if (lotteryState.todayDate === _today) {
         const _actualDoneToday = state.tasks.filter(t => t.done && t.completedAt === _today).length;
         // Only correct downward if actual count is lower (avoid stripping legitimately earned tickets)
@@ -2674,16 +2685,15 @@ function renderTasks() {
     html += activeTasks.map(t => taskHTML(t)).join('');
   }
 
-  // Done section
-  if (doneTasks.length > 0) {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const todayDoneTasks = doneTasks.filter(t => t.completedAt === todayStr);
+  // Done section — only show today's completed tasks; past completed tasks belong in 成長軌跡
+  const todayDoneTasks = doneTasks.filter(t => t.completedAt === localDateStr());
+  if (todayDoneTasks.length > 0) {
     const isOpen = state.doneOpen;
     html += `
       <div class="done-section-header" onclick="toggleDoneSection()">
         <span class="done-toggle-arrow ${isOpen ? 'open' : ''}">▶</span>
         今日已完成 ${todayDoneTasks.length} 件
-        <span style="font-size:10px;color:var(--text-faint);margin-left:4px">（今日完成可取消勾選）</span>
+        <span style="font-size:10px;color:var(--text-faint);margin-left:4px">（點擊 ✓ 可取消勾選）</span>
       </div>
       <div class="done-tasks-wrap ${isOpen ? 'open' : ''}" id="doneTasksWrap">
         ${todayDoneTasks.map(t => taskHTML(t)).join('')}
@@ -2701,7 +2711,7 @@ function taskHTML(t) {
   const isOpen = t._breakdownOpen || false;
 
   // Due date / status logic
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateStr();
   const isToday = t.scheduledFor === todayStr;
   const isCancelled = t.status === 'cancelled';
   const isOverdue = t.scheduledFor && t.scheduledFor < todayStr && !t.done && !isCancelled;
@@ -2794,7 +2804,7 @@ function toggleDoneSection() {
 function setTaskStatus(id, status) {
   const t = state.tasks.find(x => x.id === id);
   if (!t) return;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateStr();
   if (status === 'today') {
     t.scheduledFor = todayStr;
     t.status = 'active';
@@ -2854,7 +2864,7 @@ function renderTodayPanel() {
   const list = document.getElementById('todayPanelList');
   const countBadge = document.getElementById('todayPanelCount');
   if (!list) return;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateStr();
   const todayTasks = state.tasks.filter(t => t.scheduledFor === todayStr && !t.done && t.status !== 'cancelled');
   // Also include overdue tasks that are still pending
   const overdueTasks = state.tasks.filter(t =>
@@ -2923,7 +2933,7 @@ function todayChipDrop(e, toIdx) {
   e.preventDefault();
   if (_todayDragIdx === null || _todayDragIdx === toIdx) return;
   // Get current ordered task list for today
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateStr();
   const todayTasks = state.tasks.filter(t => t.scheduledFor === todayStr && !t.done && t.status !== 'cancelled');
   const overdueTasks = state.tasks.filter(t => t.scheduledFor && t.scheduledFor < todayStr && !t.done && t.status !== 'cancelled');
   let allToday = [...todayTasks, ...overdueTasks.filter(t => !todayTasks.find(x => x.id === t.id))];
@@ -2986,7 +2996,7 @@ function toggleTask(id) {
   const wasDone = t.done;
   t.done = !t.done;
   if (!wasDone) {
-    t.completedAt = new Date().toISOString().slice(0, 10);
+    t.completedAt = localDateStr();
     state.done = state.tasks.filter(x => x.done).length; // recalculate
     showCelebration(t);
     checkRewardUnlocks();
@@ -3068,8 +3078,8 @@ function scheduleIntervalTask(t) {
   const days = t.recurInterval || 7;
   const future = new Date();
   future.setDate(future.getDate() + days);
-  const futureStr = future.toISOString().slice(0, 10);
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const futureStr = localDateStr(future);
+  const todayStr = localDateStr();
   const clone = {
     id: Date.now() + Math.floor(Math.random() * 1000),
     name: t.name, meaning: t.meaning || '', goal: t.goal, energy: t.energy,
@@ -3180,7 +3190,7 @@ let lotteryState = {
 };
 
 function getTodayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr();
 }
 
 function generateRandomMission() {
@@ -3489,7 +3499,7 @@ function renderAchievements() {
 
 // ── Stats ──
 function renderStats() {
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateStr();
   const allDoneTasks = state.tasks.filter(t => t.done);
   const historyTasks = state.doneHistory || [];
   // Recalculate state.done to stay in sync with actual task data
@@ -3574,7 +3584,7 @@ function renderStats() {
     }
     doneList.innerHTML = html;
 
-    // Past done tasks section in show-all mode
+    // Past done tasks section in show-all mode — grouped by date, each date collapsible
     const pastDone = allDoneTasks.filter(t => !t.completedAt || t.completedAt !== todayStr);
     const allHistory = [...pastDone, ...historyTasks];
     const pastDoneSection = document.getElementById('pastDoneSection');
@@ -3582,26 +3592,65 @@ function renderStats() {
       if (allHistory.length === 0) {
         pastDoneSection.innerHTML = '';
       } else {
-        let pastHtml = `
-          <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin:14px 0 6px;padding-top:10px;border-top:1px dashed var(--border)">過去完成</div>
-          <div class="task-list">
-            ${allHistory.map(t => `
-              <div class="task-item done" style="opacity:0.7">
-                <div class="task-check checked" style="cursor:default">✓</div>
-                <div class="task-body">
-                  <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
-                  <div class="task-meta">
-                    <span class="tag tag-goal">${t.goal || ''}</span>
-                    <span style="font-size:10px;color:var(--text-faint)">${t.completedAt || '日期不明'}</span>
-                  </div>
+        // Group by date, sorted newest first
+        const byDate = {};
+        allHistory.forEach(t => {
+          const d = t.completedAt || '日期不明';
+          if (!byDate[d]) byDate[d] = [];
+          byDate[d].push(t);
+        });
+        const sortedDates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
+
+        let pastHtml = `<div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin:14px 0 8px;padding-top:10px;border-top:1px dashed var(--border)">過去完成</div>`;
+
+        sortedDates.forEach((date, idx) => {
+          const tasks = byDate[date];
+          const groupId = 'pastGroup_' + idx;
+          // Format date label
+          let label = date;
+          if (date !== '日期不明') {
+            const [y, m, d] = date.split('-');
+            label = `${parseInt(m)} 月 ${parseInt(d)} 日`;
+          }
+          // First group open by default, rest collapsed
+          const isOpen = idx === 0;
+          pastHtml += `
+            <div style="margin-bottom:4px">
+              <div onclick="togglePastGroup('${groupId}')" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:7px 10px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);transition:all 0.2s;user-select:none" onmouseover="this.style.borderColor='rgba(74,130,196,0.3)'" onmouseout="this.style.borderColor='var(--border)'">
+                <span id="${groupId}_arrow" style="font-size:10px;color:var(--text-faint);transition:transform 0.2s;display:inline-block;${isOpen ? 'transform:rotate(90deg)' : ''}">▶</span>
+                <span style="font-size:12px;color:var(--text-dim);font-weight:500">${label}</span>
+                <span style="font-size:11px;color:var(--text-faint);margin-left:auto">${tasks.length} 件</span>
+              </div>
+              <div id="${groupId}" style="overflow:hidden;transition:max-height 0.28s ease;max-height:${isOpen ? '2000px' : '0'}">
+                <div class="task-list" style="padding:4px 0 2px">
+                  ${tasks.map(t => `
+                    <div class="task-item done" style="opacity:0.7">
+                      <div class="task-check checked" style="cursor:default">✓</div>
+                      <div class="task-body">
+                        <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
+                        <div class="task-meta">
+                          <span class="tag tag-goal">${t.goal || ''}</span>
+                        </div>
+                      </div>
+                      ${t.id ? `<span onclick="deletePastDoneTask(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'" title="從任務列表刪除（熱力圖紀錄保留）">×</span>` : ''}
+                    </div>`).join('')}
                 </div>
-                ${t.id ? `<span onclick="deletePastDoneTask(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'" title="從任務列表刪除（熱力圖紀錄保留）">×</span>` : ''}
-              </div>`).join('')}
-          </div>`;
+              </div>
+            </div>`;
+        });
         pastDoneSection.innerHTML = pastHtml;
       }
     }
   }
+}
+
+function togglePastGroup(id) {
+  const el = document.getElementById(id);
+  const arrow = document.getElementById(id + '_arrow');
+  if (!el) return;
+  const isOpen = el.style.maxHeight !== '0px' && el.style.maxHeight !== '0';
+  el.style.maxHeight = isOpen ? '0' : '2000px';
+  if (arrow) arrow.style.transform = isOpen ? '' : 'rotate(90deg)';
 }
 
 function scrollToDoneList() {
@@ -3651,7 +3700,7 @@ function deletePastDoneTask(id) {
 function undoneTask(id) {
   const t = state.tasks.find(x => x.id === id);
   if (!t) return;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateStr();
   if (t.completedAt !== todayStr) {
     showToast('⚠ 只能取消當日完成的任務');
     return;
@@ -3719,7 +3768,7 @@ function ctxAction(action) {
     const wasDone = t.done;
     t.done = !t.done;
     if (!wasDone) {
-      t.completedAt = new Date().toISOString().slice(0, 10);
+      t.completedAt = localDateStr();
       state.done = state.tasks.filter(x => x.done).length; // Bug 5 fix: recalculate
       showCelebration(t); checkRewardUnlocks(); renderRewards(); onTaskCompleted();
       if (t.recurring && t.recurMode === 'interval') scheduleIntervalTask(t);
@@ -4082,7 +4131,7 @@ function renderDoneCalendar(doneTasks, container) {
     byDate[d].push(t);
   });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateStr();
   const firstDay = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
   const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
   const monthNames = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
