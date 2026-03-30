@@ -979,8 +979,17 @@
   .header-settings-btn:hover { border-color: var(--green); color: var(--green); }
   .header-settings-btn.connected { border-color: rgba(74,130,196,0.4); color: var(--green); }
 
+  @keyframes shuffleCard {
+    0%   { transform: scale(0.85) rotateY(0deg);   opacity: 0.3; }
+    40%  { transform: scale(1.05) rotateY(90deg);  opacity: 0.7; }
+    70%  { transform: scale(0.97) rotateY(180deg); opacity: 0.9; }
+    100% { transform: scale(1)    rotateY(0deg);   opacity: 1;   }
+  }
+  .shuffle-anim {
+    animation: shuffleCard 0.46s ease both;
+  }
+
   /* ── Random-Task Lottery Card ── */
-  /* Before flip: looks identical to normal cards */
   .lottery-card.random-mission {
     position: relative;
   }
@@ -1142,7 +1151,7 @@
     cursor: pointer;
   }
   .task-status-overdue:hover { background: rgba(192,86,90,0.15); }
-  .task-item.is-today { border-left: 2px solid var(--green) !important; }
+  .task-item.is-today { border-left: 2px solid #C9A227 !important; background: rgba(201,162,39,0.04) !important; }
   .task-item.is-overdue { border-left: 2px solid var(--rose) !important; }
 
   /* ── Today Tasks Panel (under Life Tree) ── */
@@ -1859,7 +1868,7 @@ async function saveApiUrl(fragment) {
       state.energy  = data.energy  || 0;
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
-      renderTasks(); renderSandbox(); renderStats(); renderRewards(); renderTree(); renderEnergyDots();
+      renderTasks(); renderSandbox(); renderStats(); renderRewards(); renderTree(); renderEnergyDots(); renderLottery();
     }
     return true;
   } catch (e) {
@@ -1931,6 +1940,11 @@ async function loadFromCloud() {
           syncTheme();
         }
       }
+      // Restore lotteryState from cloud (cross-device sync)
+      if (data.lotteryState && typeof data.lotteryState === 'object') {
+        lotteryState = { ...lotteryState, ...data.lotteryState };
+        localStorage.setItem('innerflow_lottery', JSON.stringify(lotteryState));
+      }
       return true;
     }
   } catch (e) {
@@ -1954,7 +1968,7 @@ async function syncToCloud() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'save',
-        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], themeManualPref: state.themeManualPref || null, todayOrder: state.todayOrder || [] }
+        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], themeManualPref: state.themeManualPref || null, todayOrder: state.todayOrder || [], lotteryState: lotteryState }
       })
     });
     if (dot) { dot.className = 'sync-dot synced'; setTimeout(() => { if (dot) dot.className = 'sync-dot synced'; }, 2000); }
@@ -2321,11 +2335,14 @@ function runDailyReset() {
   }
   // Always re-render so interval clones scheduled for today appear in today panel
   renderTasks(); renderStats(); renderTree(); renderRewards();
-  // Reset random mission for the new day
-  lotteryState.randomMission = generateRandomMission();
+  // Reset lottery day counters for new day (but don't pre-assign mission — assigned on gold flip)
   lotteryState.todayDate = todayKey;
   lotteryState.todayDone = 0;
   lotteryState.rmSlot = undefined;
+  lotteryState.cards = []; // clear deck so user must draw again
+  if (lotteryState.randomMission && !lotteryState.randomMission.awarded) {
+    lotteryState.randomMission = null; // expire unawarded missions from previous day
+  }
   saveLottery();
   renderLottery();
   _resetRunning = false;
@@ -2405,6 +2422,7 @@ async function init() {
       renderSandbox();
       renderStats();
       renderRewards();
+      renderLottery();
     } else { showToast('⚠ 雲端讀取失敗，使用本機資料'); if (dot) dot.className = 'sync-dot'; }
   }
 
@@ -3144,7 +3162,7 @@ let lotteryState = {
   cards: [],       // 9 cards, each { revealed, content, isWish, isRandomMission }
   todayDate: '',
   todayDone: 0,
-  randomMission: null, // { taskIds: [], requiredCount: N, resetDate: '' }
+  randomMission: null, // assigned only when gold card is flipped; { taskIds, taskNames, requiredCount, completedTaskIds, awarded, assignedAt }
 };
 
 function getTodayKey() {
@@ -3152,7 +3170,7 @@ function getTodayKey() {
 }
 
 function generateRandomMission() {
-  // Pick 1–3 random undone tasks as mission targets
+  // Pick 1–3 random undone tasks as mission targets — called only when gold card is flipped
   const undone = state.tasks.filter(t => !t.done);
   if (undone.length === 0) return null;
   const shuffled = [...undone].sort(() => Math.random() - 0.5);
@@ -3162,8 +3180,9 @@ function generateRandomMission() {
     taskIds: picked.map(t => t.id),
     taskNames: picked.map(t => t.name),
     requiredCount: count,
-    resetDate: getTodayKey(),
+    assignedAt: getTodayKey(),
     completedTaskIds: [],
+    awarded: false,
   };
 }
 
@@ -3177,20 +3196,7 @@ function initLottery() {
     lotteryState.todayDate = today;
     lotteryState.todayDone = 0;
     lotteryState.rmSlot = undefined;
-  }
-  // Reset random mission if it's from a different day
-  if (lotteryState.randomMission && lotteryState.randomMission.resetDate !== today) {
-    lotteryState.randomMission = null;
-    lotteryState.rmSlot = undefined;
-    // Also clear any random mission card from the deck
-    if (lotteryState.cards) {
-      lotteryState.cards = lotteryState.cards.map(c => c.isRandomMission ? { ...c, isRandomMission: false, revealed: true } : c);
-    }
-  }
-  // Ensure randomMission exists
-  if (!lotteryState.randomMission) {
-    lotteryState.randomMission = generateRandomMission();
-    saveLottery();
+    // Do NOT clear randomMission here — it persists until awarded or a new draw is made
   }
   renderLottery();
 }
@@ -3205,7 +3211,8 @@ function countTodayDone() {
 
 function checkRandomMissionProgress() {
   const rm = lotteryState.randomMission;
-  if (!rm) return;
+  // Only track progress if mission was actually assigned (gold card flipped) and not yet awarded
+  if (!rm || !rm.assignedAt || rm.awarded) return;
   // Check which mission tasks are now done
   const completedNow = rm.taskIds.filter(id => {
     const t = state.tasks.find(x => x.id === id);
@@ -3218,18 +3225,9 @@ function checkRandomMissionProgress() {
     const ticketsEarned = rm.requiredCount;
     lotteryState.tickets += ticketsEarned;
     saveLottery();
+    syncToCloud();
     setTimeout(() => showToast(`🏆 隨機任務完成！獲得 ${ticketsEarned} 張抽獎券！`), 800);
     renderLottery();
-    // If mission card is in deck, mark it revealed as complete
-    if (lotteryState.cards) {
-      lotteryState.cards.forEach((c, i) => {
-        if (c.isRandomMission && !c.revealed) {
-          lotteryState.cards[i].revealed = true;
-          lotteryState.cards[i].missionComplete = true;
-          saveLottery();
-        }
-      });
-    }
   }
   saveLottery();
 }
@@ -3278,29 +3276,36 @@ function buildCardPool() {
   const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
   const TOTAL = 9;
 
-  // 1 random mission card + 3 wish cards (if available) + rest quotes
+  // Guaranteed: 1 gold mission card + 1 wish card (if any unlocked) + rest quotes
   const rmCard = { isRandomMission: true };
-  const WISH_SLOTS = 3;
-  const wishCards = shuffle(unlockedWishes).slice(0, Math.min(WISH_SLOTS, unlockedWishes.length));
-  // Fill remaining wish slots with round-robin duplicates if fewer wishes available
-  // Bug 9 fix: was wishCards[wishCards.length % wishCards.length] which is always index 0
-  let _wFillIdx = 0;
-  while (wishCards.length > 0 && wishCards.length < WISH_SLOTS) {
-    wishCards.push({ ...wishCards[_wFillIdx % wishCards.length] });
-    _wFillIdx++;
+  const deck = [rmCard];
+
+  if (unlockedWishes.length > 0) {
+    // Pick 1 random wish card (guaranteed slot)
+    const pickedWish = shuffle(unlockedWishes)[0];
+    deck.push(pickedWish);
+    // Fill remaining 7 slots with quotes
+    const quoteCards = shuffle(allQuotes);
+    for (let i = 0; i < TOTAL - 2; i++) deck.push(quoteCards[i % quoteCards.length]);
+  } else {
+    // No wishes: fill remaining 8 slots with quotes
+    const quoteCards = shuffle(allQuotes);
+    for (let i = 0; i < TOTAL - 1; i++) deck.push(quoteCards[i % quoteCards.length]);
   }
 
-  const QUOTE_SLOTS = TOTAL - 1 - wishCards.length; // 1 for rm card
-  const quoteCards = shuffle(allQuotes);
-  const deck = [rmCard];
-  for (let i = 0; i < wishCards.length; i++) deck.push(wishCards[i]);
-  for (let i = 0; i < QUOTE_SLOTS; i++) deck.push(quoteCards[i % quoteCards.length]);
   return shuffle(deck);
 }
 
 function drawLottery() {
   if (lotteryState.tickets <= 0) return;
   lotteryState.tickets--;
+  // Clear previous mission if it was already awarded or not yet assigned
+  // (new draw resets the gold card — mission is assigned only when gold is flipped)
+  if (lotteryState.randomMission && lotteryState.randomMission.awarded) {
+    lotteryState.randomMission = null;
+  }
+  // If there's an active unawarded mission from a flip, keep it across draws
+  // but reset the gold card slot to unflipped so user must flip again to see tasks
   const deck = buildCardPool();
   lotteryState.cards = deck.map(item => ({
     revealed: false,
@@ -3311,26 +3316,61 @@ function drawLottery() {
     isRandomMission: item.isRandomMission || false,
   }));
   saveLottery();
-  renderLottery();
+  syncToCloud();
+
+  // Shuffle animation: flash cards briefly before settling
+  const grid = document.getElementById('lotteryGrid');
+  if (grid) {
+    grid.classList.add('shuffling');
+    setTimeout(() => {
+      grid.classList.remove('shuffling');
+      renderLottery();
+    }, 480);
+    // Render placeholder during animation
+    grid.innerHTML = Array.from({length:9}, (_, i) => `
+      <div class="lottery-card shuffle-anim" id="lcard-${i}" style="animation-delay:${i * 40}ms">
+        <div class="lottery-card-back">
+          <div class="card-face-icon">✦</div>
+          <div class="card-face-hint">洗牌中…</div>
+        </div>
+      </div>`).join('');
+  } else {
+    renderLottery();
+  }
   showToast('✦ 牌已洗好，點擊翻牌！');
 }
 
 function flipCard(i) {
   if (!lotteryState.cards[i] || lotteryState.cards[i].revealed) return;
-  lotteryState.cards[i].revealed = true;
+  const card = lotteryState.cards[i];
+  card.revealed = true;
+
+  // If gold card flipped: assign mission NOW (only if no active unawarded mission)
+  if (card.isRandomMission) {
+    if (!lotteryState.randomMission || lotteryState.randomMission.awarded) {
+      lotteryState.randomMission = generateRandomMission();
+    }
+    // Attach mission snapshot to card so it displays correctly
+    card.missionSnapshot = lotteryState.randomMission
+      ? { taskNames: lotteryState.randomMission.taskNames, requiredCount: lotteryState.randomMission.requiredCount }
+      : null;
+  }
+
   saveLottery();
+  syncToCloud();
+
   const cardEl = document.getElementById('lcard-' + i);
   if (cardEl) {
     cardEl.classList.add('flipping');
     setTimeout(() => {
       cardEl.classList.remove('flipping');
       cardEl.classList.add('revealed');
-      if (lotteryState.cards[i].isWish) cardEl.classList.add('is-wish');
-      if (lotteryState.cards[i].isRandomMission) cardEl.classList.add('random-mission');
+      if (card.isWish) cardEl.classList.add('is-wish');
+      if (card.isRandomMission) cardEl.classList.add('random-mission');
       cardEl.querySelector('.lottery-card-back').style.display = 'none';
       const front = cardEl.querySelector('.lottery-card-front');
       if (front) front.style.display = 'flex';
-      renderLottery(); // re-render to show mission content
+      renderLottery();
     }, 220);
   }
 }
@@ -3353,9 +3393,6 @@ function renderLottery() {
 
   const grid = document.getElementById('lotteryGrid');
   if (!grid) return;
-
-  const rm = lotteryState.randomMission;
-  const today = getTodayKey();
 
   if (!lotteryState.cards || lotteryState.cards.length === 0) {
     // Persist RM slot so it doesn't jump on re-render
@@ -3381,20 +3418,31 @@ function renderLottery() {
 
     // Build random mission front content
     let rmFrontHtml = '';
-    if (isRM && rm) {
-      const completedCount = (rm.completedTaskIds || []).length;
-      const missionDone = rm.awarded;
-      rmFrontHtml = `
-        <div class="card-reveal-icon">${missionDone ? '🏆' : '⭐'}</div>
-        <div style="font-size:9px;color:var(--text-dim);letter-spacing:0.06em;margin-bottom:2px">隨機任務</div>
-        <div class="rm-tasks-list">
-          ${rm.taskNames.map((name, j) => {
-            const done = (rm.completedTaskIds || []).includes(rm.taskIds[j]);
-            return `<div class="rm-task-row${done ? ' done-task' : ''}"><span class="rm-task-check">${done ? '✓' : '○'}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70px">${name}</span></div>`;
-          }).join('')}
-        </div>
-        <div class="rm-badge" style="margin-top:4px">${missionDone ? `🎫 已獲 ${rm.requiredCount} 券` : `完成得 ${rm.requiredCount} 券`}</div>
-      `;
+    if (isRM && isRevealed) {
+      const rm = lotteryState.randomMission;
+      const snap = c.missionSnapshot || (rm ? { taskNames: rm.taskNames, requiredCount: rm.requiredCount } : null);
+      const missionDone = rm && rm.awarded;
+      if (snap) {
+        const completedTaskIds = rm ? (rm.completedTaskIds || []) : [];
+        const taskIds = rm ? rm.taskIds : [];
+        rmFrontHtml = `
+          <div class="card-reveal-icon">${missionDone ? '🏆' : '⭐'}</div>
+          <div style="font-size:9px;color:var(--text-dim);letter-spacing:0.06em;margin-bottom:2px">隨機任務</div>
+          <div class="rm-tasks-list">
+            ${snap.taskNames.map((name, j) => {
+              const done = taskIds[j] !== undefined && completedTaskIds.includes(taskIds[j]);
+              return `<div class="rm-task-row${done ? ' done-task' : ''}"><span class="rm-task-check">${done ? '✓' : '○'}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70px">${name}</span></div>`;
+            }).join('')}
+          </div>
+          <div class="rm-badge" style="margin-top:4px">${missionDone ? `🎫 已獲 ${snap.requiredCount} 券` : `完成得 ${snap.requiredCount} 券`}</div>
+        `;
+      } else {
+        rmFrontHtml = `
+          <div class="card-reveal-icon">⭐</div>
+          <div style="font-size:9px;color:var(--text-dim);letter-spacing:0.06em;margin-bottom:2px">隨機任務</div>
+          <div style="font-size:10px;color:var(--text-faint);margin-top:4px">目前沒有待辦任務</div>
+        `;
+      }
     }
 
     return `<div class="lottery-card${isRevealed ? ' revealed' + (c.isWish ? ' is-wish' : '') + (isRM ? ' random-mission' : '') : ''}" id="lcard-${i}" ${!isRevealed ? `onclick="flipCard(${i})"` : ''}>
