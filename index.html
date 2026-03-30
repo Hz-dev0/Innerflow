@@ -1206,6 +1206,37 @@
     padding: 7px 10px; outline: none; transition: border-color 0.2s; width: 110px;
   }
   .theme-time-input:focus { border-color: var(--green); }
+
+  /* ── Neglected task (久未完成) ── */
+  .task-item.neglected {
+    border-color: rgba(180,180,195,0.65) !important;
+    background: linear-gradient(90deg, rgba(200,200,215,0.04) 0%, transparent 100%);
+    box-shadow: 0 0 0 1.5px rgba(180,180,200,0.3), 0 2px 8px rgba(180,180,200,0.08);
+  }
+  .neglect-badge {
+    font-size: 9px; padding: 1px 6px; border-radius: 10px;
+    border: 1px solid rgba(180,180,200,0.45);
+    color: rgba(160,160,185,0.9);
+    background: rgba(180,180,200,0.1);
+    letter-spacing: 0.04em; white-space: nowrap;
+  }
+
+  /* ── Today panel drag & drop ── */
+  .today-task-chip { cursor: grab; }
+  .today-task-chip:active { cursor: grabbing; }
+  .today-task-chip.dragging-chip { opacity: 0.4; border-style: dashed; transform: scale(0.98); }
+  .today-task-chip.drag-over-chip {
+    border-color: var(--green);
+    background: rgba(74,130,196,0.07);
+    transform: translateY(-2px);
+    box-shadow: 0 3px 10px rgba(74,130,196,0.12);
+  }
+  .today-chip-drag-handle {
+    font-size: 11px; color: var(--text-faint); cursor: grab;
+    flex-shrink: 0; padding: 0 2px; line-height: 1; user-select: none;
+    opacity: 0.5; transition: opacity 0.15s;
+  }
+  .today-task-chip:hover .today-chip-drag-handle { opacity: 1; }
 </style>
 </head>
 <body>
@@ -1602,25 +1633,33 @@
     <div class="api-modal-title">⚙️ 使用設定</div>
 
     <!-- Cloud section -->
-    <div style="font-size:11px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:10px;margin-top:4px">☁️ 雲端連線</div>
-    <div style="font-size:12px;color:var(--text-faint);margin-bottom:8px;line-height:1.6">輸入連線密碼完成雲端設定</div>
-    <div style="display:flex;align-items:center;gap:0;margin-bottom:8px">
+    <div style="font-size:10px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px;margin-top:2px">☁️ 雲端連線</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       <input class="api-modal-input" id="apiKeyFragment"
-        placeholder="連線密碼" maxlength="3" type="password"
-        style="width:100%;text-align:center;border-radius:9px;margin-bottom:0;font-size:15px;font-weight:600;letter-spacing:0.2em;padding:10px 14px"
+        placeholder="連線密碼（3碼）" maxlength="3" type="password"
+        style="width:120px;flex-shrink:0;text-align:center;border-radius:8px;margin-bottom:0;font-size:14px;font-weight:600;letter-spacing:0.2em;padding:7px 10px"
         oninput="this.value=this.value.toUpperCase()">
+      <span style="font-size:11px;color:var(--text-faint);line-height:1.4">輸入三位連線密碼完成雲端設定</span>
     </div>
     <div class="api-status" id="apiStatus"></div>
 
     <!-- Reset time -->
-    <div style="font-size:11px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:8px;margin-top:16px">⏰ 每日重置時間</div>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-      <input type="time" id="resetTimeInput" value="04:00" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:14px;font-weight:300;padding:8px 12px;outline:none;transition:border-color 0.2s;width:140px" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
-      <span style="font-size:12px;color:var(--text-faint)">重複任務在此時間自動重置</span>
+    <div style="font-size:10px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px;margin-top:10px">⏰ 每日重置時間</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <input type="time" id="resetTimeInput" value="04:00" style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;font-weight:300;padding:6px 10px;outline:none;transition:border-color 0.2s;width:120px;flex-shrink:0" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
+      <span style="font-size:11px;color:var(--text-faint)">重複任務在此時間自動重置</span>
     </div>
 
+    <!-- Neglect threshold -->
+    <div style="font-size:10px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px;margin-top:10px">⏳ 久未完成任務提醒</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <input type="number" id="neglectDaysInput" min="1" max="365" value="7"
+        style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;padding:6px 10px;outline:none;transition:border-color 0.2s;width:70px;flex-shrink:0;text-align:center"
+        onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
+      <span style="font-size:11px;color:var(--text-faint)">天未完成的任務自動置頂，顯示銀色邊框</span>
+    </div>
 
-    <div class="api-modal-actions" style="margin-top:16px">
+    <div class="api-modal-actions" style="margin-top:12px">
       <button class="api-btn-clear" id="apiClearBtn" onclick="clearApiUrl()" style="display:none">✕ 清除連線</button>
       <button class="api-btn-skip" onclick="closeApiModal()">關閉</button>
       <button class="api-btn-save" onclick="saveApiSettings()">儲存設定 →</button>
@@ -1778,6 +1817,10 @@ function openApiModal() {
   // Load saved reset time
   const savedTime = localStorage.getItem('innerflow_reset_time') || '04:00';
   document.getElementById('resetTimeInput').value = savedTime;
+  // Load neglect days
+  const savedNeglect = localStorage.getItem('innerflow_neglect_days') || '7';
+  const neglectEl = document.getElementById('neglectDaysInput');
+  if (neglectEl) neglectEl.value = savedNeglect;
   setApiStatus('');
   document.getElementById('apiModal').classList.add('open');
 }
@@ -1815,6 +1858,7 @@ async function saveApiUrl(fragment) {
       state.customQuotes = data.customQuotes || [];
       state.energy  = data.energy  || 0;
       state.doneHistory = data.doneHistory || [];
+      state.todayOrder  = data.todayOrder  || [];
       renderTasks(); renderSandbox(); renderStats(); renderRewards(); renderTree(); renderEnergyDots();
     }
     return true;
@@ -1829,6 +1873,13 @@ async function saveApiSettings() {
   const resetTime = document.getElementById('resetTimeInput').value || '04:00';
   localStorage.setItem('innerflow_reset_time', resetTime);
   scheduleNextReset();
+
+  // Save neglect days
+  const neglectEl = document.getElementById('neglectDaysInput');
+  if (neglectEl) {
+    const days = parseInt(neglectEl.value) || 7;
+    localStorage.setItem('innerflow_neglect_days', String(Math.max(1, days)));
+  }
 
   // Save API fragment if provided
   const frag = (document.getElementById('apiKeyFragment').value || '').trim().toUpperCase();
@@ -1869,6 +1920,7 @@ async function loadFromCloud() {
       state.customQuotes = data.customQuotes || [];
       state.energy  = data.energy  || 0;
       state.doneHistory = data.doneHistory || [];
+      state.todayOrder  = data.todayOrder  || [];
       return true;
     }
   } catch (e) {
@@ -1890,7 +1942,7 @@ async function syncToCloud() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'save',
-        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], themeManualPref: state.themeManualPref || null }
+        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], themeManualPref: state.themeManualPref || null, todayOrder: state.todayOrder || [] }
       })
     });
     if (dot) { dot.className = 'sync-dot synced'; setTimeout(() => { if (dot) dot.className = 'sync-dot synced'; }, 2000); }
@@ -1917,6 +1969,7 @@ let state = {
   pendingClaimId: null,
   doneHistory: [], // archive of completed tasks after reset
   themeManualPref: null, // 'day' | 'night' | null — synced to cloud in manual mode
+  todayOrder: [], // ordered task ids for the today panel
 };
 
 const energyLabels = { deep: '深度思考', flow: '靈感爆發', light: '輕鬆雜事', rest: '低耗能' };
@@ -2537,8 +2590,13 @@ function renderTasks() {
     activeTasks = activeTasks.filter(t => t.goal === state.goalFilter);
     doneTasks   = doneTasks.filter(t => t.goal === state.goalFilter);
   }
-  // Non-recurring tasks float to top
-  activeTasks.sort((a, b) => (a.recurring ? 1 : 0) - (b.recurring ? 1 : 0));
+  // Non-recurring tasks float to top, then neglected tasks float above others
+  activeTasks.sort((a, b) => {
+    const aN = isNeglected(a) ? 0 : 1;
+    const bN = isNeglected(b) ? 0 : 1;
+    if (aN !== bN) return aN - bN;
+    return (a.recurring ? 1 : 0) - (b.recurring ? 1 : 0);
+  });
 
   let html = '';
   if (activeTasks.length === 0) {
@@ -2626,9 +2684,11 @@ function taskHTML(t) {
   </div>` : '';
 
   const todayClass = isToday ? ' is-today' : isOverdue ? ' is-overdue' : '';
+  const neglected = isNeglected(t);
+  const neglectClass = neglected ? ' neglected' : '';
 
   return `
-  <div class="task-item${t.done ? ' done' : ''}${todayClass}" id="task-${t.id}" style="flex-direction:column;padding:0;gap:0">
+  <div class="task-item${t.done ? ' done' : ''}${todayClass}${neglectClass}" id="task-${t.id}" style="flex-direction:column;padding:0;gap:0">
     <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;width:100%">
       <div class="task-stripe" style="background:${stripeColor}" title="${stripeTitle}" ${stripeOnClick}></div>
       <div class="task-check${t.done ? ' checked' : ''}" onclick="toggleTask(${t.id})" style="margin-top:1px;flex-shrink:0">${t.done ? '✓' : ''}</div>
@@ -2642,6 +2702,7 @@ function taskHTML(t) {
           <span class="tag tag-energy">${eIcon} ${eLabel}</span>
           <span class="tag tag-goal">${t.goal}</span>
           ${t.postponed >= 3 ? '<span class="tag" style="border-color:rgba(200,120,120,0.4);color:var(--rose);background:rgba(200,120,120,0.06)">⚠ 已多次延期</span>' : ''}
+          ${neglected ? `<span class="neglect-badge">⏳ 久未完成</span>` : ''}
           ${t.recurring && t.recurMode === 'interval' ? `<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 每${t.recurInterval || '?'}天</span>` : t.recurring ? '<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 重複</span>' : ''}
           ${isOverdue && !t.done ? '<span class="tag" style="border-color:rgba(192,86,90,0.4);color:var(--rose);background:rgba(192,86,90,0.07)">逾期</span>' : ''}
         </div>
@@ -2688,7 +2749,38 @@ function cycleTaskStatus(id) {
   setTaskStatus(id, 'cancelled');
 }
 
+// ── Neglect helpers ──
+function getNeglectDays() {
+  return parseInt(localStorage.getItem('innerflow_neglect_days') || '7');
+}
+
+function isNeglected(t) {
+  if (t.done || t.recurring) return false;
+  const days = getNeglectDays();
+  // Check last completion date from doneHistory
+  const name = t.name;
+  const history = state.doneHistory || [];
+  // Find most recent completion of this task name
+  const matches = history.filter(h => h.name === name && h.completedAt);
+  if (matches.length > 0) {
+    matches.sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+    const lastDate = new Date(matches[0].completedAt);
+    const diffDays = (Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
+    return diffDays >= days;
+  }
+  // If never completed, check creation date proxy (id timestamp)
+  const createdMs = typeof t.id === 'number' && t.id > 1e12 ? t.id : 0;
+  if (createdMs > 0) {
+    const diffDays = (Date.now() - createdMs) / (1000 * 60 * 60 * 24);
+    return diffDays >= days;
+  }
+  return false;
+}
+
 // ── Today Panel (under Life Tree) ──
+// Drag state for today panel
+let _todayDragIdx = null;
+
 function renderTodayPanel() {
   const list = document.getElementById('todayPanelList');
   const countBadge = document.getElementById('todayPanelCount');
@@ -2699,7 +2791,17 @@ function renderTodayPanel() {
   const overdueTasks = state.tasks.filter(t =>
     t.scheduledFor && t.scheduledFor < todayStr && !t.done && t.status !== 'cancelled'
   );
-  const allToday = [...todayTasks, ...overdueTasks.filter(t => !todayTasks.find(x => x.id === t.id))];
+  let allToday = [...todayTasks, ...overdueTasks.filter(t => !todayTasks.find(x => x.id === t.id))];
+
+  // Apply saved order from state.todayOrder
+  if (!state.todayOrder) state.todayOrder = [];
+  const orderMap = {};
+  state.todayOrder.forEach((id, i) => { orderMap[id] = i; });
+  allToday.sort((a, b) => {
+    const oa = orderMap[a.id] !== undefined ? orderMap[a.id] : 9999;
+    const ob = orderMap[b.id] !== undefined ? orderMap[b.id] : 9999;
+    return oa - ob;
+  });
 
   if (countBadge) countBadge.textContent = allToday.length > 0 ? allToday.length : '';
 
@@ -2708,11 +2810,21 @@ function renderTodayPanel() {
     return;
   }
   const goalIconMap = { 成長:'🌟', 創作:'🎨', 關係:'🤝', 技能:'💡', 健康:'🌿', 探索:'🔭', 貢獻:'✨', 日常:'🏠', 任意:'🌈' };
-  list.innerHTML = allToday.map(t => {
+  list.innerHTML = allToday.map((t, idx) => {
     const gIcon = goalIconMap[t.goal] || '●';
     const isOverdue = t.scheduledFor < todayStr;
-    const overdueStyle = isOverdue && !t.done ? 'color:var(--rose);border-color:rgba(192,86,90,0.3);background:rgba(192,86,90,0.04);' : '';
-    return `<div class="today-task-chip${t.done ? ' done-chip' : ''}" style="${overdueStyle}cursor:pointer" onclick="navigateToTask(${t.id})" title="點擊跳轉到此任務">
+    const overdueStyle = isOverdue && !t.done ? 'border-color:rgba(192,86,90,0.3);background:rgba(192,86,90,0.04);' : '';
+    return `<div class="today-task-chip${t.done ? ' done-chip' : ''}"
+      style="${overdueStyle}cursor:grab"
+      data-idx="${idx}" data-id="${t.id}"
+      draggable="true"
+      onclick="navigateToTask(${t.id})"
+      ondragstart="todayChipDragStart(event,${idx})"
+      ondragover="todayChipDragOver(event,${idx})"
+      ondrop="todayChipDrop(event,${idx})"
+      ondragend="todayChipDragEnd(event)"
+      title="點擊跳轉到此任務（可拖曳排序）">
+      <span class="today-chip-drag-handle" onclick="event.stopPropagation()" title="拖曳排序">⠿</span>
       <div class="today-chip-check${t.done ? ' checked' : ''}" onclick="event.stopPropagation();toggleTask(${t.id});renderTodayPanel()">${t.done ? '✓' : ''}</div>
       <span class="today-chip-goal">${gIcon}</span>
       <span class="today-chip-name" style="${isOverdue && !t.done ? 'color:var(--rose)' : ''}">${t.name}</span>
@@ -2720,6 +2832,56 @@ function renderTodayPanel() {
       ${!t.done ? `<span style="font-size:10px;color:var(--text-faint);cursor:pointer;flex-shrink:0;padding:1px 5px;border-radius:4px;transition:all 0.2s" onclick="event.stopPropagation();setTaskStatus(${t.id},'none')" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'" title="移除今日標記">✕</span>` : ''}
     </div>`;
   }).join('');
+}
+
+// Today panel drag handlers
+function todayChipDragStart(e, idx) {
+  _todayDragIdx = idx;
+  const chip = e.currentTarget;
+  chip.classList.add('dragging-chip');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function todayChipDragOver(e, idx) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.today-task-chip').forEach((el, i) => {
+    el.classList.toggle('drag-over-chip', i === idx && i !== _todayDragIdx);
+  });
+}
+
+function todayChipDrop(e, toIdx) {
+  e.preventDefault();
+  if (_todayDragIdx === null || _todayDragIdx === toIdx) return;
+  // Get current ordered task list for today
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayTasks = state.tasks.filter(t => t.scheduledFor === todayStr && t.status !== 'cancelled');
+  const overdueTasks = state.tasks.filter(t => t.scheduledFor && t.scheduledFor < todayStr && !t.done && t.status !== 'cancelled');
+  let allToday = [...todayTasks, ...overdueTasks.filter(t => !todayTasks.find(x => x.id === t.id))];
+
+  if (!state.todayOrder) state.todayOrder = [];
+  const orderMap = {};
+  state.todayOrder.forEach((id, i) => { orderMap[id] = i; });
+  allToday.sort((a, b) => {
+    const oa = orderMap[a.id] !== undefined ? orderMap[a.id] : 9999;
+    const ob = orderMap[b.id] !== undefined ? orderMap[b.id] : 9999;
+    return oa - ob;
+  });
+
+  // Reorder
+  const moved = allToday.splice(_todayDragIdx, 1)[0];
+  allToday.splice(toIdx, 0, moved);
+  state.todayOrder = allToday.map(t => t.id);
+
+  document.querySelectorAll('.today-task-chip').forEach(el => el.classList.remove('drag-over-chip', 'dragging-chip'));
+  _todayDragIdx = null;
+  renderTodayPanel();
+  syncToCloud();
+}
+
+function todayChipDragEnd(e) {
+  document.querySelectorAll('.today-task-chip').forEach(el => el.classList.remove('drag-over-chip', 'dragging-chip'));
+  _todayDragIdx = null;
 }
 
 // ── Navigate to task in task overview with highlight effect ──
