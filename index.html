@@ -2297,10 +2297,11 @@ function runDailyReset() {
   }
 
   if (resetCount > 0 || toDelete.length > 0) {
-    renderTasks(); renderStats(); renderTree(); renderRewards();
     showToast(`🔁 ${resetCount} 個重複任務已重置，新的一天開始！`);
     syncToCloud();
   }
+  // Always re-render so interval clones scheduled for today appear in today panel
+  renderTasks(); renderStats(); renderTree(); renderRewards();
   // Reset random mission for the new day
   lotteryState.randomMission = generateRandomMission();
   lotteryState.todayDate = todayKey;
@@ -2786,7 +2787,7 @@ function renderTodayPanel() {
   const countBadge = document.getElementById('todayPanelCount');
   if (!list) return;
   const todayStr = new Date().toISOString().slice(0, 10);
-  const todayTasks = state.tasks.filter(t => t.scheduledFor === todayStr && t.status !== 'cancelled');
+  const todayTasks = state.tasks.filter(t => t.scheduledFor === todayStr && !t.done && t.status !== 'cancelled');
   // Also include overdue tasks that are still pending
   const overdueTasks = state.tasks.filter(t =>
     t.scheduledFor && t.scheduledFor < todayStr && !t.done && t.status !== 'cancelled'
@@ -2855,7 +2856,7 @@ function todayChipDrop(e, toIdx) {
   if (_todayDragIdx === null || _todayDragIdx === toIdx) return;
   // Get current ordered task list for today
   const todayStr = new Date().toISOString().slice(0, 10);
-  const todayTasks = state.tasks.filter(t => t.scheduledFor === todayStr && t.status !== 'cancelled');
+  const todayTasks = state.tasks.filter(t => t.scheduledFor === todayStr && !t.done && t.status !== 'cancelled');
   const overdueTasks = state.tasks.filter(t => t.scheduledFor && t.scheduledFor < todayStr && !t.done && t.status !== 'cancelled');
   let allToday = [...todayTasks, ...overdueTasks.filter(t => !todayTasks.find(x => x.id === t.id))];
 
@@ -2998,6 +2999,7 @@ function scheduleIntervalTask(t) {
   const future = new Date();
   future.setDate(future.getDate() + days);
   const futureStr = future.toISOString().slice(0, 10);
+  const todayStr = new Date().toISOString().slice(0, 10);
   const clone = {
     id: Date.now() + Math.floor(Math.random() * 1000),
     name: t.name, meaning: t.meaning || '', goal: t.goal, energy: t.energy,
@@ -3007,7 +3009,12 @@ function scheduleIntervalTask(t) {
     _intervalScheduled: true
   };
   state.tasks.push(clone);
-  showToast(`🔁 ${days} 天後將自動新增「${t.name}」`);
+  if (futureStr === todayStr) {
+    showToast(`🔁 「${t.name}」已加入今日任務`);
+    renderTodayPanel();
+  } else {
+    showToast(`🔁 ${days} 天後「${t.name}」將自動出現在今日任務`);
+  }
 }
 
 // ── Add Task ──
