@@ -2682,11 +2682,11 @@ function renderTasks() {
   // Task type filter
   if (state.taskTypeFilter && state.taskTypeFilter !== 'all') {
     if (state.taskTypeFilter === 'once') {
-      activeTasks = activeTasks.filter(t => !t.recurring && !t.scheduledFor);
+      activeTasks = activeTasks.filter(t => !t.recurring && !t.taskDate);
     } else if (state.taskTypeFilter === 'recurring') {
       activeTasks = activeTasks.filter(t => t.recurring);
     } else if (state.taskTypeFilter === 'scheduled') {
-      activeTasks = activeTasks.filter(t => t.scheduledFor);
+      activeTasks = activeTasks.filter(t => t.taskDate);
     }
   }
   if (state.goalFilter) {
