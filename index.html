@@ -941,7 +941,7 @@
   .cal-day.heat-2 { background: rgba(60,130,200,0.32); border-color: rgba(60,130,200,0.4); color: var(--text); cursor: pointer; font-weight:500; }
   .cal-day.heat-3 { background: rgba(30,90,170,0.55); border-color: rgba(30,90,170,0.6); color: #fff; cursor: pointer; font-weight:600; }
 
-  .cal-day.heat-1:hover, .cal-day.heat-2:hover, .cal-day.heat-3:hover { transform: scale(1.08); box-shadow: 0 2px 10px rgba(60,130,200,0.2); }
+  .cal-day.heat-1:hover, .cal-day.heat-2:hover, .cal-day.heat-3:hover { box-shadow: 0 0 0 2px rgba(60,130,200,0.45), 0 2px 10px rgba(60,130,200,0.2); filter: brightness(1.12); }
   .cal-day.today { outline: 2px solid var(--green); outline-offset: 1px; }
   .cal-day-date { font-size: 10px; line-height: 1; }
   .cal-day-count { font-size: 9px; opacity: 0.75; margin-top: 2px; }
@@ -1380,10 +1380,10 @@
               <div class="lottery-ticket">🎫 剩餘抽獎券 <strong id="lotteryTickets">0</strong> 張</div>
               <div class="lottery-progress" style="margin-top:6px" id="lotteryProgress">今日已完成 <span id="todayDone">0</span> / 3 個任務</div>
             </div>
-            <button class="lottery-draw-btn" id="lotteryDrawBtn" onclick="drawLottery()">✦ 翻牌抽獎</button>
+            <button class="lottery-draw-btn" id="lotteryDrawBtn" onclick="drawLottery()">🔀 洗牌</button>
           </div>
           <div class="lottery-grid" id="lotteryGrid"></div>
-          <div style="font-size:11px;color:var(--text-faint);margin-top:12px;text-align:center">點擊牌面翻開 · ⭐ 為當日隨機任務，★ 為許願池，格言來自智慧庫</div>
+          <div style="font-size:11px;color:var(--text-faint);margin-top:12px;text-align:center">翻牌消耗一張券 · 🔀 洗牌免費隨時更新 · ⭐ 隨機任務，★ 許願池，格言來自智慧庫</div>
         </div>
 
         <!-- Quote pane -->
@@ -3375,15 +3375,10 @@ function buildCardPool() {
 }
 
 function drawLottery() {
-  if (lotteryState.tickets <= 0) return;
-  lotteryState.tickets--;
-  // Clear previous mission if it was already awarded or not yet assigned
-  // (new draw resets the gold card — mission is assigned only when gold is flipped)
+  // 洗牌：不消耗券，隨時可用，重新組合並重置所有牌面朝下
   if (lotteryState.randomMission && lotteryState.randomMission.awarded) {
     lotteryState.randomMission = null;
   }
-  // If there's an active unawarded mission from a flip, keep it across draws
-  // but reset the gold card slot to unflipped so user must flip again to see tasks
   const deck = buildCardPool();
   lotteryState.cards = deck.map(item => ({
     revealed: false,
@@ -3396,7 +3391,6 @@ function drawLottery() {
   saveLottery();
   syncToCloud();
 
-  // Shuffle animation: flash cards briefly before settling
   const grid = document.getElementById('lotteryGrid');
   if (grid) {
     grid.classList.add('shuffling');
@@ -3404,7 +3398,6 @@ function drawLottery() {
       grid.classList.remove('shuffling');
       renderLottery();
     }, 480);
-    // Render placeholder during animation
     grid.innerHTML = Array.from({length:9}, (_, i) => `
       <div class="lottery-card shuffle-anim" id="lcard-${i}" style="animation-delay:${i * 40}ms">
         <div class="lottery-card-back">
@@ -3415,20 +3408,25 @@ function drawLottery() {
   } else {
     renderLottery();
   }
-  showToast('✦ 牌已洗好，點擊翻牌！');
+  showToast('🔀 牌已洗好，有券就可以翻！');
 }
 
 function flipCard(i) {
   if (!lotteryState.cards[i] || lotteryState.cards[i].revealed) return;
+  // 翻牌才消耗一張券
+  if (lotteryState.tickets <= 0) {
+    showToast('🎫 沒有抽獎券，完成任務來獲得！');
+    return;
+  }
+  lotteryState.tickets--;
   const card = lotteryState.cards[i];
   card.revealed = true;
 
-  // If gold card flipped: assign mission NOW (only if no active unawarded mission)
+  // 翻到金色牌當下才指定隨機任務
   if (card.isRandomMission) {
     if (!lotteryState.randomMission || lotteryState.randomMission.awarded) {
       lotteryState.randomMission = generateRandomMission();
     }
-    // Attach mission snapshot to card so it displays correctly
     card.missionSnapshot = lotteryState.randomMission
       ? { taskNames: lotteryState.randomMission.taskNames, requiredCount: lotteryState.randomMission.requiredCount }
       : null;
@@ -3461,7 +3459,10 @@ function renderLottery() {
   if (!ticketEl) return;
   ticketEl.textContent = lotteryState.tickets;
   if (progressEl) progressEl.textContent = lotteryState.todayDone;
-  if (drawBtn) drawBtn.disabled = lotteryState.tickets <= 0;
+  if (drawBtn) {
+    drawBtn.disabled = false; // 洗牌永遠可用
+    drawBtn.title = '重新洗牌（不消耗券）';
+  }
 
   // Update progress text
   const lotteryProgress = document.getElementById('lotteryProgress');
@@ -3527,7 +3528,7 @@ function renderLottery() {
     return `<div class="lottery-card${isRevealed ? ' revealed' + (c.isWish ? ' is-wish' : '') + (isRM ? ' random-mission' : '') : ''}" id="lcard-${i}" ${!isRevealed ? `onclick="flipCard(${i})"` : ''}>
       <div class="lottery-card-back" style="${isRevealed ? 'display:none' : ''}">
         <div class="card-face-icon">✦</div>
-        <div class="card-face-hint">點擊翻牌</div>
+        <div class="card-face-hint">${lotteryState.tickets > 0 ? '點擊翻牌' : '需要券'}</div>
       </div>
       <div class="lottery-card-front" style="${isRevealed ? 'display:flex' : 'display:none'}">
         ${isRM ? rmFrontHtml : `
@@ -3558,9 +3559,9 @@ function renderStats() {
   state.done = allDoneTasks.length;
   const statsGrid = document.getElementById('statsGrid');
   statsGrid.innerHTML = `
-    <div class="stat-card" onclick="scrollToDoneList()" style="cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--green)';this.style.boxShadow='0 0 0 2px rgba(74,130,196,0.15)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'" title="點擊查看所有已完成任務">
+    <div class="stat-card">
       <div class="stat-value">${allDoneTasks.length + historyTasks.length}</div>
-      <div class="stat-label">已完成任務 <span style="font-size:9px;opacity:0.6">↓ 點擊展開全部</span></div>
+      <div class="stat-label">已完成任務</div>
     </div>
     <div class="stat-card" onclick="showPage('sandbox')" style="cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--gold)';this.style.boxShadow='0 0 0 2px rgba(130,154,177,0.2)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'" title="前往沙盒探索">
       <div class="stat-value">${state.sandbox.length}</div>
@@ -3802,11 +3803,20 @@ function openCtxMenu(e, id) {
   const menu = document.getElementById('ctxMenu');
   const toggleItem = document.getElementById('ctxToggle');
   toggleItem.textContent = t.done ? '↩ 取消完成' : '✓ 標記完成';
+  // Position off-screen first so we can measure real height
+  menu.style.left = '-9999px';
+  menu.style.top = '-9999px';
   menu.classList.add('open');
-  const x = Math.min(e.clientX, window.innerWidth - 170);
-  const y = Math.min(e.clientY, window.innerHeight - 130);
-  menu.style.left = x + 'px';
-  menu.style.top = y + 'px';
+  requestAnimationFrame(() => {
+    const menuH = menu.offsetHeight || 160;
+    const menuW = menu.offsetWidth || 160;
+    const x = Math.min(e.clientX, window.innerWidth - menuW - 8);
+    const y = e.clientY + menuH > window.innerHeight - 8
+      ? e.clientY - menuH
+      : e.clientY;
+    menu.style.left = Math.max(8, x) + 'px';
+    menu.style.top = Math.max(8, y) + 'px';
+  });
 }
 
 function ctxAction(action) {
