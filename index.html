@@ -3253,8 +3253,8 @@ function getTodayKey() {
 }
 
 function generateRandomMission() {
-  // Pick 1–3 random undone tasks as mission targets — called only when gold card is flipped
-  const undone = state.tasks.filter(t => !t.done);
+  // Pick 1–3 random undone tasks (no taskDate) as mission targets — called only when gold card is flipped
+  const undone = state.tasks.filter(t => !t.done && !t.taskDate);
   if (undone.length === 0) return null;
   const shuffled = [...undone].sort(() => Math.random() - 0.5);
   const count = Math.min(Math.floor(Math.random() * 3) + 1, shuffled.length); // 1–3
@@ -4051,9 +4051,9 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 3200);
 }
 
-// Close modal on overlay click (except editModal — only cancel button closes it)
+// Close modal on overlay click (except addModal and editModal — only cancel button closes them)
 document.querySelectorAll('.modal-overlay').forEach(o => {
-  if (o.id === 'editModal') return;
+  if (o.id === 'editModal' || o.id === 'addModal') return;
   o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
 });
 
