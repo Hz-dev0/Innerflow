@@ -512,6 +512,10 @@
     font-size: 13px; color: var(--gold);
   }
   .lottery-ticket strong { font-size: 18px; font-family: 'DM Serif Display', serif; }
+  .lottery-progress {
+    font-size: 12px; color: var(--text-dim);
+    display: inline-flex; align-items: center; gap: 4px;
+  }
   .lottery-draw-btn {
     padding: 9px 22px; border-radius: 9px; font-size: 13px;
     background: var(--gold); color: #fff; border: none;
@@ -1376,11 +1380,9 @@
         <!-- Lottery pane -->
         <div id="lotteryPane">
           <div class="lottery-info">
-            <div>
-              <div class="lottery-ticket">🎫 剩餘抽獎券 <strong id="lotteryTickets">0</strong> 張</div>
-              <div class="lottery-progress" style="margin-top:6px" id="lotteryProgress">今日已完成 <span id="todayDone">0</span> / 3 個任務</div>
-            </div>
-            <button class="lottery-draw-btn" id="lotteryDrawBtn" onclick="drawLottery()">🔀 洗牌</button>
+            <div class="lottery-ticket">🎫 持有券 <strong id="lotteryTickets">0</strong> 張</div>
+            <div class="lottery-progress" id="lotteryProgress">獲得券 <span id="todayDone">0</span>/3</div>
+            <button class="lottery-draw-btn" id="lotteryDrawBtn" onclick="drawLottery()">✦ 洗牌</button>
           </div>
           <div class="lottery-grid" id="lotteryGrid"></div>
           <div style="font-size:11px;color:var(--text-faint);margin-top:12px;text-align:center">翻牌消耗一張券 · 🔀 洗牌免費隨時更新 · ⭐ 隨機任務，★ 許願池，格言來自智慧庫</div>
@@ -3408,7 +3410,7 @@ function drawLottery() {
   } else {
     renderLottery();
   }
-  showToast('🔀 牌已洗好，有券就可以翻！');
+  showToast('🔀 已洗牌');
 }
 
 function flipCard(i) {
@@ -3467,8 +3469,8 @@ function renderLottery() {
   // Update progress text
   const lotteryProgress = document.getElementById('lotteryProgress');
   if (lotteryProgress) {
-    const need = 3 - (lotteryState.todayDone % 3);
-    lotteryProgress.innerHTML = `今日已完成 <span id="todayDone">${lotteryState.todayDone}</span> 個任務 · 再完成 ${need === 3 ? 3 : need} 個獲得券`;
+    const done = lotteryState.todayDone % 3;
+    lotteryProgress.innerHTML = `獲得券 <span id="todayDone">${done}</span>/3`;
   }
 
   const grid = document.getElementById('lotteryGrid');
