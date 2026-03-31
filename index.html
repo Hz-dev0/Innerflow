@@ -1731,7 +1731,7 @@
         </select>
       </div>
       <div>
-        <input id="newRewardCount" type="number" min="1" max="100" value="3" placeholder="需完成任務數">
+        <input id="newRewardCount" type="number" min="0" max="100" value="0" placeholder="需完成任務數（0表示無條件解鎖）">
       </div>
     </div>
     <div class="modal-actions">
@@ -1936,8 +1936,7 @@ async function loadFromCloud() {
       state.energy  = data.energy  || 0;
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
-      // Bug 7 fix: restore manual theme override from cloud so it survives page reload
-      if (data.themeManualPref) {
+          if (data.themeManualPref) {
         state.themeManualPref = data.themeManualPref;
         const isAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
         if (!isAuto) {
@@ -2019,10 +2018,7 @@ function localDateStr(date) {
 const energyLabels = { deep: '深度思考', flow: '靈感爆發', light: '輕鬆雜事', rest: '低耗能' };
 const energyIcons  = { deep: '🌊', flow: '⚡', light: '🍃', rest: '🌙' };
 
-const easterEggs = [
-  '「好奇心是智識的心跳。」', '你今天比昨天多往前了一步。', '每次完成都是一個小小的自我實現。',
-  '深度思考是最稀缺的勇氣。', '不是速度，是深度決定你走多遠。'
-];
+
 
 // ── Life Tree (responsive SVG) ──
 const treeNodes = [
@@ -2057,7 +2053,6 @@ function renderTree() {
 // ── Wish Pool (許願池) ──
 const goalIcons = { 成長:'🌟', 創作:'🎨', 關係:'🤝', 技能:'💡', 健康:'🌿', 探索:'🔭', 貢獻:'✨', 任意:'🌈', 日常:'🏠' };
 
-const defaultQuotes = [];
 
 
 let wishTab = 'wish'; // 'wish' or 'quote'
@@ -2094,9 +2089,38 @@ function toggleTaskSection() {
   if (arrow) arrow.style.transform = taskSectionOpen ? '' : 'rotate(-90deg)';
 }
 
+function getGlobalGoalCount(goal) {
+  const doneTasks = state.tasks.filter(t => t.done);
+  const history = state.doneHistory || [];
+  if (goal === '任意') return doneTasks.length + history.length;
+  return doneTasks.filter(t => t.goal === goal).length + history.filter(t => t.goal === goal).length;
+}
+
 function getGoalCount(goal) {
-  if (goal === '任意') return state.tasks.filter(t => t.done).length;
-  return state.tasks.filter(t => t.done && t.goal === goal).length;
+  return getGlobalGoalCount(goal);
+}
+
+function getWishProgress(r) {
+  const wishes = state.rewards || [];
+  const global = getGlobalGoalCount(r.goal);
+
+  // Find all unclaimed wishes of the same goal, sorted by creation order (id = timestamp)
+  const sameGoal = wishes
+    .filter(x => !x.claimed && x.goal === r.goal)
+    .sort((a, b) => a.id - b.id);
+
+  const myIdx = sameGoal.findIndex(x => x.id === r.id);
+  if (myIdx < 0) return Math.max(0, global - (r.startCount || 0));
+
+  // Sum up how many tasks the wishes before me require
+  // The "start baseline" for me = startCount of the first wish + sum of counts of all prior wishes
+  const firstStart = sameGoal[0].startCount || 0;
+  let baseline = firstStart;
+  for (let i = 0; i < myIdx; i++) {
+    baseline += sameGoal[i].count;
+  }
+
+  return Math.max(0, global - baseline);
 }
 
 function renderRewards() {
@@ -2110,9 +2134,9 @@ function renderRewards() {
   } else {
     if (wishEmpty) wishEmpty.style.display = 'none';
     wishList.innerHTML = wishes.map(r => {
-      const current = getGoalCount(r.goal);
+      const current = getWishProgress(r);
       const unlocked = current >= r.count;
-      const pct = Math.min(100, Math.round(current / r.count * 100));
+      const pct = r.count === 0 ? 100 : Math.min(100, Math.round(current / r.count * 100));
       const icon = goalIcons[r.goal] || '🎯';
       return `<div class="sandbox-item wish-item" id="wish-${r.id}" style="cursor:default;justify-content:space-between;gap:10px">
         <div style="flex:1;min-width:0">
@@ -2127,7 +2151,6 @@ function renderRewards() {
         </div>
       </div>`;
     }).join('');
-    // No long-press: only pencil icon triggers edit
   }
   renderQuotes();
 }
@@ -2244,9 +2267,11 @@ function addReward() {
   const name = document.getElementById('newRewardName').value.trim();
   if (!name) return;
   const goal = document.getElementById('newRewardGoal').value;
-  const count = parseInt(document.getElementById('newRewardCount').value) || 3;
+  const countVal = document.getElementById('newRewardCount').value;
+  const count = countVal === '' ? 0 : Math.max(0, parseInt(countVal) || 0);
   if (!state.rewards) state.rewards = [];
-  state.rewards.unshift({ id: Date.now(), name, goal, count, claimed: false });
+  const startCount = getGoalCount(goal);
+  state.rewards.push({ id: Date.now(), name, goal, count, startCount, claimed: false });
   closeModal('addRewardModal');
   renderRewards();
   showToast('🌊 願望已投入許願池');
@@ -2282,7 +2307,7 @@ function claimReward() {
 function checkRewardUnlocks() {
   if (!state.rewards) return;
   state.rewards.forEach(r => {
-    if (!r.claimed && !r._notified && getGoalCount(r.goal) >= r.count) {
+    if (!r.claimed && !r._notified && getWishProgress(r) >= r.count) {
       r._notified = true;
       setTimeout(() => showToast(`🌊 許願池解鎖！「${r.name}」出現在抽獎牌中了`), 1500);
     }
@@ -2323,8 +2348,7 @@ function runDailyReset() {
 
   state.tasks.forEach(t => {
     if (!t.done) return;
-    // Bug 3 fix: de-duplicate archive entries before pushing
-    const archiveKey = t.id + '_' + t.completedAt;
+      const archiveKey = t.id + '_' + t.completedAt;
     if (!state.doneHistory.some(h => h.id === archiveKey)) {
       state.doneHistory.push({ id: archiveKey, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt });
     }
@@ -2423,8 +2447,7 @@ async function init() {
     showToast('☁️ 同步雲端資料中…');
     const ok = await loadFromCloud();
     if (ok) {
-      // Bug 2 fix: after cloud load, re-calibrate lotteryState.todayDone
-      // against actual task completion data so ticket count stays accurate
+          // against actual task completion data so ticket count stays accurate
       const _today = localDateStr();
       if (lotteryState.todayDate === _today) {
         const _actualDoneToday = state.tasks.filter(t => t.done && t.completedAt === _today).length;
@@ -2493,7 +2516,6 @@ async function init() {
   initLottery();
   checkTaskDates();
   checkMissedReset();
-  // Bug 8 fix: apply theme AFTER all state is loaded (cloud or local)
   // so manual pref and auto schedule both work correctly on first render
   const _isAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
   if (!_isAuto && state.themeManualPref) {
@@ -2974,7 +2996,6 @@ function todayChipDrop(e, toIdx) {
   // Reorder
   const moved = allToday.splice(_todayDragIdx, 1)[0];
   allToday.splice(toIdx, 0, moved);
-  // Bug 11 fix: only keep IDs that still exist in the task list to prevent unbounded growth
   const validIds = new Set(state.tasks.map(t => t.id));
   state.todayOrder = allToday.map(t => t.id).filter(id => validIds.has(id));
 
@@ -3044,14 +3065,13 @@ function toggleTask(id) {
 
 function showCelebration(task) {
   const cel = document.getElementById('celebration');
-  // Use custom quotes if available, else fall back to easter eggs
-  const allQuotes = [];
-  if (state.customQuotes && state.customQuotes.length > 0) {
-    state.customQuotes.forEach(q => allQuotes.push(q));
+  const quotes = state.customQuotes && state.customQuotes.length > 0 ? state.customQuotes : [];
+  const sub = document.getElementById('celebSub');
+  if (quotes.length > 0) {
+    sub.textContent = quotes[Math.floor(Math.random() * quotes.length)];
+  } else {
+    sub.textContent = '';
   }
-  easterEggs.forEach(q => allQuotes.push(q));
-  const egg = allQuotes[Math.floor(Math.random() * allQuotes.length)];
-  document.getElementById('celebSub').textContent = egg;
   cel.classList.add('show');
   setTimeout(() => cel.classList.remove('show'), 2800);
 }
@@ -3225,20 +3245,7 @@ function removeSandbox(i) {
 }
 
 // ── Lottery (抽獎區) ──
-const quotes = [
-  { text: '好奇心是智識的心跳。', icon: '💡' },
-  { text: '不是速度，是深度決定你走多遠。', icon: '🌊' },
-  { text: '每次完成都是一個小小的自我實現。', icon: '✦' },
-  { text: '深度思考是最稀缺的勇氣。', icon: '🔭' },
-  { text: '你今天比昨天多往前了一步。', icon: '🌿' },
-  { text: '沉默是思考的土壤。', icon: '🌙' },
-  { text: '創作不是天賦，是選擇每天坐下來。', icon: '🎨' },
-  { text: '你不需要被看見，你需要看見自己。', icon: '🌟' },
-  { text: '微小的行動，重複之後變成身份。', icon: '⚡' },
-  { text: '關係是時間的另一種說法。', icon: '🤝' },
-  { text: '讓你抗拒的事，往往正是你最需要的事。', icon: '💫' },
-  { text: '一個深度完成的任務，勝過十個敷衍的。', icon: '🌱' },
-];
+
 
 let lotteryState = {
   tickets: 0,
@@ -3343,39 +3350,35 @@ function buildCardPool() {
   const unlockedWishes = [];
   if (state.rewards) {
     state.rewards.forEach(r => {
-      if (!r.claimed && getGoalCount(r.goal) >= r.count) {
+      if (!r.claimed && getWishProgress(r) >= r.count) {
         unlockedWishes.push({ text: r.name, icon: '🌊', isWish: true, wishId: r.id });
       }
     });
   }
 
-  // Gather quotes (custom first, then built-in)
-  const allQuotes = [];
-  if (state.customQuotes) {
-    state.customQuotes.forEach(q => allQuotes.push({ text: q, icon: '✦', isWish: false }));
-  }
-  quotes.forEach(q => allQuotes.push({ text: q.text, icon: q.icon, isWish: false }));
+  // Only use custom quotes from the user's quote library
+  const allQuotes = (state.customQuotes || []).map(q => ({ text: q, icon: '✦', isWish: false }));
 
   const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
   const TOTAL = 9;
 
-  // Guaranteed: 1 gold mission card + 1–3 wish cards (if any unlocked) + rest quotes
   const rmCard = { isRandomMission: true };
   const deck = [rmCard];
 
-  if (unlockedWishes.length > 0) {
-    // Pick 1–3 random wish cards (minimum 1 guaranteed)
-    const maxWish = Math.min(3, unlockedWishes.length);
-    const wishCount = Math.floor(Math.random() * maxWish) + 1; // 1 to maxWish
-    const pickedWishes = shuffle(unlockedWishes).slice(0, wishCount);
-    pickedWishes.forEach(w => deck.push(w));
-    // Fill remaining slots with quotes
+  const shuffledWishes = shuffle(unlockedWishes);
+  const maxWish = Math.min(3, shuffledWishes.length);
+  const wishCount = maxWish > 0 ? Math.floor(Math.random() * maxWish) + 1 : 0;
+  shuffledWishes.slice(0, wishCount).forEach(w => deck.push(w));
+
+  // Fill remaining slots with custom quotes (skip if none)
+  if (allQuotes.length > 0) {
     const quoteCards = shuffle(allQuotes);
-    for (let i = 0; i < TOTAL - 1 - wishCount; i++) deck.push(quoteCards[i % quoteCards.length]);
+    const remaining = TOTAL - 1 - wishCount;
+    for (let i = 0; i < remaining; i++) deck.push(quoteCards[i % quoteCards.length]);
   } else {
-    // No wishes: fill remaining 8 slots with quotes
-    const quoteCards = shuffle(allQuotes);
-    for (let i = 0; i < TOTAL - 1; i++) deck.push(quoteCards[i % quoteCards.length]);
+    // No custom quotes: fill with blank placeholder cards showing encouragement
+    const remaining = TOTAL - 1 - wishCount;
+    for (let i = 0; i < remaining; i++) deck.push({ text: '前往格言庫新增你的格言', icon: '✦', isWish: false, isPlaceholder: true });
   }
 
   return shuffle(deck);
@@ -3548,14 +3551,7 @@ function renderLottery() {
   }).join('');
 }
 
-function checkAchievements() {
-  // kept for compatibility — no-op now
-  renderLottery();
-}
 
-function renderAchievements() {
-  renderLottery();
-}
 
 // ── Stats ──
 function renderStats() {
@@ -3781,8 +3777,7 @@ function deleteTaskFromStats(id) {
   const t = state.tasks.find(x => x.id === id);
   if (!t) return;
   if (confirm(`確定刪除「${t.name}」嗎？`)) {
-    // Bug 4 fix: archive to doneHistory first so heatmap is preserved
-    if (t.done) {
+      if (t.done) {
       if (!state.doneHistory) state.doneHistory = [];
       const histKey = t.id + '_' + (t.completedAt || '');
       if (!state.doneHistory.some(h => h.id === histKey)) {
@@ -4315,7 +4310,6 @@ function showCalPopup(e, dateStr) {
   document.body.appendChild(popup);
   calPopupEl = popup;
 
-  // Bug 10 fix: offsetHeight is 0 immediately after appendChild (browser hasn't laid out yet).
   // Use requestAnimationFrame so the browser has a chance to compute the height first.
   const rect = e.target.getBoundingClientRect();
   requestAnimationFrame(() => {
