@@ -1406,11 +1406,7 @@
         <div class="card-title">月曆熱力圖 <span style="font-size:10px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text-faint)">點擊日期查看當天完成的任務</span></div>
         <div id="doneCalendarContainer"></div>
       </div>
-      <div class="card" id="doneTasksCard">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <div class="card-title" style="margin-bottom:0">已完成的任務 <span id="doneCountBadge" style="font-size:11px;background:var(--green-dim);color:var(--green);border-radius:20px;padding:1px 8px;margin-left:6px;font-weight:600;letter-spacing:0"></span></div>
-        </div>
-        <div style="font-size:11px;color:var(--text-faint);margin-bottom:12px">今日完成：點擊 ✓ 可恢復，× 可刪除。過去已完成：× 可從任務列表移除（熱力圖記錄保留）</div>
+      <div style="display:none" id="doneTasksCard">
         <div class="task-list" id="doneList"></div>
         <div id="pastDoneSection"></div>
       </div>
@@ -2661,6 +2657,13 @@ function clearGoalFilter() {
   renderTree();
 }
 
+// Helper: is this an interval-recurring clone scheduled for a future date?
+function _isFutureIntervalTask(t, todayStr) {
+  if (!t._intervalScheduled && !(t.recurring && t.recurMode === 'interval')) return false;
+  if (!t.scheduledFor) return false;
+  return t.scheduledFor > todayStr;
+}
+
 // ── Tasks ──
 function renderTasks() {
   // Show/hide the "clear filter" button
@@ -2668,7 +2671,9 @@ function renderTasks() {
   if (clearBtn) clearBtn.style.display = state.goalFilter ? 'inline-flex' : 'none';
 
   const list = document.getElementById('taskList');
-  let activeTasks = state.tasks.filter(t => !t.done);
+  const todayStrFilter = localDateStr();
+  // Hide interval-scheduled clones that haven't arrived yet
+  let activeTasks = state.tasks.filter(t => !t.done && !(_isFutureIntervalTask(t, todayStrFilter)));
   let doneTasks   = state.tasks.filter(t =>  t.done);
   // Energy filter: 'mid' shows flow AND light
   if (state.energyFilter === 'mid') {
@@ -3108,17 +3113,22 @@ function scheduleIntervalTask(t) {
   }
 }
 
-// ── Auto-schedule tasks by taskDate ──
+// ── Auto-schedule tasks by taskDate or interval scheduledFor ──
 function checkTaskDates() {
   const todayStr = localDateStr();
   let changed = false;
   state.tasks.forEach(t => {
-    if (t.done || !t.taskDate) return;
-    // If taskDate has arrived and task isn't already scheduled
-    if (t.taskDate <= todayStr && !t.scheduledFor && t.status !== 'cancelled') {
+    if (t.done) return;
+    // Auto-mark by taskDate
+    if (t.taskDate && t.taskDate <= todayStr && !t.scheduledFor && t.status !== 'cancelled') {
       t.scheduledFor = todayStr;
       t.status = 'active';
       t._scheduledByDate = true;
+      changed = true;
+    }
+    // Interval-recurring clone: when scheduledFor date arrives, mark as today
+    if (t._intervalScheduled && t.scheduledFor && t.scheduledFor <= todayStr && t.status !== 'cancelled') {
+      // Already has scheduledFor — today panel will pick it up; just ensure it's visible
       changed = true;
     }
   });
