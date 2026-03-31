@@ -1330,13 +1330,12 @@
         </div>
         <div id="taskSectionBody" style="overflow:hidden;transition:max-height 0.3s ease,opacity 0.2s ease;max-height:200px;opacity:1">
           <div style="border-top:1px solid var(--border);padding-top:10px;margin-bottom:10px">
-            <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px">能量適配篩選</div>
+            <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px">任務類型篩選</div>
             <div class="filter-row" id="energyFilter">
-              <div class="filter-chip active" onclick="filterEnergy('all')">全部顯示</div>
-              <div class="filter-chip" onclick="filterEnergy('deep')">🌊 深度思考</div>
-              <div class="filter-chip" onclick="filterEnergy('flow')">⚡ 靈感爆發</div>
-              <div class="filter-chip" onclick="filterEnergy('light')">🍃 輕鬆雜事</div>
-              <div class="filter-chip" onclick="filterEnergy('rest')">🌙 低耗能</div>
+              <div class="filter-chip active" onclick="filterTaskType('all')">全部任務</div>
+              <div class="filter-chip" onclick="filterTaskType('once')">單次任務</div>
+              <div class="filter-chip" onclick="filterTaskType('recurring')">🔁 重複任務</div>
+              <div class="filter-chip" onclick="filterTaskType('scheduled')">📅 預期任務</div>
             </div>
           </div>
         </div>
@@ -1995,6 +1994,7 @@ let state = {
   customQuotes: [],
   energy: 0,
   energyFilter: 'all',
+  taskTypeFilter: 'all',
   goalFilter: null,
   postponeTarget: null,
   done: 0,
@@ -2539,33 +2539,37 @@ function renderEnergyDots() {
 function applyEnergyFilter(level) {
   if (level === 'low') {
     state.energyFilter = 'rest';
-    updateFilterChips('rest');
   } else if (level === 'mid') {
     state.energyFilter = 'mid';
-    // highlight flow and light chips
-    const types = ['all','deep','flow','light','rest'];
-    document.querySelectorAll('.filter-chip').forEach((c, i) => {
-      c.classList.toggle('active', types[i] === 'flow' || types[i] === 'light');
-    });
   } else if (level === 'high') {
     state.energyFilter = 'deep';
-    updateFilterChips('deep');
   }
   renderTasks();
 }
 
 function updateFilterChips(active) {
-  const types = ['all','deep','flow','light','rest'];
+  const types = ['all','once','recurring','scheduled'];
   document.querySelectorAll('.filter-chip').forEach((c, i) => {
     c.classList.toggle('active', types[i] === active);
   });
+}
+
+function filterTaskType(type) {
+  state.taskTypeFilter = type;
+  updateFilterChips(type);
+  renderTasks();
+}
+
+// Override filterEnergy to update chip state correctly (kept for energy dot compatibility)
+function filterEnergy(type) {
+  state.energyFilter = type;
+  renderTasks();
 }
 
 function onEnergySliderChange(val) {
   const levels = ['low', 'mid', 'high'];
   const level = levels[parseInt(val)];
   setMoodLevel(level);
-  // Auto-filter by energy level
   applyEnergyFilter(level);
   const toastMap = {
     low: '精力偏低，已篩選低耗能任務 🌙',
@@ -2573,13 +2577,6 @@ function onEnergySliderChange(val) {
     high: '精力充沛，已篩選深度思考任務 🌊',
   };
   showToast(toastMap[level]);
-}
-
-// Override filterEnergy to update chip state correctly
-function filterEnergy(type) {
-  state.energyFilter = type;
-  updateFilterChips(type);
-  renderTasks();
 }
 
 function setMoodLevel(level) {
@@ -2623,15 +2620,14 @@ function filterByGoal(goal) {
   // Set filter state BEFORE navigating so renderTasks sees the correct value
   state.goalFilter = goal;
   state.energyFilter = 'all';
+  state.taskTypeFilter = 'all';
   // Navigate without triggering a render yet
   showPage('tasks', true);
   // Update label
   const label = document.getElementById('filtered-label');
   if (label) label.textContent = '— 篩選：' + goal;
-  // Update energy filter chips to show "all" as active
-  document.querySelectorAll('.filter-chip').forEach((c, i) => {
-    c.classList.toggle('active', i === 0);
-  });
+  // Update task type filter chips to show "all" as active
+  updateFilterChips('all');
   // Now render once with correct state
   renderTasks();
   renderTree();
@@ -2682,6 +2678,16 @@ function renderTasks() {
     activeTasks = activeTasks.filter(t => t.energy === 'flow' || t.energy === 'light');
   } else if (state.energyFilter && state.energyFilter !== 'all') {
     activeTasks = activeTasks.filter(t => t.energy === state.energyFilter);
+  }
+  // Task type filter
+  if (state.taskTypeFilter && state.taskTypeFilter !== 'all') {
+    if (state.taskTypeFilter === 'once') {
+      activeTasks = activeTasks.filter(t => !t.recurring && !t.scheduledFor);
+    } else if (state.taskTypeFilter === 'recurring') {
+      activeTasks = activeTasks.filter(t => t.recurring);
+    } else if (state.taskTypeFilter === 'scheduled') {
+      activeTasks = activeTasks.filter(t => t.scheduledFor);
+    }
   }
   if (state.goalFilter) {
     activeTasks = activeTasks.filter(t => t.goal === state.goalFilter);
@@ -2988,13 +2994,12 @@ function navigateToTask(id) {
   // Clear goal filter and switch to tasks page
   state.goalFilter = null;
   state.energyFilter = 'all';
+  state.taskTypeFilter = 'all';
   const label = document.getElementById('filtered-label');
   if (label) label.textContent = '';
   const clearBtn = document.getElementById('clear-filter-btn');
   if (clearBtn) clearBtn.style.display = 'none';
-  document.querySelectorAll('.filter-chip').forEach((c, i) => {
-    c.classList.toggle('active', i === 0);
-  });
+  updateFilterChips('all');
   showPage('tasks', true);
   renderTasks();
   // Scroll to and highlight the task card
