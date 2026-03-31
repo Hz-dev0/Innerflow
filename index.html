@@ -2092,8 +2092,20 @@ function toggleTaskSection() {
 function getGlobalGoalCount(goal) {
   const doneTasks = state.tasks.filter(t => t.done);
   const history = state.doneHistory || [];
-  if (goal === '任意') return doneTasks.length + history.length;
-  return doneTasks.filter(t => t.goal === goal).length + history.filter(t => t.goal === goal).length;
+  // Deduplicate: history entries use id = originalId + '_' + completedAt
+  // A done task in state.tasks may also exist in doneHistory (archived then re-counted).
+  // Use a Set of "taskId|completedAt" keys to avoid double-counting.
+  const seen = new Set();
+  let count = 0;
+  const add = (t, goalField) => {
+    const key = String(t.id || t.name) + '|' + (t.completedAt || '');
+    if (seen.has(key)) return;
+    seen.add(key);
+    if (goal === '任意' || (t[goalField] || t.goal) === goal) count++;
+  };
+  doneTasks.forEach(t => add(t, 'goal'));
+  history.forEach(t => add(t, 'goal'));
+  return count;
 }
 
 function getGoalCount(goal) {
@@ -2296,11 +2308,25 @@ function openClaimReward(id) {
 function claimReward() {
   const r = state.rewards.find(x => x.id === state.pendingClaimId);
   if (r) {
-    r.claimed = true;
+    // Remove the wish from the pool entirely
+    state.rewards = state.rewards.filter(x => x.id !== state.pendingClaimId);
+    // Also clean up any revealed lottery cards that reference this wish
+    // so the card no longer shows a dead "領取" link
+    if (lotteryState.cards) {
+      lotteryState.cards.forEach(c => {
+        if (c.wishId === state.pendingClaimId) {
+          c.isWish = false;
+          c.wishId = null;
+          c.icon = '🌊';
+        }
+      });
+      saveLottery();
+    }
     showToast('🎉 願望成真了！你值得的');
   }
   closeModal('claimRewardModal');
   renderRewards();
+  renderLottery();
   syncToCloud();
 }
 
