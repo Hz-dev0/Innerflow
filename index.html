@@ -1873,6 +1873,7 @@ async function saveApiUrl(fragment) {
       state.energy  = data.energy  || 0;
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
+      state.wishPoints  = typeof data.wishPoints === 'number' ? data.wishPoints : (state.wishPoints || 0);
       renderTasks(); renderSandbox(); renderStats(); renderRewards(); renderTree(); renderEnergyDots(); renderLottery();
     }
     return true;
@@ -1936,6 +1937,7 @@ async function loadFromCloud() {
       state.energy  = data.energy  || 0;
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
+      state.wishPoints  = typeof data.wishPoints === 'number' ? data.wishPoints : (state.wishPoints || 0);
           if (data.themeManualPref) {
         state.themeManualPref = data.themeManualPref;
         const isAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
@@ -1972,7 +1974,7 @@ async function syncToCloud() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'save',
-        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], themeManualPref: state.themeManualPref || null, todayOrder: state.todayOrder || [], lotteryState: lotteryState }
+        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], themeManualPref: state.themeManualPref || null, todayOrder: state.todayOrder || [], lotteryState: lotteryState, wishPoints: state.wishPoints || 0 }
       })
     });
     if (dot) { dot.className = 'sync-dot synced'; setTimeout(() => { if (dot) dot.className = 'sync-dot synced'; }, 2000); }
@@ -2002,6 +2004,7 @@ let state = {
   doneHistory: [], // archive of completed tasks after reset
   themeManualPref: null, // 'day' | 'night' | null — synced to cloud in manual mode
   todayOrder: [], // ordered task ids for the today panel
+  wishPoints: 0,  // 願力點數：每完成一個任務 +1，撤銷 -1，可自由分配給許願池
 };
 
 // ── Local-timezone date helper ──
@@ -2113,33 +2116,47 @@ function getGoalCount(goal) {
 }
 
 function getWishProgress(r) {
-  const wishes = state.rewards || [];
-  const global = getGlobalGoalCount(r.goal);
+  // Progress is purely the manually allocated points on this wish
+  return r.allocatedPoints || 0;
+}
 
-  // Find all unclaimed wishes of the same goal, sorted by creation order (id = timestamp)
-  const sameGoal = wishes
-    .filter(x => !x.claimed && x.goal === r.goal)
-    .sort((a, b) => a.id - b.id);
+function getAvailableWishPoints() {
+  if (state.wishPoints === undefined) state.wishPoints = 0;
+  const allocated = (state.rewards || []).reduce((sum, r) => sum + (r.allocatedPoints || 0), 0);
+  return Math.max(0, state.wishPoints - allocated);
+}
 
-  const myIdx = sameGoal.findIndex(x => x.id === r.id);
-  if (myIdx < 0) return Math.max(0, global - (r.startCount || 0));
+function allocateWishPoint(id) {
+  const r = state.rewards.find(x => x.id === id);
+  if (!r) return;
+  if (getAvailableWishPoints() <= 0) { showToast('❌ 沒有可用的願力點數，完成任務來獲得！'); return; }
+  if (!r.allocatedPoints) r.allocatedPoints = 0;
+  r.allocatedPoints++;
+  checkRewardUnlocks();
+  renderRewards();
+  syncToCloud();
+}
 
-  // Sum up how many tasks the wishes before me require
-  // The "start baseline" for me = startCount of the first wish + sum of counts of all prior wishes
-  const firstStart = sameGoal[0].startCount || 0;
-  let baseline = firstStart;
-  for (let i = 0; i < myIdx; i++) {
-    baseline += sameGoal[i].count;
-  }
-
-  return Math.max(0, global - baseline);
+function deallocateWishPoint(id) {
+  const r = state.rewards.find(x => x.id === id);
+  if (!r || !r.allocatedPoints || r.allocatedPoints <= 0) return;
+  r.allocatedPoints--;
+  renderRewards();
+  syncToCloud();
 }
 
 function renderRewards() {
   const wishList = document.getElementById('wishList');
   const wishEmpty = document.getElementById('wishEmpty');
   if (!wishList) return;
+
+  // 清掉舊的願力點數框（如果存在）
+  const oldBar = document.getElementById('wishPointsBar');
+  if (oldBar) oldBar.remove();
+
   const wishes = state.rewards || [];
+  const available = getAvailableWishPoints();
+
   if (wishes.length === 0) {
     wishList.innerHTML = '';
     if (wishEmpty) wishEmpty.style.display = 'block';
@@ -2150,16 +2167,18 @@ function renderRewards() {
       const unlocked = current >= r.count;
       const pct = r.count === 0 ? 100 : Math.min(100, Math.round(current / r.count * 100));
       const icon = goalIcons[r.goal] || '🎯';
+      const canAdd = available > 0 && !unlocked;
       return `<div class="sandbox-item wish-item" id="wish-${r.id}" style="cursor:default;justify-content:space-between;gap:10px">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;color:var(--text)">${r.name}${r.claimed ? ' <span style="font-size:11px;color:var(--green)">✓ 已實現</span>' : ''}</div>
-          <div style="font-size:11px;color:var(--text-faint);margin-top:2px">${icon} ${r.goal} · 完成 ${r.count} 個任務解鎖</div>
-          ${!r.claimed ? `<div style="font-size:11px;color:var(--green);margin-top:2px">${current} / ${r.count} ${pct >= 100 ? '🎉 已解鎖' : `(${pct}%)`}</div>` : ''}
+          <div style="font-size:13px;color:var(--text);font-weight:500">${r.name}</div>
+          <div style="font-size:11px;color:var(--text-faint);margin-top:2px">${icon} ${r.goal} · 需 ${r.count} 點解鎖</div>
+          <div style="font-size:11px;color:${unlocked ? '#c9a227' : 'var(--green)'};margin-top:2px">${current} / ${r.count} ${unlocked ? '🎉 已解鎖' : `(${pct}%)`}</div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
-          ${!r.claimed && unlocked ? `<button class="reward-claim-btn" onclick="openClaimReward(${r.id})">🎉</button>` : ''}
-          ${!r.claimed ? `<span style="font-size:12px;cursor:pointer;color:var(--text-faint);padding:2px 6px;border-radius:5px;transition:all 0.2s" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text-faint)'" onclick="openEditWish(${r.id})">✏️</span>` : ''}
-          ${!r.claimed ? `<span class="sandbox-del" onclick="deleteReward(${r.id})">×</span>` : ''}
+          ${unlocked ? `<button class="reward-claim-btn" onclick="openClaimReward(${r.id})" style="font-size:12px;padding:4px 10px">🎉</button>` : ''}
+          <span title="${canAdd ? `配入一點（剩餘 ${available} 點）` : available <= 0 ? '點數不足，完成任務來獲得' : '已解鎖'}" onclick="${canAdd ? `allocateWishPoint(${r.id})` : ''}" style="font-size:14px;cursor:${canAdd ? 'pointer' : 'default'};opacity:${canAdd ? '1' : '0.3'};padding:2px 4px;border-radius:5px;transition:all 0.2s;user-select:none" ${canAdd ? `onmouseover="this.style.background='rgba(74,130,196,0.1)'" onmouseout="this.style.background='transparent'"` : ''}>✨</span>
+          ${!unlocked ? `<span style="font-size:12px;cursor:pointer;color:var(--text-faint);padding:2px 6px;border-radius:5px;transition:all 0.2s" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text-faint)'" onclick="openEditWish(${r.id})">✏️</span>` : ''}
+          ${!unlocked ? `<span class="sandbox-del" title="刪除願望" onclick="deleteReward(${r.id})">×</span>` : ''}
         </div>
       </div>`;
     }).join('');
@@ -2283,7 +2302,7 @@ function addReward() {
   const count = countVal === '' ? 0 : Math.max(0, parseInt(countVal) || 0);
   if (!state.rewards) state.rewards = [];
   const startCount = getGoalCount(goal);
-  state.rewards.push({ id: Date.now(), name, goal, count, startCount, claimed: false });
+  state.rewards.push({ id: Date.now(), name, goal, count, startCount, claimed: false, allocatedPoints: 0 });
   closeModal('addRewardModal');
   renderRewards();
   showToast('🌊 願望已投入許願池');
@@ -2291,6 +2310,11 @@ function addReward() {
 }
 
 function deleteReward(id) {
+  const r = state.rewards.find(x => x.id === id);
+  if (r && r.allocatedPoints) {
+    // Points stay in state.wishPoints (total), just removing the wish frees them up automatically
+    // because getAvailableWishPoints = total - sum(allocated), and this wish is gone
+  }
   state.rewards = state.rewards.filter(r => r.id !== id);
   renderRewards();
   syncToCloud();
@@ -2308,10 +2332,12 @@ function openClaimReward(id) {
 function claimReward() {
   const r = state.rewards.find(x => x.id === state.pendingClaimId);
   if (r) {
+    // Spend the allocated points (deduct from total pool)
+    const spent = r.allocatedPoints || 0;
+    state.wishPoints = Math.max(0, (state.wishPoints || 0) - spent);
     // Remove the wish from the pool entirely
     state.rewards = state.rewards.filter(x => x.id !== state.pendingClaimId);
     // Also clean up any revealed lottery cards that reference this wish
-    // so the card no longer shows a dead "領取" link
     if (lotteryState.cards) {
       lotteryState.cards.forEach(c => {
         if (c.wishId === state.pendingClaimId) {
@@ -2333,7 +2359,7 @@ function claimReward() {
 function checkRewardUnlocks() {
   if (!state.rewards) return;
   state.rewards.forEach(r => {
-    if (!r.claimed && !r._notified && getWishProgress(r) >= r.count) {
+    if (!r.claimed && !r._notified && (r.allocatedPoints || 0) >= r.count && r.count > 0) {
       r._notified = true;
       setTimeout(() => showToast(`🌊 許願池解鎖！「${r.name}」出現在抽獎牌中了`), 1500);
     }
@@ -3068,6 +3094,8 @@ function toggleTask(id) {
   if (!wasDone) {
     t.completedAt = localDateStr();
     state.done = state.tasks.filter(x => x.done).length; // recalculate
+    if (state.wishPoints === undefined) state.wishPoints = 0;
+    state.wishPoints++;
     showCelebration(t);
     checkRewardUnlocks();
     renderRewards();
@@ -3079,6 +3107,8 @@ function toggleTask(id) {
   } else {
     t.completedAt = null; // clear completion date when unchecking
     state.done = state.tasks.filter(x => x.done).length; // recalculate
+    if (state.wishPoints === undefined) state.wishPoints = 0;
+    state.wishPoints = Math.max(0, state.wishPoints - 1);
     state.doneOpen = true;
     renderRewards();
     onTaskUncompleted();
@@ -3376,7 +3406,7 @@ function buildCardPool() {
   const unlockedWishes = [];
   if (state.rewards) {
     state.rewards.forEach(r => {
-      if (!r.claimed && getWishProgress(r) >= r.count) {
+      if (!r.claimed && (r.allocatedPoints || 0) >= r.count && r.count > 0) {
         unlockedWishes.push({ text: r.name, icon: '🌊', isWish: true, wishId: r.id });
       }
     });
@@ -3860,11 +3890,15 @@ function ctxAction(action) {
     if (!wasDone) {
       t.completedAt = localDateStr();
       state.done = state.tasks.filter(x => x.done).length; // Bug 5 fix: recalculate
+      if (state.wishPoints === undefined) state.wishPoints = 0;
+      state.wishPoints++;
       showCelebration(t); checkRewardUnlocks(); renderRewards(); onTaskCompleted();
       if (t.recurring && t.recurMode === 'interval') scheduleIntervalTask(t);
     } else {
       t.completedAt = null;
       state.done = state.tasks.filter(x => x.done).length; // Bug 5 fix: recalculate
+      if (state.wishPoints === undefined) state.wishPoints = 0;
+      state.wishPoints = Math.max(0, state.wishPoints - 1);
       renderRewards(); onTaskUncompleted();
     }
     renderTasks(); renderStats(); renderTree();
