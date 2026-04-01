@@ -2170,12 +2170,13 @@ function renderRewards() {
       const canAdd = available > 0 && !unlocked;
       return `<div class="sandbox-item wish-item" id="wish-${r.id}" style="cursor:default;justify-content:space-between;gap:10px">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;color:var(--text);font-weight:500">${r.name}</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:13px;color:var(--text);font-weight:500">${r.name}</span>
+            <span style="font-size:11px;color:${unlocked ? '#c9a227' : 'var(--green)'};white-space:nowrap">${current} / ${r.count} ${unlocked ? '🎉 已解鎖' : `(${pct}%)`}</span>
+          </div>
           <div style="font-size:11px;color:var(--text-faint);margin-top:2px">${icon} ${r.goal} · 需 ${r.count} 點解鎖</div>
-          <div style="font-size:11px;color:${unlocked ? '#c9a227' : 'var(--green)'};margin-top:2px">${current} / ${r.count} ${unlocked ? '🎉 已解鎖' : `(${pct}%)`}</div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
-          ${unlocked ? `<button class="reward-claim-btn" onclick="openClaimReward(${r.id})" style="font-size:12px;padding:4px 10px">🎉</button>` : ''}
           <span title="${canAdd ? `配入一點（剩餘 ${available} 點）` : available <= 0 ? '點數不足，完成任務來獲得' : '已解鎖'}" onclick="${canAdd ? `allocateWishPoint(${r.id})` : ''}" style="font-size:14px;cursor:${canAdd ? 'pointer' : 'default'};opacity:${canAdd ? '1' : '0.3'};padding:2px 4px;border-radius:5px;transition:all 0.2s;user-select:none" ${canAdd ? `onmouseover="this.style.background='rgba(74,130,196,0.1)'" onmouseout="this.style.background='transparent'"` : ''}>✨</span>
           ${!unlocked ? `<span style="font-size:12px;cursor:pointer;color:var(--text-faint);padding:2px 6px;border-radius:5px;transition:all 0.2s" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text-faint)'" onclick="openEditWish(${r.id})">✏️</span>` : ''}
           ${!unlocked ? `<span class="sandbox-del" title="刪除願望" onclick="deleteReward(${r.id})">×</span>` : ''}
