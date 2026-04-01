@@ -1650,10 +1650,10 @@
     <div style="font-size:10px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px;margin-top:2px">☁️ 雲端連線</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       <input class="api-modal-input" id="apiKeyFragment"
-        placeholder="連線密碼（3碼）" maxlength="3" type="password"
+        placeholder="連線密碼" maxlength="3" type="password"
         style="width:120px;flex-shrink:0;text-align:center;border-radius:8px;margin-bottom:0;font-size:14px;font-weight:600;letter-spacing:0.2em;padding:7px 10px"
         oninput="this.value=this.value.toUpperCase()">
-      <span style="font-size:11px;color:var(--text-faint);line-height:1.4">輸入三位連線密碼完成雲端設定</span>
+      <span style="font-size:11px;color:var(--text-faint);line-height:1.4">輸入連線密碼完成雲端設定</span>
     </div>
     <div class="api-status" id="apiStatus"></div>
 
@@ -2389,9 +2389,10 @@ let _resetRunning = false; // Bug 3 fix: prevent concurrent/double reset runs
 function runDailyReset() {
   if (_resetRunning) return; // already running, skip
   _resetRunning = true;
+  try {
   const todayKey = localDateStr();
   const lastReset = localStorage.getItem(LAST_RESET_KEY);
-  if (lastReset === todayKey) { _resetRunning = false; scheduleNextReset(); return; }
+  if (lastReset === todayKey) { scheduleNextReset(); return; }
   localStorage.setItem(LAST_RESET_KEY, todayKey);
 
   if (!state.doneHistory) state.doneHistory = [];
@@ -2440,8 +2441,11 @@ function runDailyReset() {
   }
   saveLottery();
   renderLottery();
-  _resetRunning = false;
-  scheduleNextReset();
+  } finally {
+    // Fix: 使用 try/finally 確保無論如何都會釋放 lock，避免 reset 永遠卡住
+    _resetRunning = false;
+    scheduleNextReset();
+  }
 }
 
 let _resetTimer = null;
@@ -2517,7 +2521,15 @@ async function init() {
       renderStats();
       renderRewards();
       renderLottery();
-    } else { showToast('⚠ 雲端讀取失敗，使用本機資料'); if (dot) dot.className = 'sync-dot'; }
+      // Fix: 在雲端資料載入後才做換日重置，確保重置的是最新資料
+      checkMissedReset();
+    } else {
+      showToast('⚠ 雲端讀取失敗，使用本機資料');
+      if (dot) dot.className = 'sync-dot';
+      // Fix: 雲端讀取失敗時仍要完整渲染，避免畫面空白、logo 無反應
+      renderEnergyDots(); renderTree(); renderTasks();
+      renderSandbox(); renderStats(); renderRewards(); renderLottery();
+    }
   }
 
   // Logo: click = open logo menu (settings + guide)
@@ -2568,7 +2580,9 @@ async function init() {
   renderRewards();
   initLottery();
   checkTaskDates();
-  checkMissedReset();
+  // Fix: 只有在沒有設定雲端 API 時（本機模式）才在這裡執行換日重置
+  // 有雲端的情況已在 loadFromCloud 完成後執行，避免競態
+  if (!getApiUrl()) checkMissedReset();
   // so manual pref and auto schedule both work correctly on first render
   const _isAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
   if (!_isAuto && state.themeManualPref) {
