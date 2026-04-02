@@ -2409,6 +2409,7 @@ function runDailyReset() {
   // Reset lottery day counters for new day (but don't pre-assign mission — assigned on gold flip)
   lotteryState.todayDate = todayKey;
   lotteryState.todayDone = 0;
+  lotteryState.todayFlipped = 0;
   lotteryState.rmSlot = undefined;
   lotteryState.cards = []; // clear deck so user must draw again
   if (lotteryState.randomMission && !lotteryState.randomMission.awarded) {
@@ -2519,8 +2520,9 @@ async function init() {
       const _today = localDateStr();
       if (lotteryState.todayDate === _today) {
         const _actualDoneToday = state.tasks.filter(t => t.done && t.completedAt === _today).length;
-        // Only correct downward if actual count is lower (avoid stripping legitimately earned tickets)
-        if (_actualDoneToday < lotteryState.todayDone) lotteryState.todayDone = _actualDoneToday;
+        // Only correct downward if actual count is lower, but never below flips already made
+        const minDone = (lotteryState.todayFlipped || 0) * 3;
+        if (_actualDoneToday < lotteryState.todayDone) lotteryState.todayDone = Math.max(minDone, _actualDoneToday);
         saveLottery();
       }
       showToast('🌿 雲端同步完成');
@@ -3327,7 +3329,8 @@ let lotteryState = {
   tickets: 0,
   cards: [],       // 9 cards, each { revealed, content, isWish, isRandomMission }
   todayDate: '',
-  todayDone: 0,
+  todayDone: 0,    // cumulative tasks completed today (resets at midnight)
+  todayFlipped: 0, // how many cards flipped today (each flip costs 3 todayDone)
   randomMission: null, // assigned only when gold card is flipped; { taskIds, taskNames, requiredCount, completedTaskIds, awarded, assignedAt }
 };
 
@@ -3361,9 +3364,12 @@ function initLottery() {
   if (lotteryState.todayDate !== today) {
     lotteryState.todayDate = today;
     lotteryState.todayDone = 0;
+    lotteryState.todayFlipped = 0;
     lotteryState.rmSlot = undefined;
     // Do NOT clear randomMission here — it persists until awarded or a new draw is made
   }
+  // Migrate old saves that don't have todayFlipped
+  if (lotteryState.todayFlipped === undefined) lotteryState.todayFlipped = 0;
   renderLottery();
 }
 
@@ -3403,11 +3409,13 @@ function onTaskCompleted() {
   if (lotteryState.todayDate !== today) {
     lotteryState.todayDate = today;
     lotteryState.todayDone = 0;
+    lotteryState.todayFlipped = 0;
   }
   lotteryState.todayDone++;
-  if (lotteryState.todayDone % 3 === 0) {
-    lotteryState.tickets++;
-    showToast('🎫 獲得抽獎券！去抽獎區翻牌吧');
+  // Available flips = floor(todayDone/3) - todayFlipped
+  const available = Math.floor(lotteryState.todayDone / 3) - lotteryState.todayFlipped;
+  if (available > 0 && lotteryState.todayDone % 3 === 0) {
+    showToast('🎫 獲得翻牌機會！去抽獎區翻牌吧');
   }
   checkRandomMissionProgress();
   saveLottery();
@@ -3415,7 +3423,9 @@ function onTaskCompleted() {
 }
 
 function onTaskUncompleted() {
-  if (lotteryState.todayDone > 0) lotteryState.todayDone--;
+  // Can't drop below the tasks already "spent" on flips
+  const minDone = (lotteryState.todayFlipped || 0) * 3;
+  if (lotteryState.todayDone > minDone) lotteryState.todayDone--;
   checkRandomMissionProgress();
   saveLottery();
   renderLottery();
@@ -3499,12 +3509,15 @@ function drawLottery() {
 
 function flipCard(i) {
   if (!lotteryState.cards[i] || lotteryState.cards[i].revealed) return;
-  // 翻牌才消耗一張券
-  if (lotteryState.tickets <= 0) {
-    showToast('🎫 沒有抽獎券，完成任務來獲得！');
+  // Available flips = floor(todayDone/3) - todayFlipped
+  const available = Math.floor(lotteryState.todayDone / 3) - (lotteryState.todayFlipped || 0);
+  if (available <= 0) {
+    showToast('🎫 還沒有翻牌機會，完成任務來獲得！');
     return;
   }
-  lotteryState.tickets--;
+  lotteryState.todayFlipped = (lotteryState.todayFlipped || 0) + 1;
+  // Keep legacy tickets in sync for any other code that reads it
+  lotteryState.tickets = Math.max(0, lotteryState.tickets - 1);
   const card = lotteryState.cards[i];
   card.revealed = true;
 
@@ -3543,21 +3556,18 @@ function renderLottery() {
   const drawBtn = document.getElementById('lotteryDrawBtn');
   const rm = lotteryState.randomMission;
   if (!ticketEl) return;
-  ticketEl.textContent = lotteryState.tickets;
+  // available flips today
+  const availableFlips = Math.floor(lotteryState.todayDone / 3) - (lotteryState.todayFlipped || 0);
+  ticketEl.textContent = availableFlips;
   if (drawBtn) {
     drawBtn.disabled = false; // 洗牌永遠可用
     drawBtn.title = '重新洗牌（不消耗券）';
   }
 
-  // Update progress text
-  // todayDone counts total completions today (never resets mid-day).
-  // Display: remainder within current group of 3.
-  // e.g. 4 done → 1/3, 3 done → 3/3 (not 0/3), 6 done → 3/3, 7 done → 1/3
+  // Update progress text: show raw todayDone / 3 (no modulo)
   const lotteryProgress = document.getElementById('lotteryProgress');
   if (lotteryProgress) {
-    const mod = lotteryState.todayDone % 3;
-    const done = (mod === 0 && lotteryState.todayDone > 0) ? 3 : mod;
-    lotteryProgress.innerHTML = `獲得券 <span id="todayDone">${done}</span>/3`;
+    lotteryProgress.innerHTML = `獲得券 <span id="todayDone">${lotteryState.todayDone}</span>/3`;
   }
 
   const grid = document.getElementById('lotteryGrid');
@@ -3617,7 +3627,7 @@ function renderLottery() {
     return `<div class="lottery-card${isRevealed ? ' revealed' + (c.isWish ? ' is-wish' : '') + (isRM ? ' random-mission' : '') : ''}" id="lcard-${i}" ${!isRevealed ? `onclick="flipCard(${i})"` : ''}>
       <div class="lottery-card-back" style="${isRevealed ? 'display:none' : ''}">
         <div class="card-face-icon">✦</div>
-        <div class="card-face-hint">${lotteryState.tickets > 0 ? '點擊翻牌' : '需要券'}</div>
+        <div class="card-face-hint">${(Math.floor(lotteryState.todayDone / 3) - (lotteryState.todayFlipped || 0)) > 0 ? '點擊翻牌' : '需要券'}</div>
       </div>
       <div class="lottery-card-front" style="${isRevealed ? 'display:flex' : 'display:none'}">
         ${isRM ? rmFrontHtml : `
