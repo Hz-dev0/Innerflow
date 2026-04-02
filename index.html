@@ -3544,16 +3544,19 @@ function renderLottery() {
   const rm = lotteryState.randomMission;
   if (!ticketEl) return;
   ticketEl.textContent = lotteryState.tickets;
-  if (progressEl) progressEl.textContent = lotteryState.todayDone;
   if (drawBtn) {
     drawBtn.disabled = false; // 洗牌永遠可用
     drawBtn.title = '重新洗牌（不消耗券）';
   }
 
   // Update progress text
+  // todayDone counts total completions today (never resets mid-day).
+  // Display: remainder within current group of 3.
+  // e.g. 4 done → 1/3, 3 done → 3/3 (not 0/3), 6 done → 3/3, 7 done → 1/3
   const lotteryProgress = document.getElementById('lotteryProgress');
   if (lotteryProgress) {
-    const done = lotteryState.todayDone % 3;
+    const mod = lotteryState.todayDone % 3;
+    const done = (mod === 0 && lotteryState.todayDone > 0) ? 3 : mod;
     lotteryProgress.innerHTML = `獲得券 <span id="todayDone">${done}</span>/3`;
   }
 
