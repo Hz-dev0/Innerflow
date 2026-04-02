@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon.png">
 <meta name="theme-color" content="#3A6EA5">
 <style>
-  /* ── 方案 B（日間 / 清晨冰川）：早上 6 點 – 晚上 6 點 ── */
+  /* ── 清晨冰川主題 ── */
   :root {
     --bg: #F0F4F8;
     --bg2: #ffffff;
@@ -29,7 +29,6 @@
     --text-dim: rgba(30,45,69,0.55);
     --text-faint: rgba(30,45,69,0.28);
     --glow: 0 0 20px rgba(58,110,165,0.12);
-    --theme-indicator: '☀ 清晨冰川';
     --modal-overlay-bg: rgba(224,234,244,0.78);
     --header-bg: rgba(240,244,248,0.88);
     --aside-bg: rgba(255,255,255,0.65);
@@ -1203,22 +1202,7 @@
     border-color: rgba(58,110,165,0.45) !important;
   }
 
-  /* ── Theme Schedule Modal ── */
-  .theme-schedule-modal {
-    background: var(--bg2); border: 1px solid rgba(74,130,196,0.25);
-    border-radius: 16px; padding: 24px; width: 340px; max-width: 95vw;
-    box-shadow: 0 20px 60px rgba(74,130,196,0.15);
-    animation: modalIn 0.25s ease;
-  }
-  .theme-schedule-modal h3 { font-family: 'DM Serif Display', serif; font-size: 18px; margin-bottom: 16px; color: var(--text); }
-  .theme-schedule-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:10px; }
-  .theme-schedule-label { font-size: 13px; color: var(--text-dim); }
-  .theme-time-input {
-    background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
-    color: var(--text); font-family: inherit; font-size: 14px;
-    padding: 7px 10px; outline: none; transition: border-color 0.2s; width: 110px;
-  }
-  .theme-time-input:focus { border-color: var(--green); }
+
 
   /* ── Neglected task (久未完成) ── */
   .task-item.neglected {
@@ -1653,7 +1637,7 @@
         placeholder="連線密碼" maxlength="3" type="password"
         style="width:120px;flex-shrink:0;text-align:center;border-radius:8px;margin-bottom:0;font-size:14px;font-weight:600;letter-spacing:0.2em;padding:7px 10px"
         oninput="this.value=this.value.toUpperCase()">
-      <span style="font-size:11px;color:var(--text-faint);line-height:1.4">輸入連線密碼完成雲端設定</span>
+      <span style="font-size:11px;color:var(--text-faint);line-height:1.4">輸入三位連線密碼完成雲端設定</span>
     </div>
     <div class="api-status" id="apiStatus"></div>
 
@@ -1938,14 +1922,6 @@ async function loadFromCloud() {
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
       state.wishPoints  = typeof data.wishPoints === 'number' ? data.wishPoints : (state.wishPoints || 0);
-          if (data.themeManualPref) {
-        state.themeManualPref = data.themeManualPref;
-        const isAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
-        if (!isAuto) {
-          themeManualOverride = data.themeManualPref;
-          syncTheme();
-        }
-      }
       // Restore lotteryState from cloud (cross-device sync)
       if (data.lotteryState && typeof data.lotteryState === 'object') {
         lotteryState = { ...lotteryState, ...data.lotteryState };
@@ -1974,7 +1950,7 @@ async function syncToCloud() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'save',
-        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], themeManualPref: state.themeManualPref || null, todayOrder: state.todayOrder || [], lotteryState: lotteryState, wishPoints: state.wishPoints || 0 }
+        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], todayOrder: state.todayOrder || [], lotteryState: lotteryState, wishPoints: state.wishPoints || 0 }
       })
     });
     if (dot) { dot.className = 'sync-dot synced'; setTimeout(() => { if (dot) dot.className = 'sync-dot synced'; }, 2000); }
@@ -2002,7 +1978,6 @@ let state = {
   doneOpen: false,
   pendingClaimId: null,
   doneHistory: [], // archive of completed tasks after reset
-  themeManualPref: null, // 'day' | 'night' | null — synced to cloud in manual mode
   todayOrder: [], // ordered task ids for the today panel
   wishPoints: 0,  // 願力點數：每完成一個任務 +1，撤銷 -1，可自由分配給許願池
 };
@@ -2402,9 +2377,9 @@ function runDailyReset() {
 
   state.tasks.forEach(t => {
     if (!t.done) return;
-      const archiveKey = t.id + '_' + t.completedAt;
+    const archiveKey = t.id + '_' + t.completedAt;
     if (!state.doneHistory.some(h => h.id === archiveKey)) {
-      state.doneHistory.push({ id: archiveKey, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt });
+      state.doneHistory.push({ id: archiveKey, taskId: t.id, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt, recurring: t.recurring || false });
     }
     if (t.recurring && t.recurMode !== 'interval') {
       // Daily recurring: reset back to undone
@@ -2455,19 +2430,55 @@ function scheduleNextReset() {
   _resetTimer = setTimeout(() => { runDailyReset(); }, msUntil);
 }
 
-// Check on startup if a reset was missed (e.g. user left tab open overnight)
+// Check on startup if one or more resets were missed (e.g. app closed for multiple days).
+// For each missed day we archive that day's done tasks into doneHistory before resetting,
+// so the heatmap never has gaps even when the user skips days.
 function checkMissedReset() {
   const [hStr, mStr] = getResetTime().split(':');
-  const h = parseInt(hStr), m = parseInt(mStr);
+  const resetH = parseInt(hStr), resetM = parseInt(mStr);
   const now = new Date();
-  const todayReset = new Date(now);
-  todayReset.setHours(h, m, 0, 0);
   const todayKey = localDateStr(now);
   const lastReset = localStorage.getItem(LAST_RESET_KEY);
-  // If reset time for today has already passed and we haven't reset today
-  if (now > todayReset && lastReset !== todayKey) {
-    runDailyReset();
-  } else {
+
+  if (!lastReset) {
+    // First-ever run — just schedule from today
+    scheduleNextReset();
+    return;
+  }
+
+  // Count how many reset boundaries have passed since lastReset
+  // Walk day-by-day from lastReset+1 up to today, running reset for each missed day.
+  let cursor = new Date(lastReset + 'T00:00:00');
+  cursor.setDate(cursor.getDate() + 1); // start from day after last reset
+
+  let didReset = false;
+  while (localDateStr(cursor) <= todayKey) {
+    const cursorKey = localDateStr(cursor);
+    // Build the reset moment for this cursor day
+    const resetMoment = new Date(cursor);
+    resetMoment.setHours(resetH, resetM, 0, 0);
+
+    // Only fire the reset if that reset moment is in the past
+    if (now >= resetMoment || cursorKey < todayKey) {
+      // Temporarily override localStorage so runDailyReset sees this day as "today"
+      // and archives tasks correctly into doneHistory with the right completedAt.
+      // We don't actually mutate task dates — we just let it archive whatever is done.
+      localStorage.setItem(LAST_RESET_KEY, cursorKey);
+      // runDailyReset reads LAST_RESET_KEY at the top: it will run only if key !== todayKey.
+      // We temporarily set the key to a sentinel so the guard doesn't skip it.
+      const savedKey = localStorage.getItem(LAST_RESET_KEY);
+      localStorage.removeItem(LAST_RESET_KEY); // clear so the guard passes
+      runDailyReset();                          // this sets key = localDateStr() = today
+      // runDailyReset sets the key to today, so restore it to cursorKey if we're not done yet
+      if (cursorKey < todayKey) {
+        localStorage.setItem(LAST_RESET_KEY, cursorKey);
+      }
+      didReset = true;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  if (!didReset) {
     scheduleNextReset();
   }
 }
@@ -2563,7 +2574,7 @@ async function init() {
     orphans.forEach(t => {
       const histKey = String(t.id) + '_nodate';
       if (!state.doneHistory.some(h => h.id === histKey)) {
-        state.doneHistory.push({ id: histKey, name: t.name, goal: t.goal, energy: t.energy, completedAt: null });
+        state.doneHistory.push({ id: histKey, taskId: t.id, name: t.name, goal: t.goal, energy: t.energy, completedAt: null, recurring: t.recurring || false });
       }
     });
     state.tasks = state.tasks.filter(t => !(t.done && !t.completedAt));
@@ -2583,12 +2594,6 @@ async function init() {
   // Fix: 只有在沒有設定雲端 API 時（本機模式）才在這裡執行換日重置
   // 有雲端的情況已在 loadFromCloud 完成後執行，避免競態
   if (!getApiUrl()) checkMissedReset();
-  // so manual pref and auto schedule both work correctly on first render
-  const _isAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
-  if (!_isAuto && state.themeManualPref) {
-    themeManualOverride = state.themeManualPref;
-  }
-  syncTheme();
   if (!localStorage.getItem('innerflow_onboarded')) {
     document.getElementById('onboardModal').classList.add('open');
     localStorage.setItem('innerflow_onboarded', 'true');
@@ -3813,7 +3818,7 @@ function deletePastDoneTask(id) {
   const histKey = t.id + '_' + (t.completedAt || '');
   const alreadyInHistory = state.doneHistory.some(h => h.id === histKey);
   if (!alreadyInHistory) {
-    state.doneHistory.push({ id: histKey, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt });
+    state.doneHistory.push({ id: histKey, taskId: t.id, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt, recurring: t.recurring || false });
   }
   state.tasks = state.tasks.filter(x => x.id !== id);
   state.done = state.tasks.filter(x => x.done).length;
@@ -3852,7 +3857,7 @@ function deleteTaskFromStats(id) {
       if (!state.doneHistory) state.doneHistory = [];
       const histKey = t.id + '_' + (t.completedAt || '');
       if (!state.doneHistory.some(h => h.id === histKey)) {
-        state.doneHistory.push({ id: histKey, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt });
+        state.doneHistory.push({ id: histKey, taskId: t.id, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt, recurring: t.recurring || false });
       }
       if (state.done > 0) state.done--;
     }
@@ -4127,140 +4132,6 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
 });
 
-// ── 五行主題：補水補金 Dark/Light Mode ──
-// 方案 A（夜間 / 深邃海洋）：dusk – dawn
-// 方案 B（日間 / 清晨冰川）：dawn – dusk
-
-const THEME_DAWN_KEY = 'innerflow_theme_dawn'; // default '06:00'
-const THEME_DUSK_KEY = 'innerflow_theme_dusk'; // default '18:00'
-
-function getThemeBoundaries() {
-  const dawn = localStorage.getItem(THEME_DAWN_KEY) || '06:00';
-  const dusk = localStorage.getItem(THEME_DUSK_KEY) || '18:00';
-  return { dawn, dusk };
-}
-
-let themeManualOverride = null; // null = auto, 'day' | 'night' = manual
-
-function isNightTime() {
-  const { dawn, dusk } = getThemeBoundaries();
-  const now = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  const [dh, dm] = dawn.split(':').map(Number);
-  const [sh, sm] = dusk.split(':').map(Number);
-  const dawnMin = dh * 60 + dm;
-  const duskMin = sh * 60 + sm;
-  return nowMin >= duskMin || nowMin < dawnMin;
-}
-
-function applyTheme(isNight) {
-  const root = document.documentElement;
-  if (isNight) {
-    root.classList.add('night-mode');
-  } else {
-    root.classList.remove('night-mode');
-  }
-}
-
-function syncTheme() {
-  if (themeManualOverride !== null) {
-    applyTheme(themeManualOverride === 'night');
-  } else {
-    applyTheme(isNightTime());
-  }
-}
-
-function onThemeAutoChange(checked) {
-  localStorage.setItem('innerflow_theme_auto', checked ? 'true' : 'false');
-  updateThemeAutoUI(checked);
-  if (checked) {
-    themeManualOverride = null;
-    syncTheme();
-  } else {
-    // Default manual to current theme
-    themeManualOverride = document.documentElement.classList.contains('night-mode') ? 'night' : 'day';
-    state.themeManualPref = themeManualOverride;
-    updateThemeBtnStyle();
-  }
-}
-
-function updateThemeAutoUI(isAuto) {
-  const timeInputs = document.getElementById('themeTimeInputs');
-  const manualRow  = document.getElementById('themeManualRow');
-  const knob       = document.getElementById('themeAutoKnob');
-  const sliderBg   = document.getElementById('themeAutoSlider');
-  if (timeInputs) timeInputs.style.display = isAuto ? 'flex' : 'none';
-  if (manualRow)  manualRow.style.display  = isAuto ? 'none' : 'flex';
-  if (knob)       knob.style.left = isAuto ? '20px' : '3px';
-  if (sliderBg)   sliderBg.style.background = isAuto ? 'var(--green)' : 'var(--bg3)';
-  if (!isAuto) updateThemeBtnStyle();
-}
-
-function updateThemeBtnStyle() {
-  const isNight = document.documentElement.classList.contains('night-mode');
-  const btnDay   = document.getElementById('themeBtnDay');
-  const btnNight = document.getElementById('themeBtnNight');
-  if (!btnDay || !btnNight) return;
-  if (isNight) {
-    btnDay.style.background = 'transparent'; btnDay.style.color = 'var(--text-dim)'; btnDay.style.borderColor = 'var(--border)';
-    btnNight.style.background = 'var(--green-dim)'; btnNight.style.color = 'var(--text)'; btnNight.style.borderColor = 'var(--green)';
-  } else {
-    btnDay.style.background = 'var(--green-dim)'; btnDay.style.color = 'var(--text)'; btnDay.style.borderColor = 'var(--green)';
-    btnNight.style.background = 'transparent'; btnNight.style.color = 'var(--text-dim)'; btnNight.style.borderColor = 'var(--border)';
-  }
-}
-
-function setManualTheme(mode) {
-  themeManualOverride = mode;
-  state.themeManualPref = mode;
-  applyTheme(mode === 'night');
-  updateThemeBtnStyle();
-  syncToCloud();
-  showToast(mode === 'night' ? '🌊 已切換為深邃海洋' : '☀️ 已切換為清晨冰川');
-}
-
-function toggleThemeManual() {
-  const isNight = document.documentElement.classList.contains('night-mode');
-  const newMode = isNight ? 'day' : 'night';
-  themeManualOverride = newMode;
-  state.themeManualPref = newMode;
-  syncTheme();
-  const modeName = newMode === 'night' ? '深邃海洋 🌊' : '清晨冰川 ☀';
-  showToast(`✦ 已切換為${modeName}`);
-  const isAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
-  if (isAuto) {
-    // In auto mode: temporary override, release at next boundary
-    clearTimeout(window._themeOverrideTimer);
-    scheduleBoundaryRelease();
-  } else {
-    // In manual mode: persist choice to cloud
-    syncToCloud();
-  }
-}
-
-function scheduleBoundaryRelease() {
-  const { dawn, dusk } = getThemeBoundaries();
-  const now = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
-  const [dh, dm] = dawn.split(':').map(Number);
-  const [sh, sm] = dusk.split(':').map(Number);
-  const dawnMin = dh * 60 + dm;
-  const duskMin = sh * 60 + sm;
-  let nextBoundaryMin;
-  if (nowMin < dawnMin) nextBoundaryMin = dawnMin;
-  else if (nowMin < duskMin) nextBoundaryMin = duskMin;
-  else nextBoundaryMin = dawnMin + 24 * 60;
-  const msUntil = (nextBoundaryMin - nowMin) * 60 * 1000;
-  window._themeOverrideTimer = setTimeout(() => {
-    const isAuto = localStorage.getItem('innerflow_theme_auto') !== 'false';
-    if (isAuto) {
-      themeManualOverride = null;
-      syncTheme();
-    }
-  }, msUntil);
-}
-
-// Theme schedule is now handled inside saveApiSettings / openApiModal
 
 // ── PWA Service Worker ──
 if ('serviceWorker' in navigator) {
@@ -4357,15 +4228,22 @@ function showCalPopup(e, dateStr) {
   e.stopPropagation();
   closeCalPopup();
 
-  // Gather tasks from both current done and doneHistory
+  // Gather tasks from both current done and doneHistory.
+  // currentDone tasks have a real .id; doneHistory entries store the archive key as .id
+  // (format: originalTaskId_completedAt). Use the archive key for dedup so that a
+  // recurring task completed on different days never collides, and a task that appears
+  // in both sources (archived then still active) is shown only once.
   const currentDone = state.tasks.filter(t => t.done && t.completedAt === dateStr);
   const historyDone = (state.doneHistory || []).filter(t => t.completedAt === dateStr);
-  // Merge, deduplicate by name+date
+
   const seen = new Set();
   const doneTasks = [];
   [...currentDone, ...historyDone].forEach(t => {
-    const key = t.name + '|' + t.completedAt;
-    if (!seen.has(key)) { seen.add(key); doneTasks.push(t); }
+    // For currentDone: build the same archive-key format used when saving to history
+    const archiveKey = t.taskId
+      ? t.id                                      // already a history entry
+      : String(t.id) + '_' + (t.completedAt || '');  // live task → derive key
+    if (!seen.has(archiveKey)) { seen.add(archiveKey); doneTasks.push(t); }
   });
 
   const [y, m, d] = dateStr.split('-');
@@ -4406,9 +4284,6 @@ document.addEventListener('click', (e) => {
   if (calPopupEl && !calPopupEl.contains(e.target)) closeCalPopup();
 });
 
-// Bug 8 fix: removed unconditional night-mode removal here.
-// Theme is now applied correctly inside init() after cloud state is loaded,
-// respecting both auto-schedule and manual preference.
 init();
 </script>
 </body>
