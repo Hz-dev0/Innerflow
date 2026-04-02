@@ -2406,16 +2406,20 @@ function runDailyReset() {
   // Always re-render so interval clones scheduled for today appear in today panel
   renderTasks(); renderStats(); renderTree(); renderRewards();
   checkTaskDates();
-  // Reset lottery day counters for new day (but don't pre-assign mission — assigned on gold flip)
-  lotteryState.todayDate = todayKey;
-  lotteryState.todayDone = 0;
-  lotteryState.todayFlipped = 0;
-  lotteryState.rmSlot = undefined;
-  lotteryState.cards = []; // clear deck so user must draw again
-  if (lotteryState.randomMission && !lotteryState.randomMission.awarded) {
-    lotteryState.randomMission = null; // expire unawarded missions from previous day
+  // Reset lottery day counters for new day — but ONLY if lotteryState is from a previous day.
+  // If lotteryState.todayDate is already today (e.g. cloud-synced data), do NOT wipe
+  // todayDone/todayFlipped — that would cause the 3/3 → 0/3 flash bug on refresh.
+  if (lotteryState.todayDate !== todayKey) {
+    lotteryState.todayDate = todayKey;
+    lotteryState.todayDone = 0;
+    lotteryState.todayFlipped = 0;
+    lotteryState.rmSlot = undefined;
+    lotteryState.cards = []; // clear deck so user must draw again
+    if (lotteryState.randomMission && !lotteryState.randomMission.awarded) {
+      lotteryState.randomMission = null; // expire unawarded missions from previous day
+    }
+    saveLottery();
   }
-  saveLottery();
   renderLottery();
   } finally {
     // Fix: 使用 try/finally 確保無論如何都會釋放 lock，避免 reset 永遠卡住
