@@ -2516,15 +2516,22 @@ async function init() {
     showToast('☁️ 同步雲端資料中…');
     const ok = await loadFromCloud();
     if (ok) {
-          // against actual task completion data so ticket count stays accurate
+      // 雲端資料載入後：確保 lotteryState 日期正確（可能跨日），並對齊實際完成數
       const _today = localDateStr();
-      if (lotteryState.todayDate === _today) {
+      if (lotteryState.todayDate !== _today) {
+        // 跨日：重置當日計數
+        lotteryState.todayDate = _today;
+        lotteryState.todayDone = 0;
+        lotteryState.todayFlipped = 0;
+        lotteryState.rmSlot = undefined;
+      } else {
+        // 同一天：以實際任務完成數為準，避免雲端數值偏高
         const _actualDoneToday = state.tasks.filter(t => t.done && t.completedAt === _today).length;
         // Only correct downward if actual count is lower, but never below flips already made
         const minDone = (lotteryState.todayFlipped || 0) * 3;
         if (_actualDoneToday < lotteryState.todayDone) lotteryState.todayDone = Math.max(minDone, _actualDoneToday);
-        saveLottery();
       }
+      saveLottery();
       showToast('🌿 雲端同步完成');
       if (dot) dot.className = 'sync-dot synced';
       renderEnergyDots();
@@ -2591,7 +2598,15 @@ async function init() {
   renderSandbox();
   renderStats();
   renderRewards();
-  initLottery();
+  // 有雲端時：initLottery 只做 localStorage 讀取與日期初始化，不重新渲染
+  // （雲端資料回來後會再正確合併並 renderLottery，避免 0/3 → 3/3 的閃爍）
+  if (getApiUrl()) {
+    const _saved = localStorage.getItem('innerflow_lottery');
+    if (_saved) { try { lotteryState = { ...lotteryState, ...JSON.parse(_saved) }; } catch(e) {} }
+    if (lotteryState.todayFlipped === undefined) lotteryState.todayFlipped = 0;
+  } else {
+    initLottery();
+  }
   checkTaskDates();
   // Fix: 只有在沒有設定雲端 API 時（本機模式）才在這裡執行換日重置
   // 有雲端的情況已在 loadFromCloud 完成後執行，避免競態
