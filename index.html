@@ -1064,6 +1064,9 @@
     cursor: grab;
     transition: all 0.15s;
   }
+  .breakdown-step.step-done-row {
+    opacity: 0.6;
+  }
   .breakdown-step:active { cursor: grabbing; }
   .breakdown-step.dragging { opacity: 0.4; border-style: dashed; }
   .breakdown-step.drag-over { border-color: var(--green); background: rgba(74,130,196,0.06); }
@@ -1076,6 +1079,18 @@
     line-height: 1;
     user-select: none;
   }
+  .step-check {
+    width: 15px; height: 15px; border-radius: 50%;
+    border: 1.5px solid var(--border);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.18s;
+    font-size: 9px;
+    color: #fff;
+  }
+  .step-check:hover { border-color: var(--green); }
+  .step-check.checked { background: var(--green); border-color: var(--green); }
   .step-name {
     flex: 1;
     font-size: 13px;
@@ -1086,6 +1101,11 @@
     border: none;
     font-family: inherit;
     min-width: 0;
+    transition: color 0.18s, text-decoration 0.18s;
+  }
+  .step-name.step-done {
+    text-decoration: line-through;
+    color: var(--text-faint);
   }
   .step-name:focus {
     color: var(--text);
@@ -1101,6 +1121,21 @@
     line-height: 1;
   }
   .step-del:hover { color: var(--rose); background: rgba(192,86,90,0.08); }
+  .breakdown-progress {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .breakdown-progress-bar {
+    flex: 1; height: 3px; border-radius: 2px;
+    background: var(--border); overflow: hidden;
+  }
+  .breakdown-progress-fill {
+    height: 100%; background: var(--green); border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+  .breakdown-progress-label {
+    font-size: 10px; color: var(--text-faint); white-space: nowrap;
+  }
   .breakdown-add-btn {
     display: inline-flex;
     align-items: center;
@@ -1489,10 +1524,10 @@
           </div>
         </div>
         <div class="onboard-step">
-          <div class="onboard-step-icon">↷</div>
+          <div class="onboard-step-icon">📝</div>
           <div>
-            <div class="onboard-step-title">延期不是失敗</div>
-            <div class="onboard-step-desc">任務旁的 ↷ 按鈕讓你溫柔延期。延期三次後，工具會輕聲問你：這件事是否還需要？</div>
+            <div class="onboard-step-title">備忘便籤 — 留下當下的脈絡</div>
+            <div class="onboard-step-desc">任務旁的 📝 讓你快速記下「卡在哪」「等待什麼」。有備忘的任務會顯示金色提示條，一眼就能看到狀況。</div>
           </div>
         </div>
         <div class="onboard-step">
@@ -1606,14 +1641,17 @@
   </div>
 </div>
 
-<!-- Postpone Modal -->
-<div class="modal-overlay" id="postponeModal">
-  <div class="modal">
-    <div class="modal-title">💭 看來這件事想等一等</div>
-    <div class="postpone-msg" id="postponeMsg"></div>
+<!-- Quick Note Modal -->
+<div class="modal-overlay" id="noteModal" onclick="if(event.target===this)closeNoteModal()">
+  <div class="modal" style="width:400px">
+    <div class="modal-title" style="font-size:16px;margin-bottom:6px">📝 <span id="noteModalTaskName" style="font-size:14px;color:var(--text-dim);font-family:'Noto Sans TC',sans-serif;font-weight:400"></span></div>
+    <div id="noteModalExisting" style="display:none;margin-bottom:10px"></div>
+    <textarea id="noteInput" rows="3" placeholder="現在卡在哪？等待什麼？或只是一個念頭…" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:none;transition:border-color 0.2s;margin-bottom:0" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'" onkeydown="if(event.key==='Enter'&&(event.metaKey||event.ctrlKey))saveNote()"></textarea>
+    <div style="font-size:10px;color:var(--text-faint);margin-top:5px;margin-bottom:14px">Cmd/Ctrl + Enter 儲存</div>
     <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeModal('postponeModal')">先不動它</button>
-      <button class="btn-confirm" onclick="rethinkTask()">重新拆解它</button>
+      <button class="btn-cancel" onclick="closeNoteModal()">取消</button>
+      <button id="noteClearBtn" class="btn-cancel" style="display:none;color:var(--rose);border-color:rgba(192,86,90,0.3)" onclick="clearNote()">清除備忘</button>
+      <button class="btn-confirm" onclick="saveNote()">儲存 ✦</button>
     </div>
   </div>
 </div>
@@ -2877,24 +2915,36 @@ function taskHTML(t) {
     stripeOnClick = `onclick="setTaskStatus(${t.id},'today');event.stopPropagation()"`;
   }
 
-  const stepsHTML = hasSteps ? steps.map((s, i) => `
-    <div class="breakdown-step" id="bstep-${t.id}-${i}" draggable="true"
+  const stepsHTML = hasSteps ? steps.map((s, i) => {
+    const stepName = typeof s === 'object' ? (s.name || '') : s;
+    const stepDone = typeof s === 'object' ? !!s.done : false;
+    return `
+    <div class="breakdown-step${stepDone ? ' step-done-row' : ''}" id="bstep-${t.id}-${i}" draggable="true"
       ondragstart="stepDragStart(event,${t.id},${i})"
       ondragover="stepDragOver(event,${t.id},${i})"
       ondrop="stepDrop(event,${t.id},${i})"
       ondragend="stepDragEnd(event,${t.id})">
       <span class="step-drag-handle" title="拖曳排序">⠿</span>
-      <input class="step-name" type="text" value="${s.replace(/"/g,'&quot;')}"
+      <div class="step-check${stepDone ? ' checked' : ''}" onclick="toggleStep(event,${t.id},${i})" title="${stepDone ? '取消完成' : '標記為完成'}">${stepDone ? '✓' : ''}</div>
+      <input class="step-name${stepDone ? ' step-done' : ''}" type="text" value="${stepName.replace(/"/g,'&quot;')}"
         onblur="updateStepName(${t.id},${i},this.value)"
         onkeydown="if(event.key==='Enter'){this.blur()}"
         onclick="event.stopPropagation()">
       <span class="step-del" onclick="deleteStep(event,${t.id},${i})" title="刪除步驟">×</span>
-    </div>`).join('') : '';
+    </div>`;
+  }).join('') : '';
+
+  const doneCount = hasSteps ? steps.filter(s => typeof s === 'object' ? s.done : false).length : 0;
+  const progressPct = hasSteps && steps.length > 0 ? Math.round(doneCount / steps.length * 100) : 0;
 
   const breakdownHTML = hasSteps ? `
   <div class="task-breakdown${isOpen ? ' open' : ''}" id="breakdown-${t.id}">
     <div class="task-breakdown-inner">
       <div class="breakdown-header">🔀 拆解流程</div>
+      <div class="breakdown-progress">
+        <div class="breakdown-progress-bar"><div class="breakdown-progress-fill" style="width:${progressPct}%"></div></div>
+        <span class="breakdown-progress-label">${doneCount}/${steps.length} 完成</span>
+      </div>
       <div class="breakdown-steps" id="bsteps-${t.id}">${stepsHTML}</div>
       <button class="breakdown-add-btn" onclick="addStep(event,${t.id})">＋ 新增步驟</button>
     </div>
@@ -2915,6 +2965,7 @@ function taskHTML(t) {
           ${hasSteps ? `<span class="task-collapse-arrow${isOpen ? ' open' : ''}">▶</span>` : ''}
         </div>
         ${t.meaning ? `<div class="task-meaning">${t.meaning}</div>` : ''}
+        ${t.note ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;padding:4px 8px;background:rgba(200,169,110,0.08);border-radius:6px;border-left:2px solid var(--gold);line-height:1.5">📝 ${t.note}</div>` : ''}
         <div class="task-meta">
           <span class="tag tag-energy">${eIcon} ${eLabel}</span>
           <span class="tag tag-goal">${t.goal}</span>
@@ -2926,7 +2977,7 @@ function taskHTML(t) {
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;align-items:center;flex-shrink:0">
-        <div onclick="postponeTask(${t.id})" style="font-size:16px;cursor:pointer;opacity:0.3;transition:opacity 0.2s;padding:2px 4px" title="延期" onmouseover="this.style.opacity=0.9" onmouseout="this.style.opacity=0.3">↷</div>
+        <div onclick="openNoteModal(${t.id})" id="noteBtn-${t.id}" style="font-size:15px;cursor:pointer;opacity:${t.note ? 1 : 0.3};transition:opacity 0.2s;padding:2px 4px;color:${t.note ? 'var(--gold)' : 'inherit'}" title="${t.note ? '查看/編輯備忘' : '新增備忘'}" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity='${t.note ? 1 : 0.3}'">📝</div>
         <div onclick="openCtxMenu(event,${t.id})" style="font-size:16px;cursor:pointer;opacity:0.3;transition:opacity 0.2s;padding:2px 4px;line-height:1;letter-spacing:1px" title="更多" onmouseover="this.style.opacity=0.9" onmouseout="this.style.opacity=0.3">⋯</div>
       </div>
     </div>
@@ -3174,26 +3225,53 @@ function showCelebration(task) {
 }
 
 // ── Postpone ──
-function postponeTask(id) {
+// ── Quick Note (備忘便籤) ──
+let _noteTargetId = null;
+
+function openNoteModal(id) {
   const t = state.tasks.find(x => x.id === id);
   if (!t) return;
-  t.postponed++;
-  syncToCloud();
-  state.postponeTarget = id;
-  const msgs = [
-    `「看來你今天把能量花在其他更重要的事上了。「${t.name}」想等你準備好了再出發，沒關係的。」`,
-    `「你已經將「${t.name}」延期 ${t.postponed} 次了。也許它不再重要，或者你需要重新拆解它？」`,
-    `「有時候抗拒本身就是一個訊號。「${t.name}」是在等你，還是已經不再是你想要的了？」`
-  ];
-  const idx = Math.min(t.postponed - 1, msgs.length - 1);
-  document.getElementById('postponeMsg').textContent = msgs[idx];
-  document.getElementById('postponeModal').classList.add('open');
+  _noteTargetId = id;
+  document.getElementById('noteModalTaskName').textContent = t.name;
+  const existingEl = document.getElementById('noteModalExisting');
+  const clearBtn = document.getElementById('noteClearBtn');
+  if (t.note) {
+    existingEl.style.display = 'block';
+    existingEl.innerHTML = `<div style="font-size:12px;color:var(--text-faint);margin-bottom:4px;letter-spacing:0.06em;text-transform:uppercase">目前備忘</div><div style="font-size:13px;color:var(--gold);padding:8px 10px;background:rgba(200,169,110,0.08);border-radius:6px;border-left:2px solid var(--gold);line-height:1.6">${t.note}</div>`;
+    clearBtn.style.display = 'inline-flex';
+  } else {
+    existingEl.style.display = 'none';
+    clearBtn.style.display = 'none';
+  }
+  const input = document.getElementById('noteInput');
+  input.value = t.note || '';
+  document.getElementById('noteModal').classList.add('open');
+  setTimeout(() => { input.focus(); input.select(); }, 50);
 }
 
-function rethinkTask() {
-  const t = state.tasks.find(x => x.id === state.postponeTarget);
-  if (t) showToast(`✦ 「${t.name}」已標記為需要重新拆解`);
-  closeModal('postponeModal');
+function saveNote() {
+  const t = state.tasks.find(x => x.id === _noteTargetId);
+  if (!t) return;
+  const val = document.getElementById('noteInput').value.trim();
+  t.note = val || null;
+  closeNoteModal();
+  renderTasks();
+  syncToCloud();
+  showToast(val ? '📝 備忘已儲存' : '備忘已清除');
+}
+
+function clearNote() {
+  const t = state.tasks.find(x => x.id === _noteTargetId);
+  if (t) t.note = null;
+  closeNoteModal();
+  renderTasks();
+  syncToCloud();
+  showToast('備忘已清除');
+}
+
+function closeNoteModal() {
+  document.getElementById('noteModal').classList.remove('open');
+  _noteTargetId = null;
 }
 
 // ── Recurring UI helpers ──
@@ -3976,7 +4054,7 @@ document.addEventListener('click', () => {
 function openBreakdown(t) {
   if (!t.steps) t.steps = [];
   if (t.steps.length === 0) {
-    t.steps.push('步驟一');
+    t.steps.push({ name: '步驟一', done: false });
     syncToCloud();
   }
   t._breakdownOpen = true;
@@ -4004,7 +4082,7 @@ function addStep(e, id) {
   const t = state.tasks.find(x => x.id === id);
   if (!t) return;
   if (!t.steps) t.steps = [];
-  t.steps.push('新步驟');
+  t.steps.push({ name: '新步驟', done: false });
   renderTasks();
   // Focus the new input
   setTimeout(() => {
@@ -4034,7 +4112,44 @@ function deleteStep(e, id, idx) {
 function updateStepName(id, idx, val) {
   const t = state.tasks.find(x => x.id === id);
   if (!t || !t.steps) return;
-  t.steps[idx] = val.trim() || t.steps[idx];
+  const s = t.steps[idx];
+  const current = typeof s === 'object' ? s.name : s;
+  const newName = val.trim() || current;
+  if (typeof s === 'object') {
+    t.steps[idx] = { ...s, name: newName };
+  } else {
+    t.steps[idx] = { name: newName, done: false };
+  }
+  syncToCloud();
+}
+
+function toggleStep(e, id, idx) {
+  e.stopPropagation();
+  const t = state.tasks.find(x => x.id === id);
+  if (!t || !t.steps) return;
+  const s = t.steps[idx];
+  if (typeof s === 'object') {
+    t.steps[idx] = { ...s, done: !s.done };
+  } else {
+    t.steps[idx] = { name: s, done: true };
+  }
+  // Lightweight DOM update — avoid full re-render to preserve input focus
+  const stepEl = document.getElementById(`bstep-${id}-${idx}`);
+  const isDone = t.steps[idx].done;
+  if (stepEl) {
+    const checkEl = stepEl.querySelector('.step-check');
+    const nameEl = stepEl.querySelector('.step-name');
+    if (checkEl) { checkEl.classList.toggle('checked', isDone); checkEl.textContent = isDone ? '✓' : ''; checkEl.title = isDone ? '取消完成' : '標記為完成'; }
+    if (nameEl) nameEl.classList.toggle('step-done', isDone);
+  }
+  // Update progress bar
+  const allSteps = t.steps;
+  const doneCount = allSteps.filter(s => typeof s === 'object' ? s.done : false).length;
+  const pct = allSteps.length > 0 ? Math.round(doneCount / allSteps.length * 100) : 0;
+  const progressFill = document.querySelector(`#breakdown-${id} .breakdown-progress-fill`);
+  const progressLabel = document.querySelector(`#breakdown-${id} .breakdown-progress-label`);
+  if (progressFill) progressFill.style.width = pct + '%';
+  if (progressLabel) progressLabel.textContent = `${doneCount}/${allSteps.length} 完成`;
   syncToCloud();
 }
 
