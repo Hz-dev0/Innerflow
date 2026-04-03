@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>內流 InnerFlow — 為內驅力而生的任務工具</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1269,6 +1270,320 @@
     opacity: 0.5; transition: opacity 0.15s;
   }
   .today-task-chip:hover .today-chip-drag-handle { opacity: 1; }
+
+  /* ── Notes Page ─────────────────────────────── */
+  #page-notes {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: var(--bg);
+    display: none;
+    flex-direction: column;
+  }
+  #page-notes.active { display: flex; }
+
+  /* On mobile, sit between header and bottom nav */
+  @media (max-width: 680px) {
+    #page-notes { top: 52px; bottom: calc(60px + env(safe-area-inset-bottom)); }
+  }
+  /* On desktop, sit below header row */
+  @media (min-width: 681px) {
+    #page-notes { top: 56px; }
+  }
+
+  /* Tab bar */
+  .notes-tabs-wrapper {
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+    padding: 0 56px 0 12px;
+    background: var(--header-bg);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    height: 40px;
+    box-sizing: border-box;
+    position: relative;
+  }
+  .notes-tabs-row {
+    display: flex; flex-wrap: nowrap; gap: 4px;
+    align-items: flex-end; flex: 1;
+    overflow-x: auto; overflow-y: hidden;
+    scrollbar-width: none; padding-right: 6px; min-width: 0;
+  }
+  .notes-tabs-row::-webkit-scrollbar { display: none; }
+  .notes-tab {
+    padding: 7px 16px;
+    background: rgba(58,110,165,0.05);
+    border-radius: 8px 8px 0 0;
+    cursor: pointer; white-space: nowrap;
+    color: var(--text-dim); border: none;
+    display: flex; align-items: center;
+    font-size: 13px; font-weight: 500;
+    position: relative; flex-shrink: 0;
+    transition: background 0.2s, color 0.2s;
+    font-family: inherit;
+  }
+  .notes-tab.active {
+    background: var(--bg2); color: var(--green);
+    font-weight: 600;
+    box-shadow: 0 -4px 12px rgba(58,110,165,0.06);
+    margin-bottom: -1px;
+  }
+  .notes-tab .tab-del-btn { margin-left: 7px; opacity: 0.25; font-size: 11px; }
+  .notes-tab:hover .tab-del-btn { opacity: 0.6; }
+  #notes-add-tab-btn {
+    position: absolute; right: 10px; bottom: 4px;
+    background: none; border: none; color: var(--green);
+    font-size: 20px; cursor: pointer; padding: 0 4px;
+    opacity: 0.6; transition: opacity 0.15s;
+    font-family: inherit;
+  }
+  #notes-add-tab-btn:hover { opacity: 1; }
+
+  /* Content area */
+  .notes-folder-content {
+    display: flex; gap: 16px; flex: 1; min-height: 0;
+    overflow: hidden; width: 100%;
+    padding: 16px 16px 50px; box-sizing: border-box;
+    background: var(--bg2); position: relative;
+  }
+  .notes-note-box {
+    flex: 1 1 0%; display: flex; flex-direction: column;
+    gap: 8px; height: 100%; min-width: 0; position: relative;
+  }
+  .notes-title-input {
+    border: none; border-bottom: 2px solid var(--border);
+    font-weight: 600; color: var(--text);
+    outline: none; font-size: 16px; padding-bottom: 6px;
+    background: transparent; width: 100%; font-family: inherit;
+    transition: border-bottom-color 0.2s;
+  }
+  .notes-title-input:focus { border-bottom-color: var(--green); }
+  .notes-textarea {
+    flex: 1; border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px; resize: none;
+    outline: none; background: var(--bg3);
+    font-size: 14px; color: var(--text);
+    line-height: 1.7; overflow-y: auto;
+    width: 100%; font-family: inherit;
+    -webkit-user-select: text !important;
+    user-select: text !important; cursor: text;
+    transition: border-color 0.2s;
+  }
+  .notes-textarea:focus { border-color: rgba(58,110,165,0.4); }
+
+  /* MD toggle button */
+  .notes-md-toggle {
+    position: absolute; top: 36px; right: 0;
+    font-size: 11px; font-weight: 700;
+    color: var(--text-faint); background: none; border: none;
+    cursor: pointer; padding: 2px 6px; border-radius: 6px;
+    opacity: 0.5; transition: opacity 0.15s, background 0.15s;
+    font-family: inherit; z-index: 2;
+  }
+  .notes-md-toggle:hover { opacity: 1; background: rgba(58,110,165,0.08); }
+  .notes-md-toggle.active { opacity: 1; color: var(--green); }
+
+  /* MD preview */
+  .notes-md-preview {
+    flex: 1; overflow-y: auto; padding: 12px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg3); font-size: 14px; color: var(--text);
+    line-height: 1.7; display: none;
+    user-select: text; -webkit-user-select: text; cursor: default;
+  }
+  .notes-md-preview.show { display: block; }
+  .notes-md-preview h1,.notes-md-preview h2,.notes-md-preview h3 {
+    color: var(--green); font-family:'DM Serif Display',serif;
+    margin:.6em 0 .3em; font-weight:700;
+  }
+  .notes-md-preview h1{font-size:1.3em}
+  .notes-md-preview h2{font-size:1.15em}
+  .notes-md-preview h3{font-size:1em}
+  .notes-md-preview p{margin:.4em 0}
+  .notes-md-preview ul,.notes-md-preview ol{padding-left:1.4em;margin:.3em 0}
+  .notes-md-preview li{margin:.2em 0}
+  .notes-md-preview code{background:rgba(58,110,165,0.1);border-radius:4px;padding:1px 5px;font-size:.88em}
+  .notes-md-preview pre{background:rgba(58,110,165,0.07);border-radius:8px;padding:10px 14px;overflow-x:auto}
+  .notes-md-preview pre code{background:none;padding:0}
+  .notes-md-preview blockquote{border-left:3px solid var(--green);margin:.5em 0;padding:4px 12px;opacity:.75}
+  .notes-md-preview hr{border:none;border-top:1px solid var(--border);margin:.8em 0}
+  .notes-md-preview strong{color:var(--text)}
+  .notes-md-preview a{color:var(--green)}
+  .notes-md-preview mark{background:rgba(201,162,39,0.25);padding:0 2px;border-radius:2px;color:inherit}
+  .notes-md-preview table{border-collapse:collapse;width:100%;font-size:.9em;margin:.5em 0}
+  .notes-md-preview th,.notes-md-preview td{border:1px solid var(--border);padding:4px 8px}
+  .notes-md-preview th{background:rgba(58,110,165,0.07);font-weight:700}
+
+  /* Sub-page nav arrows */
+  .notes-page-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 24px; height: 52px; z-index: 20;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    border-radius: 7px;
+    background: rgba(58,110,165,0.08); border: 1px solid rgba(58,110,165,0.18);
+    color: var(--green); font-size: 13px;
+    opacity: 0.45; transition: opacity 0.2s, background 0.2s;
+  }
+  .notes-page-nav:hover { opacity: 1; background: rgba(58,110,165,0.15); }
+  #notes-prev-zone { left: 4px; }
+  #notes-next-zone { right: 4px; }
+
+  /* Floating page number */
+  #notes-page-num {
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: var(--text-faint);
+    background: var(--bg2); border: 1px solid var(--border);
+    padding: 3px 12px; border-radius: 12px;
+    pointer-events: auto; cursor: pointer; z-index: 20;
+    box-shadow: 0 2px 8px rgba(58,110,165,0.08);
+    white-space: nowrap;
+  }
+  /* Floating search button */
+  #notes-search-btn {
+    position: absolute; bottom: 12px; left: calc(50% + 52px);
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; cursor: pointer; font-size: 13px;
+    color: var(--text-faint); padding: 3px 10px; z-index: 20;
+    box-shadow: 0 2px 8px rgba(58,110,165,0.08);
+    opacity: 0.7; transition: opacity 0.15s, color 0.15s; line-height: 1.6;
+  }
+  #notes-search-btn:hover, #notes-search-btn.active { opacity: 1; color: var(--green); }
+
+  /* Search bar */
+  #notes-search-bar {
+    display: none; position: absolute;
+    bottom: 46px; left: 50%; transform: translateX(-50%);
+    width: min(92%, 480px);
+    background: var(--bg2); border: 1px solid rgba(58,110,165,0.3);
+    border-radius: 12px; padding: 8px 10px;
+    box-shadow: 0 8px 24px rgba(58,110,165,0.15);
+    backdrop-filter: blur(8px); z-index: 30; box-sizing: border-box;
+  }
+  #notes-search-bar.open { display: flex; gap: 6px; align-items: center; }
+  #notes-search-input {
+    flex: 1; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--border); outline: none;
+    font-size: 13px; color: var(--text); background: var(--bg3);
+    font-family: inherit; transition: border-color 0.2s;
+  }
+  #notes-search-input:focus { border-color: var(--green); }
+  #notes-search-results {
+    position: absolute; bottom: calc(100% + 4px); left: 0; right: 0;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 6px 0;
+    box-shadow: 0 -8px 24px rgba(58,110,165,0.12);
+    z-index: 200; display: none;
+    max-height: 300px; overflow-y: auto;
+  }
+  #notes-search-results.show { display: block; }
+  .notes-search-item {
+    padding: 9px 16px; cursor: pointer;
+    font-size: 13px; color: var(--text);
+    display: flex; flex-direction: column; gap: 2px;
+    transition: background 0.12s;
+  }
+  .notes-search-item:hover { background: rgba(58,110,165,0.07); }
+  .notes-search-title { font-weight: 600; color: var(--green); }
+  .notes-search-meta  { font-size: 11px; color: var(--text-faint); }
+  .notes-search-snippet { font-size: 12px; color: var(--text-dim); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .notes-search-empty { padding: 12px 16px; font-size: 13px; color: var(--text-faint); font-style: italic; }
+
+  /* Markdown toolbar */
+  #notes-md-toolbar {
+    position: fixed; z-index: 9998; display: none;
+    background: var(--bg2); border: 1px solid rgba(58,110,165,0.3);
+    border-radius: 10px; box-shadow: 0 6px 20px rgba(58,110,165,0.15);
+    padding: 4px 6px; gap: 2px; align-items: center; flex-wrap: wrap;
+    max-width: calc(100vw - 24px); transform: translateX(-50%);
+    pointer-events: all;
+  }
+  @media (hover: none) and (pointer: coarse) {
+    #notes-md-toolbar {
+      left: 50% !important; top: auto !important;
+      bottom: calc(16px + 60px + env(safe-area-inset-bottom)) !important;
+      border-radius: 12px;
+    }
+  }
+  #notes-md-toolbar.show { display: flex; }
+  #notes-md-toolbar button {
+    border: none; background: none; border-radius: 6px;
+    padding: 4px 7px; font-size: 11px; font-weight: 700;
+    color: var(--text-dim); cursor: pointer; font-family: inherit;
+    transition: background 0.12s, color 0.12s; white-space: nowrap; line-height: 1;
+  }
+  #notes-md-toolbar button:hover { background: rgba(58,110,165,0.1); color: var(--green); }
+  #notes-md-toolbar .ntb-sep { width: 1px; height: 16px; background: var(--border); margin: 0 2px; }
+  #notes-md-toolbar .ntb-colors { display: flex; gap: 3px; align-items: center; padding: 2px 3px; }
+  #notes-md-toolbar .ntb-color-dot, #notes-md-toolbar .ntb-hl-dot {
+    width: 14px; height: 14px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; transition: border-color 0.12s, transform 0.12s; flex-shrink: 0;
+  }
+  #notes-md-toolbar .ntb-hl-dot { border-radius: 3px; }
+  #notes-md-toolbar .ntb-color-dot:hover, #notes-md-toolbar .ntb-hl-dot:hover {
+    border-color: rgba(0,0,0,0.25); transform: scale(1.2);
+  }
+
+  /* Notes custom dialog */
+  #notes-dlg-overlay {
+    position: fixed; inset: 0; background: var(--modal-overlay-bg);
+    backdrop-filter: blur(4px); z-index: 10000;
+    display: flex; align-items: center; justify-content: center;
+    visibility: hidden; opacity: 0; transition: opacity 0.18s, visibility 0.18s; pointer-events: none;
+  }
+  #notes-dlg-overlay.visible { visibility: visible; opacity: 1; pointer-events: all; }
+  #notes-dlg-box {
+    background: var(--bg2); border: 1px solid rgba(58,110,165,0.25);
+    border-radius: 14px; padding: 22px 22px 16px;
+    min-width: 260px; max-width: 320px; width: 88%;
+    box-shadow: 0 16px 48px rgba(58,110,165,0.18);
+    display: flex; flex-direction: column; gap: 12px;
+    transform: translateY(8px) scale(0.97); transition: transform 0.18s;
+  }
+  #notes-dlg-overlay.visible #notes-dlg-box { transform: translateY(0) scale(1); }
+  #notes-dlg-title { font-size: 13px; font-weight: 600; color: var(--text); margin: 0; }
+  #notes-dlg-input {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 13px; color: var(--text);
+    background: var(--bg3); outline: none; font-family: inherit;
+    transition: border-color 0.15s; display: none;
+  }
+  #notes-dlg-input:focus { border-color: var(--green); }
+  .notes-dlg-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 2px; }
+  .notes-dlg-btns button {
+    border: none; border-radius: 8px; padding: 7px 18px;
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    font-family: inherit; transition: opacity 0.15s;
+  }
+  .notes-dlg-btns button:hover { opacity: 0.8; }
+  .ndlg-confirm { background: var(--green); color: var(--bg); }
+  .ndlg-cancel  { background: var(--bg3); color: var(--text-dim); border: 1px solid var(--border); }
+
+  /* Page context menu */
+  #notes-page-ctx {
+    position: fixed; z-index: 10001;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 6px 0;
+    box-shadow: 0 8px 24px rgba(58,110,165,0.15);
+    min-width: 150px; display: none;
+  }
+  #notes-page-ctx.show { display: block; }
+  .npctx-i {
+    padding: 8px 14px; font-size: 13px; color: var(--text);
+    cursor: pointer; display: flex; align-items: center; gap: 8px;
+  }
+  .npctx-i:hover { background: rgba(58,110,165,0.07); }
+  .npctx-i.danger { color: var(--rose); }
+  .npctx-sep { height: 1px; background: var(--border); margin: 4px 8px; }
+
+  /* Mobile: stack note boxes vertically */
+  @media (max-width: 680px) {
+    .notes-folder-content { flex-direction: column; padding: 12px 12px 50px; gap: 10px; }
+    .notes-note-box { flex: none; height: calc(50% - 5px); }
+  }
+
 </style>
 </head>
 <body>
@@ -1312,6 +1627,10 @@
     </div>
     <div class="nav-item" onclick="showPage('stats')" id="nav-stats">
       <span class="nav-icon">🐾</span> 成長軌跡
+    </div>
+    <div class="sidebar-section" style="margin-top:8px">工具</div>
+    <div class="nav-item" onclick="showPage('notes')" id="nav-notes">
+      <span class="nav-icon">📝</span> 筆記頁
     </div>
   </aside>
 
@@ -1564,8 +1883,96 @@
     <button class="mob-nav-item" id="mob-stats" onclick="showPage('stats')">
       <span class="mob-nav-icon">🐾</span>軌跡
     </button>
+    <button class="mob-nav-item" id="mob-notes" onclick="showPage('notes')">
+      <span class="mob-nav-icon">📝</span>筆記
+    </button>
   </div>
 </nav>
+
+<!-- ── Notes Page (fixed overlay) ───────────────── -->
+<div id="page-notes">
+  <!-- Tab bar -->
+  <div class="notes-tabs-wrapper">
+    <div class="notes-tabs-row" id="notes-tabs-row"></div>
+    <button id="notes-add-tab-btn" title="新增標籤" onclick="notesPromptAddTab()">+</button>
+  </div>
+  <!-- Main content: two note columns -->
+  <div class="notes-folder-content">
+    <div class="notes-page-nav" id="notes-prev-zone" onclick="notesChangeSubPage(-1)">❮</div>
+    <!-- Note A -->
+    <div class="notes-note-box">
+      <button class="notes-md-toggle" id="notes-md-toggle-a" onclick="notesToggleMd('A')" title="切換 Markdown 預覽">MD</button>
+      <input type="text" id="notesTitleA" class="notes-title-input" placeholder="標題" oninput="notesAutoSave()">
+      <textarea id="notesTextA" class="notes-textarea" placeholder="內容（支援 Markdown）" oninput="notesAutoSave();notesLiveMd('A')"></textarea>
+      <div id="notes-md-preview-a" class="notes-md-preview"></div>
+    </div>
+    <!-- Note B -->
+    <div class="notes-note-box">
+      <button class="notes-md-toggle" id="notes-md-toggle-b" onclick="notesToggleMd('B')" title="切換 Markdown 預覽">MD</button>
+      <input type="text" id="notesTitleB" class="notes-title-input" placeholder="標題" oninput="notesAutoSave()">
+      <textarea id="notesTextB" class="notes-textarea" placeholder="內容（支援 Markdown）" oninput="notesAutoSave();notesLiveMd('B')"></textarea>
+      <div id="notes-md-preview-b" class="notes-md-preview"></div>
+    </div>
+    <div class="notes-page-nav" id="notes-next-zone" onclick="notesHandleRightZone()">❯</div>
+    <!-- Floating controls -->
+    <div id="notes-page-num">1 / 1</div>
+    <button id="notes-search-btn" onclick="notesToggleSearch()" title="搜尋筆記">🔍</button>
+    <!-- Search bar -->
+    <div id="notes-search-bar">
+      <input type="text" id="notes-search-input" placeholder="搜尋所有標籤和頁面…"
+        oninput="notesRunSearch(this.value)"
+        onkeydown="if(event.key==='Escape')notesToggleSearch(false)">
+      <button onclick="notesToggleSearch(false)"
+        style="border:none;background:none;font-size:16px;cursor:pointer;color:var(--text-faint);padding:0 4px;line-height:1;">×</button>
+      <div id="notes-search-results"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Notes Markdown toolbar -->
+<div id="notes-md-toolbar">
+  <button id="ntb-h3">H3</button>
+  <button id="ntb-h4">H4</button>
+  <div class="ntb-sep"></div>
+  <button id="ntb-bold"><b>B</b></button>
+  <button id="ntb-ul">• 列</button>
+  <button id="ntb-ol">1. 列</button>
+  <button id="ntb-hr">—</button>
+  <div class="ntb-sep"></div>
+  <div class="ntb-colors">
+    <div class="ntb-color-dot" style="background:#3A6EA5" data-color="#3A6EA5"></div>
+    <div class="ntb-color-dot" style="background:#c0565a" data-color="#c0565a"></div>
+    <div class="ntb-color-dot" style="background:#66bb6a" data-color="#66bb6a"></div>
+    <div class="ntb-color-dot" style="background:#f09a3e" data-color="#f09a3e"></div>
+  </div>
+  <div class="ntb-sep"></div>
+  <div class="ntb-colors">
+    <div class="ntb-hl-dot" style="background:#D2E9FF" data-hl="#D2E9FF"></div>
+    <div class="ntb-hl-dot" style="background:#CEFFCE" data-hl="#CEFFCE"></div>
+    <div class="ntb-hl-dot" style="background:#fff176" data-hl="#fff176"></div>
+  </div>
+</div>
+
+<!-- Notes custom dialog -->
+<div id="notes-dlg-overlay" onclick="if(event.target===this)_notesDlg._cancel()">
+  <div id="notes-dlg-box">
+    <p id="notes-dlg-title"></p>
+    <input id="notes-dlg-input" type="text" />
+    <div class="notes-dlg-btns">
+      <button class="ndlg-cancel"  id="notes-dlg-cancel"  onclick="_notesDlg._cancel()">取消</button>
+      <button class="ndlg-confirm" id="notes-dlg-confirm" onclick="_notesDlg._confirm()">確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- Notes page context menu -->
+<div id="notes-page-ctx">
+  <div class="npctx-i" id="notes-ctx-after">＋ 在此頁後插入</div>
+  <div class="npctx-i" id="notes-ctx-before">＋ 在此頁前插入</div>
+  <div class="npctx-sep"></div>
+  <div class="npctx-i danger" id="notes-ctx-del">✕ 刪除此頁</div>
+</div>
+
 
 <!-- Context Menu -->
 <div class="ctx-menu" id="ctxMenu">
@@ -4432,6 +4839,649 @@ document.addEventListener('click', (e) => {
 });
 
 init();
+
+
+// ════════════════════════════════════════════════════════
+// NOTES PAGE — full self-contained notes system
+// ════════════════════════════════════════════════════════
+(function() {
+'use strict';
+
+const NOTES_STORAGE_KEY = 'innerflow_notes_v1';
+
+// ── State ──────────────────────────────────────────────
+let notesFolderData   = [];
+let notesTabIndex     = 0;
+let notesSaveTimer    = null;
+let _notesIsVisible   = false;
+
+// ── Custom dialog ──────────────────────────────────────
+const _notesDlg = (() => {
+  let _res = null;
+  const ov  = () => document.getElementById('notes-dlg-overlay');
+  const ti  = () => document.getElementById('notes-dlg-title');
+  const inp = () => document.getElementById('notes-dlg-input');
+  const ok  = () => document.getElementById('notes-dlg-confirm');
+  const cn  = () => document.getElementById('notes-dlg-cancel');
+
+  function _open(title, { isConfirm=false, defaultVal='' } = {}) {
+    if (_res) { const old=_res; _res=null; _cleanup(); old(null); }
+    return new Promise(resolve => {
+      _res = resolve;
+      ti().textContent = title;
+      if (isConfirm) {
+        inp().style.display = 'none';
+        cn().style.display  = '';
+      } else {
+        inp().style.display = '';
+        inp().value = defaultVal;
+        cn().style.display  = '';
+        setTimeout(() => { inp().focus(); inp().select(); }, 80);
+      }
+      ov().classList.add('visible');
+      inp()._kd = e => {
+        if (e.key==='Enter')  { e.preventDefault(); _confirm(); }
+        if (e.key==='Escape') { e.preventDefault(); _cancel(); }
+      };
+      inp().addEventListener('keydown', inp()._kd);
+    });
+  }
+  function _cleanup() {
+    ov().classList.remove('visible');
+    if (inp()._kd) inp().removeEventListener('keydown', inp()._kd);
+  }
+  function _confirm() {
+    const val = inp().style.display !== 'none' ? inp().value : true;
+    _cleanup(); if (_res) { _res(val); _res=null; }
+  }
+  function _cancel() {
+    _cleanup(); if (_res) { _res(null); _res=null; }
+  }
+  return {
+    prompt:  (t, d='') => _open(t, { defaultVal: d }),
+    confirm: (t)       => _open(t, { isConfirm: true }),
+    _confirm, _cancel
+  };
+})();
+window._notesDlg = _notesDlg;
+
+// ── Persistence ────────────────────────────────────────
+function notesSave() {
+  try {
+    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify({
+      tabs: notesFolderData,
+      lastTab: notesTabIndex
+    }));
+  } catch(e) {}
+}
+function notesLoad() {
+  try {
+    const raw = localStorage.getItem(NOTES_STORAGE_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d.tabs && d.tabs.length > 0) {
+      notesFolderData = d.tabs;
+      notesTabIndex = Math.min(d.lastTab || 0, notesFolderData.length - 1);
+    }
+  } catch(e) {}
+}
+
+function notesEnsureDefaults() {
+  if (notesFolderData.length === 0) {
+    notesFolderData = [{ name: '筆記', pages: [{ titleA:'', a:'', titleB:'', b:'' }], currentPage: 0 }];
+  }
+  notesFolderData.forEach(tab => {
+    if (!tab.pages) tab.pages = [{ titleA:'', a:'', titleB:'', b:'' }];
+    if (typeof tab.currentPage !== 'number') tab.currentPage = 0;
+  });
+}
+
+// ── Auto-save ──────────────────────────────────────────
+function notesAutoSave() {
+  notesFlush();
+  clearTimeout(notesSaveTimer);
+  notesSaveTimer = setTimeout(notesSave, 600);
+}
+
+function notesFlush() {
+  const tab = notesFolderData[notesTabIndex];
+  if (!tab || !tab.pages) return;
+  const pg = tab.pages[tab.currentPage];
+  if (!pg) return;
+  pg.titleA = document.getElementById('notesTitleA')?.value ?? pg.titleA;
+  pg.a      = document.getElementById('notesTextA')?.value  ?? pg.a;
+  pg.titleB = document.getElementById('notesTitleB')?.value ?? pg.titleB;
+  pg.b      = document.getElementById('notesTextB')?.value  ?? pg.b;
+}
+
+// ── MD Preview state ───────────────────────────────────
+const _notesMdState = { A: false, B: false };
+
+function notesToggleMd(side) {
+  const ta  = document.getElementById('notesText' + side);
+  const pre = document.getElementById('notes-md-preview-' + side.toLowerCase());
+  const btn = document.getElementById('notes-md-toggle-' + side.toLowerCase());
+  if (!ta || !pre) return;
+  _notesMdState[side] = !_notesMdState[side];
+  const on = _notesMdState[side];
+  ta.style.display = on ? 'none' : '';
+  pre.classList.toggle('show', on);
+  btn?.classList.toggle('active', on);
+  btn?.setAttribute('title', on ? '切回編輯模式' : '切換 Markdown 預覽');
+  if (on && typeof marked !== 'undefined') {
+    pre.innerHTML = marked.parse(ta.value || '');
+    pre.ondblclick = () => notesToggleMd(side);
+  } else {
+    pre.ondblclick = null;
+    setTimeout(() => ta.focus(), 40);
+  }
+}
+
+function notesLiveMd(side) {
+  if (!_notesMdState[side]) return;
+  const ta  = document.getElementById('notesText' + side);
+  const pre = document.getElementById('notes-md-preview-' + side.toLowerCase());
+  if (ta && pre && typeof marked !== 'undefined') pre.innerHTML = marked.parse(ta.value || '');
+}
+
+function notesRefreshPreviews() {
+  ['A','B'].forEach(side => {
+    if (!_notesMdState[side]) return;
+    const ta  = document.getElementById('notesText' + side);
+    const pre = document.getElementById('notes-md-preview-' + side.toLowerCase());
+    if (ta && pre && typeof marked !== 'undefined') pre.innerHTML = marked.parse(ta.value || '');
+  });
+}
+
+// ── Render tabs ────────────────────────────────────────
+function notesRenderTabs() {
+  const row = document.getElementById('notes-tabs-row');
+  if (!row) return;
+  row.innerHTML = '';
+  notesFolderData.forEach((tab, i) => {
+    const div = document.createElement('div');
+    div.className = 'notes-tab' + (i === notesTabIndex ? ' active' : '');
+    div.onclick = () => {
+      notesFlush();
+      notesTabIndex = i;
+      notesRenderTabs();
+    };
+    div.ondblclick = async e => {
+      e.stopPropagation();
+      const n = await _notesDlg.prompt('修改標籤名稱', tab.name);
+      if (n?.trim()) { tab.name = n.trim(); notesRenderTabs(); notesSave(); }
+    };
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = tab.name;
+    const delSpan = document.createElement('span');
+    delSpan.className = 'tab-del-btn';
+    delSpan.textContent = '✕';
+    delSpan.addEventListener('click', e => {
+      e.stopPropagation();
+      notesDeleteTab(i);
+    });
+    div.appendChild(nameSpan);
+    div.appendChild(delSpan);
+    row.appendChild(div);
+  });
+
+  // Load current page content
+  const tab = notesFolderData[notesTabIndex];
+  if (tab) {
+    const pg = tab.pages[tab.currentPage] || tab.pages[0];
+    if (pg) {
+      document.getElementById('notesTitleA').value = pg.titleA || '';
+      document.getElementById('notesTextA').value  = pg.a      || '';
+      document.getElementById('notesTitleB').value = pg.titleB || '';
+      document.getElementById('notesTextB').value  = pg.b      || '';
+      notesRefreshPreviews();
+    }
+    // Update prev zone visibility
+    const prevZone = document.getElementById('notes-prev-zone');
+    if (prevZone) prevZone.style.visibility = tab.currentPage === 0 ? 'hidden' : 'visible';
+    // Update page number
+    const pnd = document.getElementById('notes-page-num');
+    if (pnd) pnd.textContent = (tab.currentPage + 1) + ' / ' + tab.pages.length;
+  }
+}
+
+// ── Add / Delete tabs ──────────────────────────────────
+async function notesPromptAddTab() {
+  const name = await _notesDlg.prompt('新標籤名稱', '');
+  if (!name?.trim()) return;
+  notesFolderData.push({ name: name.trim(), pages: [{ titleA:'', a:'', titleB:'', b:'' }], currentPage: 0 });
+  notesTabIndex = notesFolderData.length - 1;
+  notesRenderTabs();
+  notesSave();
+}
+window.notesPromptAddTab = notesPromptAddTab;
+
+async function notesDeleteTab(idx) {
+  if (notesFolderData.length <= 1) { await _notesDlg.confirm('至少需要保留一個標籤'); return; }
+  const confirmed = await _notesDlg.confirm('確定刪除標籤「' + notesFolderData[idx].name + '」嗎？');
+  if (!confirmed) return;
+  notesFolderData.splice(idx, 1);
+  if (notesTabIndex >= notesFolderData.length) notesTabIndex = notesFolderData.length - 1;
+  notesRenderTabs();
+  notesSave();
+}
+
+// ── Sub-page navigation ────────────────────────────────
+function notesChangeSubPage(dir) {
+  const tab = notesFolderData[notesTabIndex];
+  if (!tab?.pages) return;
+  notesFlush();
+  const newP = tab.currentPage + dir;
+  if (newP < 0 || newP >= tab.pages.length) return;
+  tab.currentPage = newP;
+  notesRenderTabs();
+  clearTimeout(notesSaveTimer);
+  notesSaveTimer = setTimeout(notesSave, 800);
+}
+window.notesChangeSubPage = notesChangeSubPage;
+
+function notesHandleRightZone() {
+  const tab = notesFolderData[notesTabIndex];
+  if (!tab?.pages) return;
+  notesFlush();
+  const curr = tab.pages[tab.currentPage];
+  const hasContent = curr.titleA?.trim() || curr.a?.trim() || curr.titleB?.trim() || curr.b?.trim();
+  if (tab.currentPage === tab.pages.length - 1) {
+    if (hasContent) { tab.pages.push({ titleA:'', a:'', titleB:'', b:'' }); notesChangeSubPage(1); }
+  } else {
+    notesChangeSubPage(1);
+  }
+}
+window.notesHandleRightZone = notesHandleRightZone;
+
+// ── Page number long-press context menu ────────────────
+let _notesPageCtxTab = null;
+function notesShowPageCtx(e) {
+  _notesPageCtxTab = notesFolderData[notesTabIndex];
+  const menu = document.getElementById('notes-page-ctx');
+  if (!menu) return;
+  menu.classList.add('show');
+  const mw = menu.offsetWidth  || 160;
+  const mh = menu.offsetHeight || 120;
+  let x = e.clientX ?? 0, y = e.clientY ?? 0;
+  x = Math.min(x, window.innerWidth  - mw - 8); x = Math.max(x, 8);
+  y = Math.min(y, window.innerHeight - mh - 8); y = Math.max(y, 8);
+  menu.style.left = x + 'px'; menu.style.top = y + 'px';
+}
+
+// ── Search ─────────────────────────────────────────────
+function notesToggleSearch(forceOpen) {
+  const bar = document.getElementById('notes-search-bar');
+  const btn = document.getElementById('notes-search-btn');
+  const inp = document.getElementById('notes-search-input');
+  const res = document.getElementById('notes-search-results');
+  if (!bar) return;
+  const open = forceOpen !== undefined ? forceOpen : !bar.classList.contains('open');
+  bar.classList.toggle('open', open);
+  btn?.classList.toggle('active', open);
+  if (open) { setTimeout(() => inp?.focus(), 60); }
+  else { if (inp) inp.value = ''; if (res) { res.innerHTML=''; res.classList.remove('show'); } }
+}
+window.notesToggleSearch = notesToggleSearch;
+
+function notesRunSearch(q) {
+  const res = document.getElementById('notes-search-results');
+  if (!res) return;
+  const term = q.trim().toLowerCase();
+  if (!term) { res.innerHTML=''; res.classList.remove('show'); return; }
+  const hits = [];
+  notesFolderData.forEach((tab, ti) => {
+    (tab.pages||[]).forEach((pg, pi) => {
+      const hay = [pg.titleA||'', pg.a||'', pg.titleB||'', pg.b||''].join('\n').toLowerCase();
+      if (!hay.includes(term)) return;
+      const raw  = [pg.titleA||'', pg.a||'', pg.titleB||'', pg.b||''].join('\n');
+      const idx  = hay.indexOf(term);
+      const ss   = Math.max(0, idx-30);
+      const snip = (ss>0?'…':'') + raw.slice(ss, idx+term.length+50).replace(/\n/g,' ') + (idx+term.length+50<raw.length?'…':'');
+      const title= pg.titleA || pg.titleB || ('第 '+(pi+1)+' 頁');
+      hits.push({ ti, pi, tabName: tab.name, title, snip });
+    });
+  });
+  res.innerHTML = '';
+  if (hits.length === 0) {
+    res.innerHTML = '<div class="notes-search-empty">找不到相符的筆記</div>';
+  } else {
+    hits.slice(0,20).forEach(h => {
+      const item = document.createElement('div');
+      item.className = 'notes-search-item';
+      item.innerHTML = '<div class="notes-search-title"></div><div class="notes-search-meta"></div><div class="notes-search-snippet"></div>';
+      item.querySelector('.notes-search-title').textContent = h.title;
+      item.querySelector('.notes-search-meta').textContent  = h.tabName + '  ·  第 '+(h.pi+1)+' 頁';
+      item.querySelector('.notes-search-snippet').textContent = h.snip;
+      item.addEventListener('click', () => {
+        notesFlush();
+        notesTabIndex = h.ti;
+        notesFolderData[h.ti].currentPage = h.pi;
+        notesRenderTabs();
+        notesToggleSearch(false);
+      });
+      res.appendChild(item);
+    });
+  }
+  res.classList.add('show');
+}
+window.notesRunSearch = notesRunSearch;
+
+// ── MD Toolbar ─────────────────────────────────────────
+function notesInitToolbar() {
+  const toolbar = document.getElementById('notes-md-toolbar');
+  if (!toolbar) return;
+  let _activeTA = null;
+
+  function hideToolbar() { toolbar.classList.remove('show'); }
+  function showAt(x, y) {
+    toolbar.classList.add('show');
+    const tw = toolbar.offsetWidth || 300;
+    let lx = x - tw/2;
+    if (lx < 8) lx = 8;
+    if (lx + tw > window.innerWidth - 8) lx = window.innerWidth - tw - 8;
+    toolbar.style.left = lx + 'px';
+    toolbar.style.top  = y - toolbar.offsetHeight - 8 + 'px';
+  }
+
+  function wrapSel(before, after) {
+    const ta = _activeTA; if (!ta) return;
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    const sel = ta.value.slice(s, e);
+    ta.value = ta.value.slice(0,s) + before + sel + after + ta.value.slice(e);
+    ta.selectionStart = s + before.length;
+    ta.selectionEnd   = s + before.length + sel.length;
+    ta.focus(); ta.dispatchEvent(new Event('input',{bubbles:true})); hideToolbar();
+  }
+  function prefixLine(pfx) {
+    const ta = _activeTA; if (!ta) return;
+    const s = ta.selectionStart;
+    let ls = s; while (ls > 0 && ta.value[ls-1] !== '\n') ls--;
+    ta.value = ta.value.slice(0, ls) + pfx + ta.value.slice(ls);
+    ta.selectionStart = ta.selectionEnd = s + pfx.length;
+    ta.focus(); ta.dispatchEvent(new Event('input',{bubbles:true})); hideToolbar();
+  }
+
+  function bind(id, fn) {
+    const el = document.getElementById(id); if (!el) return;
+    el.addEventListener('mousedown', e => { e.preventDefault(); fn(); });
+    el.addEventListener('touchend',  e => { e.preventDefault(); fn(); });
+  }
+  bind('ntb-h3',   () => prefixLine('### '));
+  bind('ntb-h4',   () => prefixLine('#### '));
+  bind('ntb-bold', () => wrapSel('**','**'));
+  bind('ntb-ul',   () => prefixLine('- '));
+  bind('ntb-ol',   () => prefixLine('1. '));
+  bind('ntb-hr',   () => { const ta=_activeTA; if(!ta) return;
+    const s=ta.selectionStart;
+    ta.value=ta.value.slice(0,s)+'\n---\n'+ta.value.slice(s);
+    ta.selectionStart=ta.selectionEnd=s+5;
+    ta.focus(); ta.dispatchEvent(new Event('input',{bubbles:true})); hideToolbar(); });
+
+  toolbar.querySelectorAll('.ntb-color-dot').forEach(dot => {
+    const fn = e => { e.preventDefault(); wrapSel('<span style="color:'+dot.dataset.color+'">','</span>'); };
+    dot.addEventListener('mousedown', fn); dot.addEventListener('touchend', fn);
+  });
+  toolbar.querySelectorAll('.ntb-hl-dot').forEach(dot => {
+    const fn = e => { e.preventDefault(); wrapSel('<mark style="background:'+dot.dataset.hl+';padding:0 2px;border-radius:2px;">','</mark>'); };
+    dot.addEventListener('mousedown', fn); dot.addEventListener('touchend', fn);
+  });
+
+  document.addEventListener('mouseup', e => {
+    if (e.target.classList.contains('notes-textarea')) {
+      _activeTA = e.target;
+      setTimeout(() => {
+        if (_activeTA && _activeTA.selectionStart !== _activeTA.selectionEnd) {
+          const r = _activeTA.getBoundingClientRect();
+          showAt(_activeTA.getBoundingClientRect().left + _activeTA.getBoundingClientRect().width/2, r.top+36);
+        }
+      }, 10);
+    } else if (!toolbar.contains(e.target)) { hideToolbar(); }
+  });
+  document.addEventListener('touchend', e => {
+    if (e.target.classList.contains('notes-textarea')) {
+      _activeTA = e.target;
+      setTimeout(() => {
+        if (_activeTA && _activeTA.selectionStart !== _activeTA.selectionEnd) {
+          const r = _activeTA.getBoundingClientRect();
+          showAt(r.left+r.width/2, r.top+36);
+        }
+      }, 600);
+    } else if (!toolbar.contains(e.target)) { hideToolbar(); }
+  });
+  document.addEventListener('contextmenu', e => {
+    if (!e.target.classList.contains('notes-textarea')) return;
+    e.preventDefault(); _activeTA = e.target;
+    showAt(e.clientX, e.clientY);
+  });
+}
+
+// ── Page context menu wiring ───────────────────────────
+function notesWirePageCtx() {
+  const pnd = document.getElementById('notes-page-num');
+  if (!pnd) return;
+
+  // Long press on page number
+  let _lpTimer = null;
+  pnd.addEventListener('touchstart', e => {
+    clearTimeout(_lpTimer);
+    const t = e.touches[0];
+    _lpTimer = setTimeout(() => notesShowPageCtx({ clientX: t.clientX, clientY: t.clientY }), 500);
+  }, { passive: true });
+  pnd.addEventListener('touchend',  () => clearTimeout(_lpTimer), { passive: true });
+  pnd.addEventListener('touchmove', () => clearTimeout(_lpTimer), { passive: true });
+  pnd.addEventListener('contextmenu', e => { e.preventDefault(); notesShowPageCtx(e); });
+
+  // Wire menu items
+  document.getElementById('notes-ctx-after')?.addEventListener('click', async () => {
+    const tab = _notesPageCtxTab || notesFolderData[notesTabIndex];
+    notesFlush();
+    const idx = tab.currentPage;
+    tab.pages.splice(idx+1, 0, { titleA:'', a:'', titleB:'', b:'' });
+    tab.currentPage = idx+1;
+    notesRenderTabs(); notesSave();
+    document.getElementById('notes-page-ctx').classList.remove('show');
+  });
+  document.getElementById('notes-ctx-before')?.addEventListener('click', async () => {
+    const tab = _notesPageCtxTab || notesFolderData[notesTabIndex];
+    notesFlush();
+    const idx = tab.currentPage;
+    tab.pages.splice(idx, 0, { titleA:'', a:'', titleB:'', b:'' });
+    notesRenderTabs(); notesSave();
+    document.getElementById('notes-page-ctx').classList.remove('show');
+  });
+  document.getElementById('notes-ctx-del')?.addEventListener('click', async () => {
+    const tab = _notesPageCtxTab || notesFolderData[notesTabIndex];
+    if (tab.pages.length <= 1) { document.getElementById('notes-page-ctx').classList.remove('show'); return; }
+    const ok = await _notesDlg.confirm('確定刪除此頁？');
+    if (!ok) return;
+    const idx = tab.currentPage;
+    tab.pages.splice(idx, 1);
+    tab.currentPage = Math.min(idx, tab.pages.length-1);
+    notesRenderTabs(); notesSave();
+    document.getElementById('notes-page-ctx').classList.remove('show');
+  });
+
+  // Close ctx menu on outside click
+  document.addEventListener('click', e => {
+    const ctx = document.getElementById('notes-page-ctx');
+    if (ctx && !ctx.contains(e.target) && e.target !== pnd) ctx.classList.remove('show');
+  });
+}
+
+// ── Show / Hide notes page ─────────────────────────────
+function notesShow() {
+  _notesIsVisible = true;
+  notesLoad();
+  notesEnsureDefaults();
+  notesRenderTabs();
+}
+
+function notesHide() {
+  notesFlush();
+  clearTimeout(notesSaveTimer);
+  notesSave();
+  _notesIsVisible = false;
+}
+
+// ── Override showPage to handle notes ─────────────────
+const _origShowPage = showPage;
+showPage = function(id, skipRender) {
+  // If leaving notes, flush + save
+  if (_notesIsVisible && id !== 'notes') notesHide();
+  // Hide the notes overlay if navigating away
+  document.getElementById('page-notes').classList.toggle('active', id === 'notes');
+  if (id === 'notes') {
+    // Mark mob/sidebar notes active
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.mob-nav-item').forEach(n => n.classList.remove('active'));
+    const sn = document.getElementById('nav-notes');
+    const mn = document.getElementById('mob-notes');
+    if (sn) sn.classList.add('active');
+    if (mn) mn.classList.add('active');
+    // On desktop, hide the .app grid main/aside so notes sits on top cleanly
+    notesShow();
+    return;
+  }
+  // Regular navigation
+  _origShowPage(id, skipRender);
+};
+
+// ── Logo: single click → notes, long press → menu ─────
+function notesRewireLogo() {
+  const logo = document.getElementById('logoBtn');
+  if (!logo) return;
+
+  // Remove all existing listeners by cloning
+  const newLogo = logo.cloneNode(true);
+  logo.parentNode.replaceChild(newLogo, logo);
+
+  let _lp = null;
+  let _lpFired = false;
+
+  newLogo.addEventListener('mousedown', () => {
+    _lpFired = false;
+    _lp = setTimeout(() => {
+      _lpFired = true;
+      openLogoMenu({ clientX: 0, clientY: 0 });
+      // Reposition properly
+      const rect = newLogo.getBoundingClientRect();
+      const menu = document.getElementById('logoMenu');
+      if (menu) {
+        const mw = 190;
+        let left = rect.left;
+        if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+        menu.style.left = left + 'px';
+        menu.style.top  = (rect.bottom + 6) + 'px';
+        menu.style.display = 'block';
+      }
+    }, 500);
+  });
+  newLogo.addEventListener('mouseup', () => clearTimeout(_lp));
+  newLogo.addEventListener('mouseleave', () => clearTimeout(_lp));
+
+  newLogo.addEventListener('click', e => {
+    e.stopPropagation();
+    if (_lpFired) { _lpFired = false; return; }
+    // Single click → go to notes
+    const menu = document.getElementById('logoMenu');
+    if (menu && menu.style.display === 'block') { closeLogoMenu(); return; }
+    showPage('notes');
+  });
+
+  // Touch support
+  let _touchLp = null;
+  let _touchFired = false;
+  newLogo.addEventListener('touchstart', e => {
+    _touchFired = false;
+    const t = e.touches[0];
+    _touchLp = setTimeout(() => {
+      _touchFired = true;
+      if (navigator.vibrate) navigator.vibrate(30);
+      const menu = document.getElementById('logoMenu');
+      const rect  = newLogo.getBoundingClientRect();
+      const mw = 190;
+      let left = rect.left;
+      if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+      if (menu) {
+        menu.style.left = left + 'px';
+        menu.style.top  = (rect.bottom + 6) + 'px';
+        menu.style.display = 'block';
+      }
+    }, 500);
+  }, { passive: true });
+  newLogo.addEventListener('touchend', e => {
+    clearTimeout(_touchLp);
+    if (_touchFired) { _touchFired = false; return; }
+    e.preventDefault();
+    e.stopPropagation();
+    const menu = document.getElementById('logoMenu');
+    if (menu && menu.style.display === 'block') { closeLogoMenu(); return; }
+    showPage('notes');
+  });
+  newLogo.addEventListener('touchmove', () => clearTimeout(_touchLp), { passive: true });
+}
+
+// ── Swipe left/right on notes page (mobile) ───────────
+function notesInitSwipe() {
+  const content = document.querySelector('.notes-folder-content');
+  if (!content) return;
+  let sx=0, sy=0;
+  content.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+  }, { passive: true });
+  content.addEventListener('touchend', e => {
+    if (e.changedTouches.length !== 1) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    const dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 60) {
+      notesChangeSubPage(dx < 0 ? 1 : -1);
+    }
+  }, { passive: true });
+}
+
+// ── Arrow-key page navigation ──────────────────────────
+function notesInitKeys() {
+  document.addEventListener('keydown', e => {
+    if (!_notesIsVisible) return;
+    if (e.key === 'Escape') {
+      const bar = document.getElementById('notes-search-bar');
+      if (bar && bar.classList.contains('open')) { notesToggleSearch(false); return; }
+    }
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const focused = document.activeElement;
+    if (!focused || !focused.classList.contains('notes-textarea')) {
+      e.preventDefault();
+      notesChangeSubPage(e.key === 'ArrowLeft' ? -1 : 1);
+    }
+  });
+}
+
+// ── Init ───────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  notesInitToolbar();
+  notesWirePageCtx();
+  notesInitSwipe();
+  notesInitKeys();
+  // Wire search close on outside click
+  document.addEventListener('click', e => {
+    const bar = document.getElementById('notes-search-bar');
+    const res = document.getElementById('notes-search-results');
+    if (res && !bar?.contains(e.target)) res.classList.remove('show');
+  });
+});
+
+// Rewire logo after main init() runs
+// (use a small delay to ensure init() has already replaced listeners)
+window.addEventListener('load', () => {
+  setTimeout(notesRewireLogo, 200);
+});
+
+})(); // end IIFE
+
 </script>
 </body>
 </html>
