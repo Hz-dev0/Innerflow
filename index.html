@@ -1696,8 +1696,8 @@
         <div class="card-title">✦ 還沒決定要做，但聽起來很有趣</div>
         <div class="sandbox-list" id="sandboxList"></div>
         <div style="display:flex;gap:10px;margin-top:16px">
-          <input id="sandboxInput" placeholder="一個讓你好奇的想法、主題或冒險…" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'" onkeydown="if(event.key==='Enter')addSandbox()">
-          <button class="btn-confirm" onclick="addSandbox()" style="background:var(--gold-dim);border:1px solid rgba(200,169,110,0.4);color:var(--gold)">丟進來</button>
+          <input id="sandboxInput" placeholder="一個讓你好奇的想法、主題或冒險…" style="flex:1;background:var(--bg3);border:1px solid rgba(201,162,39,0.45);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border-color 0.2s" onfocus="this.style.borderColor='#c9a227'" onblur="this.style.borderColor='rgba(201,162,39,0.45)'" onkeydown="if(event.key==='Enter')addSandbox()">
+          <button class="btn-confirm" onclick="addSandbox()" style="background:rgba(201,162,39,0.18);border:1px solid rgba(201,162,39,0.55);color:#b8922a;font-weight:600">丟進來</button>
         </div>
         <div style="font-size:11px;color:var(--text-faint);margin-top:8px">這裡沒有截止日期，沒有完成率壓力，只有好奇心本身。</div>
       </div>
@@ -1957,11 +1957,9 @@
   </div>
   <div class="ntb-sep"></div>
   <div class="ntb-colors">
-    <div class="ntb-hl-dot" style="background:#ffd1dc" data-hl="#ffd1dc"></div>
-    <div class="ntb-hl-dot" style="background:#fffacd" data-hl="#fffacd"></div>
-    <div class="ntb-hl-dot" style="background:#c0c0c0" data-hl="#c0c0c0"></div>
-    <div class="ntb-hl-dot" style="background:#ccf7ff" data-hl="#ccf7ff"></div>
-    <div class="ntb-hl-dot" style="background:#c4ffdf" data-hl="#c4ffdf"></div>
+    <div class="ntb-hl-dot" style="background:#D2E9FF" data-hl="#D2E9FF"></div>
+    <div class="ntb-hl-dot" style="background:#CEFFCE" data-hl="#CEFFCE"></div>
+    <div class="ntb-hl-dot" style="background:#fff176" data-hl="#fff176"></div>
   </div>
 </div>
 
@@ -5035,7 +5033,7 @@ function notesFlush() {
 }
 
 // ── MD Preview state ───────────────────────────────────
-const _notesMdState = { A: false, B: false };
+const _notesMdState = { A: true, B: true };
 
 // Parse helper: breaks:true讓單個換行對應換行，gfm支援---分隔線
 function _notesMdParse(text) {
@@ -5078,10 +5076,22 @@ window.notesAutoSave = notesAutoSave;
 
 function notesRefreshPreviews() {
   ['A','B'].forEach(side => {
-    if (!_notesMdState[side]) return;
     const ta  = document.getElementById('notesText' + side);
     const pre = document.getElementById('notes-md-preview-' + side.toLowerCase());
-    if (ta && pre) pre.innerHTML = _notesMdParse(ta.value || '');
+    const btn = document.getElementById('notes-md-toggle-' + side.toLowerCase());
+    if (!ta || !pre) return;
+    if (_notesMdState[side]) {
+      pre.innerHTML = _notesMdParse(ta.value || '');
+      ta.style.display = 'none';
+      pre.classList.add('show');
+      if (btn) { btn.classList.add('active'); btn.setAttribute('title','切回編輯模式'); }
+      pre.ondblclick = () => notesToggleMd(side);
+    } else {
+      ta.style.display = '';
+      pre.classList.remove('show');
+      if (btn) { btn.classList.remove('active'); btn.setAttribute('title','切換 Markdown 預覽'); }
+      pre.ondblclick = null;
+    }
   });
 }
 
@@ -5101,16 +5111,17 @@ function notesRenderTabs() {
     // 點擊切換
     div.onclick = () => {
       notesFlush();
+      notesDropEmptyCurrentPage();
       notesTabIndex = i;
-      _notesMdState.A = false;
-      _notesMdState.B = false;
+      _notesMdState.A = true;
+      _notesMdState.B = true;
       ['a','b'].forEach(s => {
         const ta = document.getElementById('notesText' + s.toUpperCase());
         const pre = document.getElementById('notes-md-preview-' + s);
         const btn = document.getElementById('notes-md-toggle-' + s);
-        if (ta)  ta.style.display = '';
-        if (pre) pre.classList.remove('show');
-        if (btn) { btn.classList.remove('active'); btn.setAttribute('title','切換 Markdown 預覽'); }
+        if (ta)  ta.style.display = 'none';
+        if (pre) pre.classList.add('show');
+        if (btn) { btn.classList.add('active'); btn.setAttribute('title','切回編輯模式'); }
       });
       notesRenderTabs();
     };
@@ -5206,11 +5217,25 @@ async function notesDeleteTab(idx) {
   notesSave();
 }
 
+// ── Auto-delete empty page on navigation ───────────────
+function notesDropEmptyCurrentPage() {
+  const tab = notesFolderData[notesTabIndex];
+  if (!tab || !tab.pages || tab.pages.length <= 1) return;
+  const pg = tab.pages[tab.currentPage];
+  if (!pg) return;
+  const isEmpty = !(pg.titleA?.trim() || pg.a?.trim() || pg.titleB?.trim() || pg.b?.trim());
+  if (isEmpty) {
+    tab.pages.splice(tab.currentPage, 1);
+    if (tab.currentPage >= tab.pages.length) tab.currentPage = tab.pages.length - 1;
+  }
+}
+
 // ── Sub-page navigation ────────────────────────────────
 function notesChangeSubPage(dir) {
   const tab = notesFolderData[notesTabIndex];
   if (!tab?.pages) return;
   notesFlush();
+  notesDropEmptyCurrentPage();
   const newP = tab.currentPage + dir;
   if (newP < 0 || newP >= tab.pages.length) return;
   tab.currentPage = newP;
@@ -5294,6 +5319,7 @@ function notesShowTitleOverview(anchorEl) {
 
     row.addEventListener('click', () => {
       notesFlush();
+      notesDropEmptyCurrentPage();
       tab.currentPage = pi;
       notesRenderTabs();
       popup.remove();
