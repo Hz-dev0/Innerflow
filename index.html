@@ -1483,8 +1483,8 @@
       bottom: calc(60px + env(safe-area-inset-bottom)) !important;
       border-radius: 0;
       transform: none !important;
-      width: 100%;
-      max-width: 100%;
+      width: 100% !important;
+      max-width: 100% !important;
       box-sizing: border-box;
       overflow-x: auto;
       overflow-y: hidden;
@@ -1567,49 +1567,47 @@
   .npctx-i.danger:hover { background: rgba(58,110,165,0.1); color: var(--text); }
   .npctx-sep { height: 1px; background: var(--border); margin: 4px 8px; }
 
-  /* Mobile: pure-flex layout, no JS fixed-positioning needed */
+  /* Mobile: pure CSS flex — each note-box gets half the space and scrolls independently */
   @media (max-width: 680px) {
     .notes-folder-content {
+      display: flex;
       flex-direction: column;
+      flex: 1;
+      min-height: 0;
       overflow: hidden;
       padding: 0;
       gap: 0;
       background: var(--bg2);
-      /* Let this container own the vertical space, children flex inside */
-      display: flex;
-      flex: 1;
-      min-height: 0;
+      position: relative;
     }
     .notes-note-box {
-      box-sizing: border-box;
-      border-bottom: 1px solid var(--border);
-      /* Each box takes exactly half the available height */
       flex: 1 1 0%;
       min-height: 0;
       display: flex;
       flex-direction: column;
+      box-sizing: border-box;
       padding: 8px 10px;
       overflow: hidden;
       position: relative;
+      border-bottom: 1px solid var(--border);
     }
     .notes-note-box:last-of-type { border-bottom: none; }
     .notes-textarea {
       flex: 1;
       min-height: 0;
       resize: none;
-      /* Critical: isolate this element's scroll from parent */
-      overflow-y: auto;
+      overflow-y: scroll;
       -webkit-overflow-scrolling: touch;
       touch-action: pan-y;
-      overscroll-behavior: contain;
+      overscroll-behavior-y: contain;
     }
     .notes-md-preview {
       flex: 1;
       min-height: 0;
-      overflow-y: auto;
+      overflow-y: scroll;
       -webkit-overflow-scrolling: touch;
       touch-action: pan-y;
-      overscroll-behavior: contain;
+      overscroll-behavior-y: contain;
     }
     #notes-prev-zone, #notes-next-zone { display: none !important; }
   }
@@ -5590,13 +5588,6 @@ function notesInitToolbar() {
   // Track which textarea is active
   function setActiveTA(ta) { _activeTA = ta; }
 
-  // Check if a side is currently in MD preview mode
-  function isMdMode(ta) {
-    if (!ta) return false;
-    const side = ta.id === 'notesTextA' ? 'A' : 'B';
-    return !!_notesMdState[side];
-  }
-
   // Show toolbar anchored to textarea (desktop) or fixed bottom (mobile)
   function showToolbar() {
     toolbar.classList.add('show');
@@ -5607,16 +5598,22 @@ function notesInitToolbar() {
     // On touch: CSS handles position (left:0 right:0 bottom:...)
   }
 
+  // Helper: is this textarea currently in MD preview mode?
+  function isInMdMode(ta) {
+    if (!ta) return false;
+    const side = ta.id === 'notesTextA' ? 'A' : 'B';
+    return !!_notesMdState[side];
+  }
+
   // Wire focus/blur on textareas
   ['notesTextA','notesTextB'].forEach(id => {
     const ta = document.getElementById(id);
     if (!ta) return;
     ta.addEventListener('focus', () => {
       setActiveTA(ta);
-      // Edit mode: always show toolbar on focus
-      if (!isMdMode(ta)) showToolbar();
+      // Edit mode: show toolbar immediately on focus (no selection needed)
+      if (!isInMdMode(ta)) showToolbar();
     });
-    // Hide toolbar when focus leaves notes entirely (not to toolbar itself)
     ta.addEventListener('blur', () => {
       setTimeout(() => {
         if (!toolbar.contains(document.activeElement) &&
@@ -5625,22 +5622,15 @@ function notesInitToolbar() {
         }
       }, 150);
     });
-    // Edit mode: keep toolbar visible while typing (no selection needed)
-    ta.addEventListener('input', () => {
-      if (!isMdMode(ta) && document.activeElement === ta) showToolbar();
-    });
   });
 
-  // Desktop: show on text selection in textarea
+  // Desktop mouseup: edit mode always shows; MD mode only shows on selection
   document.addEventListener('mouseup', e => {
     if (e.target.classList.contains('notes-textarea')) {
       setActiveTA(e.target);
-      if (isMdMode(e.target)) {
-        // MD mode: only show if text selected
+      if (isInMdMode(e.target)) {
         setTimeout(() => {
-          const ta = _activeTA;
-          if (ta && ta.selectionStart !== ta.selectionEnd) showToolbar();
-          else if (!isMdMode(ta)) showToolbar();
+          if (_activeTA && _activeTA.selectionStart !== _activeTA.selectionEnd) showToolbar();
         }, 10);
       } else {
         showToolbar();
@@ -5650,20 +5640,18 @@ function notesInitToolbar() {
     }
   });
 
-  // Touch: edit mode → toolbar always visible while textarea focused
-  //        MD mode → toolbar only on text selection
+  // Touch: edit mode toolbar shown by focus event
+  //        MD mode: show toolbar only when text is selected
   document.addEventListener('touchend', e => {
     if (e.target.classList.contains('notes-textarea')) {
       setActiveTA(e.target);
-      if (isMdMode(e.target)) {
-        // MD mode: show toolbar only if text selected (after delay for selection to register)
+      if (isInMdMode(e.target)) {
         setTimeout(() => {
-          const ta = _activeTA;
-          if (ta && ta.selectionStart !== ta.selectionEnd) showToolbar();
+          if (_activeTA && _activeTA.selectionStart !== _activeTA.selectionEnd) showToolbar();
           else hideToolbar();
         }, 300);
       }
-      // Edit mode: toolbar shown by focus event
+      // edit mode: focus event already shows toolbar
     } else if (!toolbar.contains(e.target) && isTouchDevice()) {
       const active = document.activeElement;
       if (!active || !active.classList.contains('notes-textarea')) {
@@ -5676,7 +5664,7 @@ function notesInitToolbar() {
     e.preventDefault(); _activeTA = e.target;
     showAt(e.clientX, e.clientY);
   });
-} // end notesInitToolbar
+}
 
 // ── Page context menu wiring ───────────────────────────
 function notesWirePageCtx() {
@@ -5916,12 +5904,25 @@ function notesInitKeys() {
   });
 }
 
-// ── Mobile sizing: handled entirely by CSS flex, no JS needed ──
+// ── Mobile: explicitly size note boxes so each textarea scrolls independently ──
 function notesSizeMobile() {
-  // Layout is now pure CSS flex: #page-notes is a fixed column,
-  // .notes-tabs-wrapper is flex-shrink:0, .notes-folder-content is flex:1,
-  // and each .notes-note-box is flex:1 with overflow-y:auto on the textarea.
-  // No JS sizing needed.
+  if (window.innerWidth > 680) return;
+  // CSS flex handles layout. Clear any leftover inline fixed-position styles.
+  document.querySelectorAll('.notes-note-box').forEach(box => {
+    box.style.position = '';
+    box.style.left = '';
+    box.style.right = '';
+    box.style.top = '';
+    box.style.height = '';
+    box.style.zIndex = '';
+  });
+  document.querySelectorAll('.notes-textarea, .notes-md-preview').forEach(el => {
+    el.style.height = '';
+    el.style.flex = '';
+    el.style.touchAction = 'pan-y';
+    el.style.overscrollBehaviorY = 'contain';
+    el.style.webkitOverflowScrolling = 'touch';
+  });
 }
 window.notesSizeMobile = notesSizeMobile;
 
@@ -5931,7 +5932,12 @@ document.addEventListener('DOMContentLoaded', function() {
   notesWirePageCtx();
   notesInitSwipe();
   notesInitKeys();
-  // Re-size on orientation change / keyboard show-hide (no-op now, CSS handles it)
+  // Fix: ensure textareas can scroll independently on iOS by setting touch-action
+  document.querySelectorAll('.notes-textarea').forEach(ta => {
+    ta.style.touchAction = 'pan-y';
+    ta.style.webkitOverflowScrolling = 'touch';
+  });
+  // Re-size on orientation change / keyboard show-hide
   window.addEventListener('resize', () => {
     if (_notesIsVisible) setTimeout(notesSizeMobile, 100);
   });
