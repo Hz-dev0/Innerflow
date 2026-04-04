@@ -1257,7 +1257,8 @@
     #page-notes {
       top: 52px;
       bottom: calc(60px + env(safe-area-inset-bottom));
-      overflow: hidden; /* critical: lets inner flex children own their scroll */
+      overflow: hidden;
+      touch-action: none; /* block body scroll propagation on Android WebView */
     }
   }
   /* On desktop, sit below header row */
