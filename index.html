@@ -1468,7 +1468,7 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .notes-search-empty { padding: 12px 16px; font-size: 13px; color: var(--text-faint); font-style: italic; }
 
-  /* Markdown toolbar — desktop: floats near cursor; mobile: fixed at bottom */
+  /* Markdown toolbar */
   #notes-md-toolbar {
     position: fixed; z-index: 9998; display: none;
     background: var(--bg2); border: 1px solid rgba(58,110,165,0.3);
@@ -1477,30 +1477,24 @@
     max-width: calc(100vw - 24px); transform: translateX(-50%);
     pointer-events: all;
   }
-  #notes-md-toolbar.show { display: flex; }
-  /* Mobile: always pinned to bottom, never floats */
-  @media (max-width: 680px) {
+  @media (hover: none) and (pointer: coarse) {
     #notes-md-toolbar {
-      left: 0 !important;
-      right: 0 !important;
-      top: auto !important;
+      left: 0 !important; right: 0 !important; top: auto !important;
       bottom: calc(60px + env(safe-area-inset-bottom)) !important;
-      transform: none !important;
       border-radius: 0;
-      width: 100% !important;
-      max-width: 100% !important;
-      box-sizing: border-box;
+      transform: none !important;
+      width: 100vw;
+      max-width: 100vw;
       overflow-x: auto;
       overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
-      padding: 6px 12px;
+      padding: 6px 10px;
       flex-wrap: nowrap;
       scrollbar-width: none;
-      border-left: none;
-      border-right: none;
     }
     #notes-md-toolbar::-webkit-scrollbar { display: none; }
   }
+  #notes-md-toolbar.show { display: flex; }
   #notes-md-toolbar button {
     border: none; background: none; border-radius: 6px;
     padding: 4px 7px; font-size: 11px; font-weight: 700;
@@ -1572,54 +1566,27 @@
   .npctx-i.danger:hover { background: rgba(58,110,165,0.1); color: var(--text); }
   .npctx-sep { height: 1px; background: var(--border); margin: 4px 8px; }
 
-  /* Mobile: JS sets exact pixel heights; each textarea scrolls independently */
+  /* Mobile: JS sets exact px heights; folder-content scrolls to hold both boxes */
   @media (max-width: 680px) {
-    #page-notes {
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
     .notes-folder-content {
-      flex: 1;
-      min-height: 0;
-      overflow: hidden;
       flex-direction: column;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       padding: 0;
       gap: 0;
       background: var(--bg2);
-      position: relative;
     }
     .notes-note-box {
-      flex: none;
-      width: 100%;
-      /* JS overrides this with exact px, but CSS fallback */
-      height: calc((100vh - 52px - 60px - 40px) / 2);
-      min-height: 160px;
-      display: flex;
-      flex-direction: column;
       box-sizing: border-box;
-      padding: 8px 10px;
-      overflow: hidden;
-      position: relative;
       border-bottom: 1px solid var(--border);
+      overflow: hidden;
     }
     .notes-note-box:last-of-type { border-bottom: none; }
     .notes-textarea {
-      flex: 1;
-      min-height: 0;
       resize: none;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
       touch-action: pan-y;
-      overscroll-behavior-y: contain;
-    }
-    .notes-md-preview {
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      touch-action: pan-y;
-      overscroll-behavior-y: contain;
+      overscroll-behavior: contain;
     }
     #notes-prev-zone, #notes-next-zone { display: none !important; }
   }
@@ -5532,11 +5499,8 @@ function notesInitToolbar() {
   if (!toolbar) return;
   let _activeTA = null;
 
-  const _isMobile = () => window.innerWidth <= 680;
   function hideToolbar() { toolbar.classList.remove('show'); }
   function showAt(x, y) {
-    // On mobile the toolbar is CSS-pinned to bottom, never float
-    if (_isMobile()) { toolbar.classList.add('show'); return; }
     toolbar.classList.add('show');
     const tw = toolbar.offsetWidth || 300;
     const th = toolbar.offsetHeight || 40;
@@ -5544,7 +5508,7 @@ function notesInitToolbar() {
     if (lx < 8) lx = 8;
     if (lx + tw > window.innerWidth - 8) lx = window.innerWidth - tw - 8;
     let ty = y - th - 8;
-    if (ty < 8) ty = y + 8;
+    if (ty < 8) ty = y + 8; // flip below cursor if would go off top
     if (ty + th > window.innerHeight - 8) ty = window.innerHeight - th - 8;
     toolbar.style.left = lx + 'px';
     toolbar.style.top  = ty + 'px';
@@ -5603,33 +5567,24 @@ function notesInitToolbar() {
   // Track which textarea is active
   function setActiveTA(ta) { _activeTA = ta; }
 
-  // Show toolbar: mobile = CSS-pinned bottom; desktop = float near textarea
+  // Show toolbar anchored to textarea (desktop) or fixed bottom (mobile)
   function showToolbar() {
-    if (_isMobile()) {
-      toolbar.classList.add('show');
-    } else if (_activeTA) {
+    toolbar.classList.add('show');
+    if (!isTouchDevice() && _activeTA) {
       const r = _activeTA.getBoundingClientRect();
       showAt(r.left + r.width / 2, r.top + 36);
-    } else {
-      toolbar.classList.add('show');
     }
+    // On touch: CSS handles position (left:0 right:0 bottom:...)
   }
 
-  // Helper: is this textarea currently in MD preview mode?
-  function isInMdMode(ta) {
-    if (!ta) return false;
-    const side = ta.id === 'notesTextA' ? 'A' : 'B';
-    return !!_notesMdState[side];
-  }
-
-  // Wire focus/blur on textareas
+  // Wire focus/blur on textareas — toolbar shows in EDIT MODE only
   ['notesTextA','notesTextB'].forEach(id => {
     const ta = document.getElementById(id);
     if (!ta) return;
     ta.addEventListener('focus', () => {
       setActiveTA(ta);
-      // Edit mode: show toolbar immediately on focus (no selection needed)
-      if (!isInMdMode(ta)) showToolbar();
+      // Only show toolbar if this textarea is visible (= edit mode, not MD preview)
+      if (ta.style.display !== 'none') showToolbar();
     });
     ta.addEventListener('blur', () => {
       setTimeout(() => {
@@ -5641,34 +5596,23 @@ function notesInitToolbar() {
     });
   });
 
-  // Desktop mouseup: edit mode always shows; MD mode only shows on selection
+  // Desktop mouseup: show only in edit mode (textarea visible), never in MD mode
   document.addEventListener('mouseup', e => {
     if (e.target.classList.contains('notes-textarea')) {
       setActiveTA(e.target);
-      if (isInMdMode(e.target)) {
-        setTimeout(() => {
-          if (_activeTA && _activeTA.selectionStart !== _activeTA.selectionEnd) showToolbar();
-        }, 10);
-      } else {
-        showToolbar();
-      }
+      if (e.target.style.display !== 'none') showToolbar();
     } else if (!toolbar.contains(e.target)) {
       if (!isTouchDevice()) hideToolbar();
     }
   });
 
-  // Touch: edit mode toolbar shown by focus event
-  //        MD mode: show toolbar only when text is selected
+  // Touch: show only when textarea is visible (edit mode)
   document.addEventListener('touchend', e => {
     if (e.target.classList.contains('notes-textarea')) {
       setActiveTA(e.target);
-      if (isInMdMode(e.target)) {
-        setTimeout(() => {
-          if (_activeTA && _activeTA.selectionStart !== _activeTA.selectionEnd) showToolbar();
-          else hideToolbar();
-        }, 300);
+      if (e.target.style.display !== 'none') {
+        // toolbar already shown by focus event
       }
-      // edit mode: focus event already shows toolbar
     } else if (!toolbar.contains(e.target) && isTouchDevice()) {
       const active = document.activeElement;
       if (!active || !active.classList.contains('notes-textarea')) {
@@ -5921,31 +5865,58 @@ function notesInitKeys() {
   });
 }
 
-// ── Mobile: explicitly size note boxes so each textarea scrolls independently ──
+// ── Mobile: set exact pixel heights so each box scrolls independently ──
 function notesSizeMobile() {
   if (window.innerWidth > 680) return;
-  // Calculate exact pixel height for each note-box so textareas scroll independently.
-  // header=52, bottom-nav=60, tab-bar≈40
   const tabsWrapper = document.querySelector('.notes-tabs-wrapper');
   const tabH = tabsWrapper ? tabsWrapper.getBoundingClientRect().height : 40;
-  const safeBottom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0') || 0;
-  const navH = 60 + safeBottom;
-  const boxH = Math.floor((window.innerHeight - 52 - navH - tabH) / 2);
-  document.querySelectorAll('.notes-note-box').forEach(box => {
-    box.style.height = boxH + 'px';
-    box.style.flex = 'none';
-    // Clear any leftover fixed positioning
-    box.style.position = '';
+  const navH = 60; // bottom nav
+  const headerH = 52;
+  const boxH = Math.floor((window.innerHeight - headerH - navH - tabH) / 2);
+  const boxes = document.querySelectorAll('.notes-note-box');
+  boxes.forEach(box => {
+    // Reset any old fixed positioning
+    box.style.position = 'relative';
     box.style.top = '';
     box.style.left = '';
     box.style.right = '';
     box.style.zIndex = '';
+    box.style.height = boxH + 'px';
+    box.style.flex = 'none';
+    box.style.overflow = 'hidden';
+    box.style.display = 'flex';
+    box.style.flexDirection = 'column';
+    box.style.padding = '8px 10px';
+    box.style.boxSizing = 'border-box';
+    const ta  = box.querySelector('.notes-textarea');
+    const pre = box.querySelector('.notes-md-preview');
+    const titleEl = box.querySelector('.notes-title-input');
+    const titleH = titleEl ? titleEl.getBoundingClientRect().height + 10 : 36;
+    const innerH = boxH - titleH - 16;
+    if (ta) {
+      ta.style.height = innerH + 'px';
+      ta.style.flex = 'none';
+      ta.style.overflowY = 'auto';
+      ta.style.touchAction = 'pan-y';
+      ta.style.webkitOverflowScrolling = 'touch';
+      ta.style.overscrollBehavior = 'contain';
+    }
+    if (pre) {
+      pre.style.height = innerH + 'px';
+      pre.style.flex = 'none';
+      pre.style.overflowY = 'auto';
+      pre.style.touchAction = 'pan-y';
+    }
   });
-  document.querySelectorAll('.notes-textarea, .notes-md-preview').forEach(el => {
-    el.style.touchAction = 'pan-y';
-    el.style.overscrollBehaviorY = 'contain';
-    el.style.webkitOverflowScrolling = 'touch';
-  });
+  // Make the folder-content scroll vertically to hold both boxes
+  const fc = document.querySelector('.notes-folder-content');
+  if (fc) {
+    fc.style.overflowY = 'auto';
+    fc.style.webkitOverflowScrolling = 'touch';
+    fc.style.padding = '0';
+    fc.style.gap = '0';
+    fc.style.flexDirection = 'column';
+  }
 }
 window.notesSizeMobile = notesSizeMobile;
 
