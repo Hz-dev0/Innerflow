@@ -614,42 +614,6 @@
   .done-tasks-wrap { overflow: hidden; transition: max-height 0.3s ease; max-height: 0; }
   .done-tasks-wrap.open { max-height: 2000px; }
 
-  /* ── Onboarding Modal ── */
-  .onboard-modal {
-    background: var(--bg2);
-    border: 1px solid rgba(74,130,196,0.2);
-    border-radius: 20px;
-    padding: 0;
-    width: 520px; max-width: 96vw;
-    box-shadow: 0 24px 64px rgba(74,130,196,0.18);
-    animation: modalIn 0.3s ease;
-    overflow: hidden;
-  }
-  .onboard-header {
-    background: linear-gradient(135deg, rgba(74,130,196,0.12), rgba(184,146,42,0.08));
-    padding: 32px 32px 24px;
-    border-bottom: 1px solid var(--border);
-    text-align: center;
-  }
-  .onboard-logo { font-family: 'DM Serif Display', serif; font-size: 32px; color: var(--green); }
-  .onboard-tagline { font-size: 13px; color: var(--text-dim); margin-top: 6px; }
-  .onboard-body { padding: 24px 32px 28px; }
-  .onboard-steps { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
-  .onboard-step {
-    display: flex; gap: 14px; align-items: flex-start;
-    padding: 12px 14px; border-radius: 10px;
-    background: var(--bg3); border: 1px solid var(--border);
-  }
-  .onboard-step-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
-  .onboard-step-title { font-size: 13px; font-weight: 400; color: var(--text); margin-bottom: 3px; }
-  .onboard-step-desc { font-size: 12px; color: var(--text-dim); line-height: 1.6; }
-  .onboard-tip {
-    font-size: 12px; color: var(--text-dim); font-style: italic;
-    text-align: center; margin-bottom: 20px; line-height: 1.7;
-    padding: 10px; background: rgba(74,130,196,0.05);
-    border-radius: 8px; border: 1px solid var(--border);
-  }
-
   /* ── Mobile Bottom Nav ── */
   .mobile-nav {
     display: none;
@@ -759,8 +723,6 @@
     .section-title { font-size: 18px; }
     .modal { padding: 20px; }
     .modal-row { flex-direction: column; gap: 0; }
-    .onboard-header { padding: 24px 20px 18px; }
-    .onboard-body { padding: 18px 20px 22px; }
     .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .stat-value { font-size: 24px; }
     .tree-container { min-height: 260px; overflow-x: auto; }
@@ -853,6 +815,7 @@
   }
   .sync-dot.syncing { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 6px rgba(184,146,42,0.5); animation: syncPulse 0.8s ease infinite; }
   .sync-dot.synced  { background: var(--green); border-color: var(--green); }
+  .sync-dot.error   { background: var(--rose);  border-color: var(--rose);  box-shadow: 0 0 6px rgba(192,86,90,0.5); }
   @keyframes syncPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
   /* ── Energy Slider ── */
@@ -1827,51 +1790,7 @@
   </div>
 </div>
 
-<!-- Onboarding Modal -->
-<div class="modal-overlay" id="onboardModal" style="align-items:center">
-  <div class="onboard-modal">
-    <div class="onboard-header">
-      <div class="onboard-logo">內流 InnerFlow</div>
-      <div class="onboard-tagline">為內驅力而生的任務工具 · 不是壓力，是意義</div>
-    </div>
-    <div class="onboard-body">
-      <div class="onboard-steps">
-        <div class="onboard-step">
-          <div class="onboard-step-icon">🌿</div>
-          <div>
-            <div class="onboard-step-title">生命樹 — 看見大圖景</div>
-            <div class="onboard-step-desc">每個任務都掛載在你認同的人生目標上。點擊樹上的節點，可以篩選出相關任務。</div>
-          </div>
-        </div>
-        <div class="onboard-step">
-          <div class="onboard-step-icon">✦</div>
-          <div>
-            <div class="onboard-step-title">今日任務 — 依能量篩選</div>
-            <div class="onboard-step-desc">先設定今天的能量值（1-10）。能量低時系統自動推薦輕鬆任務。勾選完成後可點擊「已完成」區塊隨時取消勾選。右側 ⋯ 可編輯或刪除任務。</div>
-          </div>
-        </div>
-        <div class="onboard-step">
-          <div class="onboard-step-icon">📝</div>
-          <div>
-            <div class="onboard-step-title">備忘便籤 — 留下當下的脈絡</div>
-            <div class="onboard-step-desc">任務旁的 📝 讓你快速記下「卡在哪」「等待什麼」。有備忘的任務會顯示金色提示條，一眼就能看到狀況。</div>
-          </div>
-        </div>
-        <div class="onboard-step">
-          <div class="onboard-step-icon">🪐</div>
-          <div>
-            <div class="onboard-step-title">沙盒 — 好奇心的容身之處</div>
-            <div class="onboard-step-desc">把「聽起來很有趣但還沒決定」的想法丟進沙盒。不計入完成率，零壓力。</div>
-          </div>
-        </div>
-      </div>
-      <div class="onboard-tip">「不是所有重要的事都緊急，不是所有緊急的事都重要。<br>你值得用自己的節奏，做有意義的事。」</div>
-      <div style="text-align:center">
-        <button class="btn-confirm" onclick="closeModal('onboardModal')" style="padding:12px 36px;font-size:14px">開始探索 ✦</button>
-      </div>
-    </div>
-  </div>
-</div>
+
 
 <!-- Mobile Bottom Nav -->
 <nav class="mobile-nav">
@@ -2427,7 +2346,7 @@ async function syncToCloud() {
     if (dot) { dot.className = 'sync-dot synced'; setTimeout(() => { if (dot) dot.className = 'sync-dot synced'; }, 2000); }
   } catch (e) {
     console.warn('雲端儲存失敗', e);
-    if (dot) dot.className = 'sync-dot';
+    if (dot) dot.className = 'sync-dot error';
   } finally {
     isSyncing = false;
     if (_pendingSync) { _pendingSync = false; syncToCloud(); } // retry the queued write
@@ -2988,7 +2907,6 @@ async function init() {
     if (btn) { btn.classList.add('connected'); btn.textContent = '☁ Connected'; }
     const dot = document.getElementById('syncDot');
     if (dot) dot.className = 'sync-dot syncing';
-    showToast('☁️ 同步雲端資料中…');
     const ok = await loadFromCloud();
     if (ok) {
       // 雲端資料載入後：確保 lotteryState 日期正確（可能跨日），並對齊實際完成數
@@ -3007,7 +2925,6 @@ async function init() {
         if (_actualDoneToday < lotteryState.todayDone) lotteryState.todayDone = Math.max(minDone, _actualDoneToday);
       }
       saveLottery();
-      showToast('🌿 雲端同步完成');
       if (dot) dot.className = 'sync-dot synced';
       renderEnergyDots();
       renderTree();
@@ -3019,8 +2936,7 @@ async function init() {
       // Fix: 在雲端資料載入後才做換日重置，確保重置的是最新資料
       checkMissedReset();
     } else {
-      showToast('⚠ 雲端讀取失敗，使用本機資料');
-      if (dot) dot.className = 'sync-dot';
+      if (dot) dot.className = 'sync-dot error';
       // Fix: 雲端讀取失敗時仍要完整渲染，避免畫面空白、logo 無反應
       renderEnergyDots(); renderTree(); renderTasks();
       renderSandbox(); renderStats(); renderRewards(); renderLottery();
@@ -3090,10 +3006,6 @@ async function init() {
   // Fix: 只有在沒有設定雲端 API 時（本機模式）才在這裡執行換日重置
   // 有雲端的情況已在 loadFromCloud 完成後執行，避免競態
   if (!getApiUrl()) checkMissedReset();
-  if (!localStorage.getItem('innerflow_onboarded')) {
-    document.getElementById('onboardModal').classList.add('open');
-    localStorage.setItem('innerflow_onboarded', 'true');
-  }
 }
 
 // ── Mood Buttons ──
