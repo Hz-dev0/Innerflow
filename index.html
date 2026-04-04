@@ -1567,22 +1567,22 @@
   .npctx-i.danger:hover { background: rgba(58,110,165,0.1); color: var(--text); }
   .npctx-sep { height: 1px; background: var(--border); margin: 4px 8px; }
 
-  /* Mobile: pure CSS flex — each note-box gets half the space and scrolls independently */
+  /* Mobile: fixed height per box so each textarea scrolls independently */
   @media (max-width: 680px) {
     .notes-folder-content {
-      display: flex;
       flex-direction: column;
-      flex: 1;
-      min-height: 0;
-      overflow: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       padding: 0;
       gap: 0;
       background: var(--bg2);
       position: relative;
     }
     .notes-note-box {
-      flex: 1 1 0%;
-      min-height: 0;
+      flex: none;
+      width: 100%;
+      height: calc((100vh - 52px - 60px - 40px) / 2);
+      min-height: 160px;
       display: flex;
       flex-direction: column;
       box-sizing: border-box;
@@ -1596,7 +1596,7 @@
       flex: 1;
       min-height: 0;
       resize: none;
-      overflow-y: scroll;
+      overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       touch-action: pan-y;
       overscroll-behavior-y: contain;
@@ -1604,7 +1604,7 @@
     .notes-md-preview {
       flex: 1;
       min-height: 0;
-      overflow-y: scroll;
+      overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       touch-action: pan-y;
       overscroll-behavior-y: contain;
@@ -5907,18 +5907,24 @@ function notesInitKeys() {
 // ── Mobile: explicitly size note boxes so each textarea scrolls independently ──
 function notesSizeMobile() {
   if (window.innerWidth > 680) return;
-  // CSS flex handles layout. Clear any leftover inline fixed-position styles.
+  // Calculate exact pixel height for each note-box so textareas scroll independently.
+  // header=52, bottom-nav=60, tab-bar≈40
+  const tabsWrapper = document.querySelector('.notes-tabs-wrapper');
+  const tabH = tabsWrapper ? tabsWrapper.getBoundingClientRect().height : 40;
+  const safeBottom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0') || 0;
+  const navH = 60 + safeBottom;
+  const boxH = Math.floor((window.innerHeight - 52 - navH - tabH) / 2);
   document.querySelectorAll('.notes-note-box').forEach(box => {
+    box.style.height = boxH + 'px';
+    box.style.flex = 'none';
+    // Clear any leftover fixed positioning
     box.style.position = '';
+    box.style.top = '';
     box.style.left = '';
     box.style.right = '';
-    box.style.top = '';
-    box.style.height = '';
     box.style.zIndex = '';
   });
   document.querySelectorAll('.notes-textarea, .notes-md-preview').forEach(el => {
-    el.style.height = '';
-    el.style.flex = '';
     el.style.touchAction = 'pan-y';
     el.style.overscrollBehaviorY = 'contain';
     el.style.webkitOverflowScrolling = 'touch';
