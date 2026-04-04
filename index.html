@@ -1566,30 +1566,25 @@
   .npctx-i.danger:hover { background: rgba(58,110,165,0.1); color: var(--text); }
   .npctx-sep { height: 1px; background: var(--border); margin: 4px 8px; }
 
-  /* Mobile: stack note boxes vertically - each box scrolls independently */
+  /* Mobile: note boxes are positioned fixed by JS (notesSizeMobile) */
   @media (max-width: 680px) {
     .notes-folder-content {
       flex-direction: column;
-      padding: 10px 10px 8px;
-      gap: 10px;
       overflow: hidden;
+      padding: 0;
+      gap: 0;
+      background: var(--bg2);
     }
     .notes-note-box {
-      flex: 1 1 0%;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+      box-sizing: border-box;
+      border-bottom: 1px solid var(--border);
     }
+    .notes-note-box:last-of-type { border-bottom: none; }
     .notes-textarea {
-      flex: 1 1 0%;
-      min-height: 0;
-      overflow-y: scroll !important;
-      -webkit-overflow-scrolling: touch;
-      touch-action: pan-y;
       resize: none;
+      touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
     }
-    /* Hide prev/next arrows on mobile - swipe to navigate */
     #notes-prev-zone, #notes-next-zone { display: none !important; }
   }
 
@@ -5870,66 +5865,62 @@ function notesInitKeys() {
 // ── Mobile: explicitly size note boxes so each textarea scrolls independently ──
 function notesSizeMobile() {
   if (window.innerWidth > 680) return;
-  const content = document.querySelector('.notes-folder-content');
-  const boxes = document.querySelectorAll('.notes-note-box');
-  if (!content || boxes.length === 0) return;
+  const pageNotes = document.getElementById('page-notes');
+  if (!pageNotes) return;
 
-  // Step 1: set explicit pixel heights
-  const gap = 10;
-  const totalGap = gap * (boxes.length - 1);
-  const availH = content.clientHeight - totalGap - 20; // 20 = padding
-  const boxH = Math.max(80, Math.floor(availH / boxes.length));
-  boxes.forEach(box => {
-    box.style.height = boxH + 'px';
-    box.style.maxHeight = boxH + 'px';
-    box.style.flex = 'none';
-    box.style.overflow = 'hidden';
-    const title = box.querySelector('.notes-title-input');
-    const ta = box.querySelector('.notes-textarea');
-    if (ta) {
-      const titleH = title ? (title.offsetHeight || 36) + 8 : 0;
-      const taH = Math.max(60, boxH - titleH - 4);
-      ta.style.height = taH + 'px';
-      ta.style.maxHeight = taH + 'px';
-      ta.style.flex = 'none';
-      ta.style.overflowY = 'scroll';
-      ta.style.overflowX = 'hidden';
-      ta.style.touchAction = 'pan-y';
-      // Step 2: wire isolated touch scroll — stops propagation so parent never scrolls
-      if (!ta._touchScrollWired) {
-        ta._touchScrollWired = true;
-        let _ty0 = 0;
-        ta.addEventListener('touchstart', e => {
-          if (e.touches.length !== 1) return;
-          _ty0 = e.touches[0].clientY;
-        }, { passive: true });
-        ta.addEventListener('touchmove', e => {
-          if (e.touches.length !== 1) return;
-          const dy = _ty0 - e.touches[0].clientY;
-          _ty0 = e.touches[0].clientY;
-          // Only scroll this textarea; stop the event from bubbling to any parent
-          ta.scrollTop += dy;
-          // Prevent parent scroll only when this textarea can still scroll in that direction
-          const atTop = ta.scrollTop <= 0 && dy < 0;
-          const atBot = ta.scrollTop + ta.clientHeight >= ta.scrollHeight && dy > 0;
-          if (!atTop && !atBot) {
-            e.stopPropagation();
-          }
-        }, { passive: true });
-      }
-    }
+  // Tab bar height
+  const tabsWrapper = document.querySelector('.notes-tabs-wrapper');
+  const tabH = tabsWrapper ? tabsWrapper.offsetHeight : 40;
+
+  // Full available area: between header(52px) and bottom nav
+  const navH = 60 + (window.innerWidth <= 680 ? 0 : 0); // env() not available in JS, approximate
+  const totalH = window.innerHeight - 52 - navH - tabH;
+  const gap = 8;
+  const boxH = Math.floor((totalH - gap) / 2);
+
+  const top1 = 52 + tabH;          // top of first box
+  const top2 = top1 + boxH + gap;  // top of second box
+
+  ['A','B'].forEach((side, i) => {
+    const box = document.querySelector('.notes-note-box:nth-child(' + (i === 0 ? 2 : 3) + ')');
+    // safer: just grab by index
   });
 
-  // Step 3: prevent the content container from ever scrolling
-  if (!content._scrollLocked) {
-    content._scrollLocked = true;
-    content.addEventListener('touchmove', e => {
-      // Only block if the touch target is inside a textarea (it handles its own scroll)
-      const inTA = e.target.classList.contains('notes-textarea') ||
-                   e.target.closest?.('.notes-textarea');
-      if (inTA) e.stopPropagation();
-    }, { passive: true });
-  }
+  const boxes = document.querySelectorAll('.notes-note-box');
+  const tops = [top1, top2];
+  boxes.forEach((box, i) => {
+    box.style.position = 'fixed';
+    box.style.left = '0';
+    box.style.right = '0';
+    box.style.top = tops[i] + 'px';
+    box.style.height = boxH + 'px';
+    box.style.overflow = 'hidden';
+    box.style.display = 'flex';
+    box.style.flexDirection = 'column';
+    box.style.padding = '0 10px';
+    box.style.background = 'var(--bg2)';
+    box.style.zIndex = '46';
+
+    const title = box.querySelector('.notes-title-input');
+    const ta = box.querySelector('.notes-textarea');
+    const pre = box.querySelector('.notes-md-preview');
+    if (ta) {
+      const titleH = title ? (title.offsetHeight || 36) + 8 : 0;
+      const taH = boxH - titleH - 8;
+      ta.style.height = taH + 'px';
+      ta.style.flex = 'none';
+      ta.style.overflowY = 'auto';
+      ta.style.overflowX = 'hidden';
+      ta.style.touchAction = 'pan-y';
+      ta.style.webkitOverflowScrolling = 'touch';
+    }
+    if (pre) {
+      const titleH = title ? (title.offsetHeight || 36) + 8 : 0;
+      pre.style.height = (boxH - titleH - 8) + 'px';
+      pre.style.flex = 'none';
+      pre.style.overflowY = 'auto';
+    }
+  });
 }
 window.notesSizeMobile = notesSizeMobile;
 
