@@ -5873,27 +5873,63 @@ function notesSizeMobile() {
   const content = document.querySelector('.notes-folder-content');
   const boxes = document.querySelectorAll('.notes-note-box');
   if (!content || boxes.length === 0) return;
-  // Available height = content height minus gap between boxes
+
+  // Step 1: set explicit pixel heights
   const gap = 10;
   const totalGap = gap * (boxes.length - 1);
-  const availH = content.clientHeight - totalGap - 20; // 20 = top+bottom padding
+  const availH = content.clientHeight - totalGap - 20; // 20 = padding
   const boxH = Math.max(80, Math.floor(availH / boxes.length));
   boxes.forEach(box => {
     box.style.height = boxH + 'px';
     box.style.maxHeight = boxH + 'px';
     box.style.flex = 'none';
-    // Make the textarea fill the box minus title input height
+    box.style.overflow = 'hidden';
     const title = box.querySelector('.notes-title-input');
     const ta = box.querySelector('.notes-textarea');
     if (ta) {
-      const titleH = title ? title.offsetHeight + 8 : 0; // 8px gap
-      const taH = Math.max(60, boxH - titleH - 2);
+      const titleH = title ? (title.offsetHeight || 36) + 8 : 0;
+      const taH = Math.max(60, boxH - titleH - 4);
       ta.style.height = taH + 'px';
       ta.style.maxHeight = taH + 'px';
       ta.style.flex = 'none';
       ta.style.overflowY = 'scroll';
+      ta.style.overflowX = 'hidden';
+      ta.style.touchAction = 'pan-y';
+      // Step 2: wire isolated touch scroll — stops propagation so parent never scrolls
+      if (!ta._touchScrollWired) {
+        ta._touchScrollWired = true;
+        let _ty0 = 0;
+        ta.addEventListener('touchstart', e => {
+          if (e.touches.length !== 1) return;
+          _ty0 = e.touches[0].clientY;
+        }, { passive: true });
+        ta.addEventListener('touchmove', e => {
+          if (e.touches.length !== 1) return;
+          const dy = _ty0 - e.touches[0].clientY;
+          _ty0 = e.touches[0].clientY;
+          // Only scroll this textarea; stop the event from bubbling to any parent
+          ta.scrollTop += dy;
+          // Prevent parent scroll only when this textarea can still scroll in that direction
+          const atTop = ta.scrollTop <= 0 && dy < 0;
+          const atBot = ta.scrollTop + ta.clientHeight >= ta.scrollHeight && dy > 0;
+          if (!atTop && !atBot) {
+            e.stopPropagation();
+          }
+        }, { passive: true });
+      }
     }
   });
+
+  // Step 3: prevent the content container from ever scrolling
+  if (!content._scrollLocked) {
+    content._scrollLocked = true;
+    content.addEventListener('touchmove', e => {
+      // Only block if the touch target is inside a textarea (it handles its own scroll)
+      const inTA = e.target.classList.contains('notes-textarea') ||
+                   e.target.closest?.('.notes-textarea');
+      if (inTA) e.stopPropagation();
+    }, { passive: true });
+  }
 }
 window.notesSizeMobile = notesSizeMobile;
 
