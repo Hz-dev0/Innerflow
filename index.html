@@ -1323,6 +1323,9 @@
     overflow: hidden; width: 100%;
     padding: 16px 16px 50px; box-sizing: border-box;
     background: var(--bg2); position: relative;
+    /* Prevent folder-content from intercepting touch scroll */
+    touch-action: none;
+    overscroll-behavior: none;
   }
   .notes-note-box {
     flex: 1 1 0%; display: flex; flex-direction: column;
@@ -1474,26 +1477,21 @@
     background: var(--bg2); border: 1px solid rgba(58,110,165,0.3);
     border-radius: 10px; box-shadow: 0 6px 20px rgba(58,110,165,0.15);
     padding: 4px 6px; gap: 2px; align-items: center;
-    max-width: calc(100vw - 24px); transform: translateX(-50%);
+    max-width: calc(100vw - 24px);
     pointer-events: all;
   }
-  @media (hover: none) and (pointer: coarse) {
-    #notes-md-toolbar {
-      left: 0 !important; right: 0 !important; top: auto !important;
-      bottom: calc(60px + env(safe-area-inset-bottom)) !important;
-      border-radius: 0;
-      transform: none !important;
-      width: 100vw;
-      max-width: 100vw;
-      overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      padding: 6px 10px;
-      flex-wrap: nowrap;
-      scrollbar-width: none;
-    }
-    #notes-md-toolbar::-webkit-scrollbar { display: none; }
+  /* Mobile: anchor to bottom, ignore JS-set left/top */
+  #notes-md-toolbar.mobile-bottom {
+    left: 0 !important; right: 0 !important;
+    top: auto !important; bottom: calc(60px + env(safe-area-inset-bottom)) !important;
+    border-radius: 0; transform: none !important;
+    width: 100vw; max-width: 100vw;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px 10px; flex-wrap: nowrap;
+    scrollbar-width: none;
   }
+  #notes-md-toolbar.mobile-bottom::-webkit-scrollbar { display: none; }
   #notes-md-toolbar.show { display: flex; }
   #notes-md-toolbar button {
     border: none; background: none; border-radius: 6px;
@@ -5502,13 +5500,14 @@ function notesInitToolbar() {
   function hideToolbar() { toolbar.classList.remove('show'); }
   function showAt(x, y) {
     toolbar.classList.add('show');
+    // Must measure after show so offsetWidth is valid
     const tw = toolbar.offsetWidth || 300;
     const th = toolbar.offsetHeight || 40;
-    let lx = x - tw/2;
+    let lx = x - tw / 2;
     if (lx < 8) lx = 8;
     if (lx + tw > window.innerWidth - 8) lx = window.innerWidth - tw - 8;
     let ty = y - th - 8;
-    if (ty < 8) ty = y + 8; // flip below cursor if would go off top
+    if (ty < 8) ty = y + 8;
     if (ty + th > window.innerHeight - 8) ty = window.innerHeight - th - 8;
     toolbar.style.left = lx + 'px';
     toolbar.style.top  = ty + 'px';
@@ -5569,10 +5568,21 @@ function notesInitToolbar() {
 
   // Show toolbar anchored to textarea (desktop) or fixed bottom (mobile)
   function showToolbar() {
-    toolbar.classList.add('show');
-    if (!isTouchDevice() && _activeTA) {
-      const r = _activeTA.getBoundingClientRect();
-      showAt(r.left + r.width / 2, r.top + 36);
+    if (isTouchDevice()) {
+      // Mobile: CSS class handles all positioning, clear inline styles first
+      toolbar.style.left = '';
+      toolbar.style.top  = '';
+      toolbar.classList.add('mobile-bottom');
+      toolbar.classList.add('show');
+    } else {
+      toolbar.classList.remove('mobile-bottom');
+      if (_activeTA) {
+        const r = _activeTA.getBoundingClientRect();
+        // Show above the textarea, centred horizontally on it
+        showAt(r.left + r.width / 2, r.top - 4);
+      } else {
+        showAt(window.innerWidth / 2, 80);
+      }
     }
     // On touch: CSS handles position (left:0 right:0 bottom:...)
   }
@@ -5900,6 +5910,8 @@ function notesSizeMobile() {
       ta.style.touchAction = 'pan-y';
       ta.style.webkitOverflowScrolling = 'touch';
       ta.style.overscrollBehavior = 'contain';
+      // Isolate touch events so this textarea doesn't bubble to parent
+      ta.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
     }
     if (pre) {
       pre.style.height = innerH + 'px';
@@ -5911,8 +5923,8 @@ function notesSizeMobile() {
   // Make the folder-content scroll vertically to hold both boxes
   const fc = document.querySelector('.notes-folder-content');
   if (fc) {
-    fc.style.overflowY = 'auto';
-    fc.style.webkitOverflowScrolling = 'touch';
+    // Keep overflow:hidden on the container — each box scrolls independently
+    fc.style.overflowY = 'hidden';
     fc.style.padding = '0';
     fc.style.gap = '0';
     fc.style.flexDirection = 'column';
