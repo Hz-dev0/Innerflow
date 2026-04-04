@@ -1567,12 +1567,11 @@
   .npctx-i.danger:hover { background: rgba(58,110,165,0.1); color: var(--text); }
   .npctx-sep { height: 1px; background: var(--border); margin: 4px 8px; }
 
-  /* Mobile: JS sets exact px heights; folder-content scrolls to hold both boxes */
+  /* Mobile: JS sets exact px heights; each textarea scrolls independently */
   @media (max-width: 680px) {
     .notes-folder-content {
       flex-direction: column;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
+      overflow: hidden;
       padding: 0;
       gap: 0;
       background: var(--bg2);
@@ -1590,6 +1589,7 @@
       overscroll-behavior: contain;
     }
     #notes-prev-zone, #notes-next-zone { display: none !important; }
+    #notes-md-toolbar { display: none !important; }
   }
 
 </style>
@@ -5502,21 +5502,6 @@ function notesInitToolbar() {
 
   function hideToolbar() { toolbar.classList.remove('show'); }
 
-  function showAt(x, y) {
-    // Must add show first so offsetWidth is measurable
-    toolbar.classList.add('show');
-    const tw = toolbar.offsetWidth || 300;
-    const th = toolbar.offsetHeight || 40;
-    let lx = x - tw / 2;
-    if (lx < 8) lx = 8;
-    if (lx + tw > window.innerWidth - 8) lx = window.innerWidth - tw - 8;
-    let ty = y - th - 8;
-    if (ty < 8) ty = y + 8; // flip below if too close to top
-    if (ty + th > window.innerHeight - 8) ty = window.innerHeight - th - 8;
-    toolbar.style.left = lx + 'px';
-    toolbar.style.top  = ty + 'px';
-  }
-
   function wrapSel(before, after) {
     const ta = _activeTA; if (!ta) return;
     const s = ta.selectionStart, e = ta.selectionEnd;
@@ -5570,24 +5555,28 @@ function notesInitToolbar() {
   // Track which textarea is active
   function setActiveTA(ta) { _activeTA = ta; }
 
-  // Show toolbar anchored to textarea (desktop) or fixed bottom (mobile)
-  function showToolbar() {
-    if (isTouchDevice()) {
-      // Clear any inline position styles first (so CSS class wins)
-      toolbar.style.left = '';
-      toolbar.style.top  = '';
-      toolbar.classList.add('mobile-bottom');
-      toolbar.classList.add('show');
-    } else {
-      toolbar.classList.remove('mobile-bottom');
-      if (_activeTA) {
-        const r = _activeTA.getBoundingClientRect();
-        // Show above the textarea, centred horizontally
-        showAt(r.left + r.width / 2, r.top - 4);
-      } else {
-        showAt(window.innerWidth / 2, 80);
-      }
-    }
+  // PC only: show toolbar near cursor, clamped to viewport
+  function showToolbar(mouseX, mouseY) {
+    if (isTouchDevice()) return; // mobile: hidden by CSS
+    if (!_activeTA) return;
+    toolbar.style.left = '';
+    toolbar.style.top  = '';
+    toolbar.classList.add('show');
+    const tw = toolbar.offsetWidth  || 320;
+    const th = toolbar.offsetHeight || 40;
+    const r  = _activeTA.getBoundingClientRect();
+    const cx = (mouseX !== undefined) ? mouseX : r.left + r.width / 2;
+    const cy = (mouseY !== undefined) ? mouseY : r.top;
+    let lx = cx - tw / 2;
+    let ty = cy - th - 10;
+    // Clamp horizontally within viewport
+    if (lx < 8) lx = 8;
+    if (lx + tw > window.innerWidth - 8) lx = window.innerWidth - tw - 8;
+    // Flip below cursor if too close to top
+    if (ty < 8) ty = cy + 14;
+    if (ty + th > window.innerHeight - 8) ty = window.innerHeight - th - 8;
+    toolbar.style.left = lx + 'px';
+    toolbar.style.top  = ty + 'px';
   }
 
   // Wire focus/blur on textareas — toolbar shows in EDIT MODE only
@@ -5596,7 +5585,7 @@ function notesInitToolbar() {
     if (!ta) return;
     ta.addEventListener('focus', () => {
       setActiveTA(ta);
-      // Only show toolbar if this textarea is visible (= edit mode, not MD preview)
+      // On focus without mouse position, show near top of textarea
       if (ta.style.display !== 'none') showToolbar();
     });
     ta.addEventListener('blur', () => {
@@ -5609,34 +5598,22 @@ function notesInitToolbar() {
     });
   });
 
-  // Desktop mouseup: show only in edit mode (textarea visible), never in MD mode
+  // Desktop mouseup: show near where the user released the mouse
   document.addEventListener('mouseup', e => {
+    if (isTouchDevice()) return;
     if (e.target.classList.contains('notes-textarea')) {
       setActiveTA(e.target);
-      if (e.target.style.display !== 'none') showToolbar();
+      if (e.target.style.display !== 'none') showToolbar(e.clientX, e.clientY);
     } else if (!toolbar.contains(e.target)) {
-      if (!isTouchDevice()) hideToolbar();
+      hideToolbar();
     }
   });
 
-  // Touch: show only when textarea is visible (edit mode)
-  document.addEventListener('touchend', e => {
-    if (e.target.classList.contains('notes-textarea')) {
-      setActiveTA(e.target);
-      if (e.target.style.display !== 'none') {
-        // toolbar already shown by focus event
-      }
-    } else if (!toolbar.contains(e.target) && isTouchDevice()) {
-      const active = document.activeElement;
-      if (!active || !active.classList.contains('notes-textarea')) {
-        hideToolbar();
-      }
-    }
-  });
   document.addEventListener('contextmenu', e => {
     if (!e.target.classList.contains('notes-textarea')) return;
-    e.preventDefault(); _activeTA = e.target;
-    showAt(e.clientX, e.clientY);
+    e.preventDefault();
+    setActiveTA(e.target);
+    showToolbar(e.clientX, e.clientY);
   });
 }
 
