@@ -1405,7 +1405,7 @@
     padding: 3px 12px; border-radius: 12px;
     pointer-events: auto; cursor: pointer; z-index: 20;
     box-shadow: 0 2px 8px rgba(58,110,165,0.08);
-    white-space: nowrap;
+    white-space: nowrap; font-weight: 700;
   }
   /* Floating search button */
   #notes-search-btn {
@@ -5379,11 +5379,15 @@ function notesInitToolbar() {
   function showAt(x, y) {
     toolbar.classList.add('show');
     const tw = toolbar.offsetWidth || 300;
+    const th = toolbar.offsetHeight || 40;
     let lx = x - tw/2;
     if (lx < 8) lx = 8;
     if (lx + tw > window.innerWidth - 8) lx = window.innerWidth - tw - 8;
+    let ty = y - th - 8;
+    if (ty < 8) ty = y + 8; // flip below cursor if would go off top
+    if (ty + th > window.innerHeight - 8) ty = window.innerHeight - th - 8;
     toolbar.style.left = lx + 'px';
-    toolbar.style.top  = y - toolbar.offsetHeight - 8 + 'px';
+    toolbar.style.top  = ty + 'px';
   }
 
   function wrapSel(before, after) {
