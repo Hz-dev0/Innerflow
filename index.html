@@ -1483,8 +1483,9 @@
       bottom: calc(60px + env(safe-area-inset-bottom)) !important;
       border-radius: 0;
       transform: none !important;
-      width: 100vw;
-      max-width: 100vw;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
       overflow-x: auto;
       overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
@@ -1566,7 +1567,7 @@
   .npctx-i.danger:hover { background: rgba(58,110,165,0.1); color: var(--text); }
   .npctx-sep { height: 1px; background: var(--border); margin: 4px 8px; }
 
-  /* Mobile: note boxes are positioned fixed by JS (notesSizeMobile) */
+  /* Mobile: pure-flex layout, no JS fixed-positioning needed */
   @media (max-width: 680px) {
     .notes-folder-content {
       flex-direction: column;
@@ -1574,16 +1575,41 @@
       padding: 0;
       gap: 0;
       background: var(--bg2);
+      /* Let this container own the vertical space, children flex inside */
+      display: flex;
+      flex: 1;
+      min-height: 0;
     }
     .notes-note-box {
       box-sizing: border-box;
       border-bottom: 1px solid var(--border);
+      /* Each box takes exactly half the available height */
+      flex: 1 1 0%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 8px 10px;
+      overflow: hidden;
+      position: relative;
     }
     .notes-note-box:last-of-type { border-bottom: none; }
     .notes-textarea {
+      flex: 1;
+      min-height: 0;
       resize: none;
-      touch-action: pan-y;
+      /* Critical: isolate this element's scroll from parent */
+      overflow-y: auto;
       -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      overscroll-behavior: contain;
+    }
+    .notes-md-preview {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      overscroll-behavior: contain;
     }
     #notes-prev-zone, #notes-next-zone { display: none !important; }
   }
@@ -5564,6 +5590,13 @@ function notesInitToolbar() {
   // Track which textarea is active
   function setActiveTA(ta) { _activeTA = ta; }
 
+  // Check if a side is currently in MD preview mode
+  function isMdMode(ta) {
+    if (!ta) return false;
+    const side = ta.id === 'notesTextA' ? 'A' : 'B';
+    return !!_notesMdState[side];
+  }
+
   // Show toolbar anchored to textarea (desktop) or fixed bottom (mobile)
   function showToolbar() {
     toolbar.classList.add('show');
@@ -5580,7 +5613,8 @@ function notesInitToolbar() {
     if (!ta) return;
     ta.addEventListener('focus', () => {
       setActiveTA(ta);
-      showToolbar();
+      // Edit mode: always show toolbar on focus
+      if (!isMdMode(ta)) showToolbar();
     });
     // Hide toolbar when focus leaves notes entirely (not to toolbar itself)
     ta.addEventListener('blur', () => {
@@ -5591,26 +5625,46 @@ function notesInitToolbar() {
         }
       }, 150);
     });
+    // Edit mode: keep toolbar visible while typing (no selection needed)
+    ta.addEventListener('input', () => {
+      if (!isMdMode(ta) && document.activeElement === ta) showToolbar();
+    });
   });
 
-  // Desktop: also show on text selection in textarea
+  // Desktop: show on text selection in textarea
   document.addEventListener('mouseup', e => {
     if (e.target.classList.contains('notes-textarea')) {
       setActiveTA(e.target);
-      showToolbar();
+      if (isMdMode(e.target)) {
+        // MD mode: only show if text selected
+        setTimeout(() => {
+          const ta = _activeTA;
+          if (ta && ta.selectionStart !== ta.selectionEnd) showToolbar();
+          else if (!isMdMode(ta)) showToolbar();
+        }, 10);
+      } else {
+        showToolbar();
+      }
     } else if (!toolbar.contains(e.target)) {
-      // Only hide on desktop if clicking truly outside
       if (!isTouchDevice()) hideToolbar();
     }
   });
 
-  // Touch: toolbar stays visible while textarea is focused; tap outside hides it
+  // Touch: edit mode → toolbar always visible while textarea focused
+  //        MD mode → toolbar only on text selection
   document.addEventListener('touchend', e => {
     if (e.target.classList.contains('notes-textarea')) {
       setActiveTA(e.target);
-      // showToolbar called by focus event
+      if (isMdMode(e.target)) {
+        // MD mode: show toolbar only if text selected (after delay for selection to register)
+        setTimeout(() => {
+          const ta = _activeTA;
+          if (ta && ta.selectionStart !== ta.selectionEnd) showToolbar();
+          else hideToolbar();
+        }, 300);
+      }
+      // Edit mode: toolbar shown by focus event
     } else if (!toolbar.contains(e.target) && isTouchDevice()) {
-      // Tapped outside textarea and toolbar
       const active = document.activeElement;
       if (!active || !active.classList.contains('notes-textarea')) {
         hideToolbar();
@@ -5622,7 +5676,6 @@ function notesInitToolbar() {
     e.preventDefault(); _activeTA = e.target;
     showAt(e.clientX, e.clientY);
   });
-}
 
 // ── Page context menu wiring ───────────────────────────
 function notesWirePageCtx() {
@@ -5862,65 +5915,12 @@ function notesInitKeys() {
   });
 }
 
-// ── Mobile: explicitly size note boxes so each textarea scrolls independently ──
+// ── Mobile sizing: handled entirely by CSS flex, no JS needed ──
 function notesSizeMobile() {
-  if (window.innerWidth > 680) return;
-  const pageNotes = document.getElementById('page-notes');
-  if (!pageNotes) return;
-
-  // Tab bar height
-  const tabsWrapper = document.querySelector('.notes-tabs-wrapper');
-  const tabH = tabsWrapper ? tabsWrapper.offsetHeight : 40;
-
-  // Full available area: between header(52px) and bottom nav
-  const navH = 60 + (window.innerWidth <= 680 ? 0 : 0); // env() not available in JS, approximate
-  const totalH = window.innerHeight - 52 - navH - tabH;
-  const gap = 8;
-  const boxH = Math.floor((totalH - gap) / 2);
-
-  const top1 = 52 + tabH;          // top of first box
-  const top2 = top1 + boxH + gap;  // top of second box
-
-  ['A','B'].forEach((side, i) => {
-    const box = document.querySelector('.notes-note-box:nth-child(' + (i === 0 ? 2 : 3) + ')');
-    // safer: just grab by index
-  });
-
-  const boxes = document.querySelectorAll('.notes-note-box');
-  const tops = [top1, top2];
-  boxes.forEach((box, i) => {
-    box.style.position = 'fixed';
-    box.style.left = '0';
-    box.style.right = '0';
-    box.style.top = tops[i] + 'px';
-    box.style.height = boxH + 'px';
-    box.style.overflow = 'hidden';
-    box.style.display = 'flex';
-    box.style.flexDirection = 'column';
-    box.style.padding = '0 10px';
-    box.style.background = 'var(--bg2)';
-    box.style.zIndex = '46';
-
-    const title = box.querySelector('.notes-title-input');
-    const ta = box.querySelector('.notes-textarea');
-    const pre = box.querySelector('.notes-md-preview');
-    if (ta) {
-      const titleH = title ? (title.offsetHeight || 36) + 8 : 0;
-      const taH = boxH - titleH - 8;
-      ta.style.height = taH + 'px';
-      ta.style.flex = 'none';
-      ta.style.overflowY = 'auto';
-      ta.style.overflowX = 'hidden';
-      ta.style.touchAction = 'pan-y';
-      ta.style.webkitOverflowScrolling = 'touch';
-    }
-    if (pre) {
-      const titleH = title ? (title.offsetHeight || 36) + 8 : 0;
-      pre.style.height = (boxH - titleH - 8) + 'px';
-      pre.style.flex = 'none';
-      pre.style.overflowY = 'auto';
-    }
-  });
+  // Layout is now pure CSS flex: #page-notes is a fixed column,
+  // .notes-tabs-wrapper is flex-shrink:0, .notes-folder-content is flex:1,
+  // and each .notes-note-box is flex:1 with overflow-y:auto on the textarea.
+  // No JS sizing needed.
 }
 window.notesSizeMobile = notesSizeMobile;
 
@@ -5930,12 +5930,7 @@ document.addEventListener('DOMContentLoaded', function() {
   notesWirePageCtx();
   notesInitSwipe();
   notesInitKeys();
-  // Fix: ensure textareas can scroll independently on iOS by setting touch-action
-  document.querySelectorAll('.notes-textarea').forEach(ta => {
-    ta.style.touchAction = 'pan-y';
-    ta.style.webkitOverflowScrolling = 'touch';
-  });
-  // Re-size on orientation change / keyboard show-hide
+  // Re-size on orientation change / keyboard show-hide (no-op now, CSS handles it)
   window.addEventListener('resize', () => {
     if (_notesIsVisible) setTimeout(notesSizeMobile, 100);
   });
