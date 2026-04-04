@@ -1208,12 +1208,13 @@
   .today-task-chip {
     display: flex; align-items: center; gap: 8px;
     padding: 7px 10px; border-radius: 7px;
-    border: 1px solid var(--border); background: var(--bg3);
+    border: 1px solid rgba(201,162,39,0.38); background: rgba(201,162,39,0.07);
     font-size: 13px; color: var(--text);
     margin-bottom: 6px; transition: all 0.2s;
   }
+  .today-task-chip:not(.done-chip):hover { border-color: rgba(201,162,39,0.65); background: rgba(201,162,39,0.12); }
   .today-task-chip:last-child { margin-bottom: 0; }
-  .today-task-chip.done-chip { opacity: 0.45; text-decoration: line-through; color: var(--text-dim); }
+  .today-task-chip.done-chip { opacity: 0.45; text-decoration: line-through; color: var(--text-dim); border-color: var(--border); background: var(--bg3); }
   .today-chip-check {
     width: 16px; height: 16px; border-radius: 50%;
     border: 1.5px solid var(--border); flex-shrink: 0;
@@ -1259,10 +1260,10 @@
   .today-task-chip:active { cursor: grabbing; }
   .today-task-chip.dragging-chip { opacity: 0.4; border-style: dashed; transform: scale(0.98); }
   .today-task-chip.drag-over-chip {
-    border-color: var(--green);
-    background: rgba(74,130,196,0.07);
+    border-color: rgba(201,162,39,0.8);
+    background: rgba(201,162,39,0.16);
     transform: translateY(-2px);
-    box-shadow: 0 3px 10px rgba(74,130,196,0.12);
+    box-shadow: 0 3px 10px rgba(201,162,39,0.18);
   }
   .today-chip-drag-handle {
     font-size: 11px; color: var(--text-faint); cursor: grab;
@@ -1332,6 +1333,8 @@
   }
   .notes-tab .tab-del-btn { margin-left: 7px; opacity: 0.25; font-size: 11px; }
   .notes-tab:hover .tab-del-btn { opacity: 0.6; }
+  .notes-tab.tab-dragging { opacity: 0.4; cursor: grabbing; }
+  .notes-tab.tab-drag-over { border-bottom: 2px solid var(--green); background: rgba(58,110,165,0.1); }
   #notes-add-tab-btn {
     position: absolute; right: 10px; bottom: 4px;
     background: none; border: none; color: var(--green);
@@ -1576,7 +1579,8 @@
     cursor: pointer; display: flex; align-items: center; gap: 8px;
   }
   .npctx-i:hover { background: rgba(58,110,165,0.07); }
-  .npctx-i.danger { color: var(--rose); }
+  .npctx-i.danger { color: var(--text-dim); }
+  .npctx-i.danger:hover { background: rgba(58,110,165,0.1); color: var(--text); }
   .npctx-sep { height: 1px; background: var(--border); margin: 4px 8px; }
 
   /* Mobile: stack note boxes vertically */
@@ -3013,27 +3017,31 @@ async function init() {
     }
   }
 
-  // Logo: click = open logo menu (settings + guide)
+  // Logo: 長按 → 開設定選單（單擊不動作，由 IIFE notesRewireLogo 接管）
   const logo = document.getElementById('logoBtn');
+  let _logoLpTimer = null;
+  let _logoLpFired = false;
+  logo.addEventListener('mousedown', () => {
+    _logoLpFired = false;
+    _logoLpTimer = setTimeout(() => {
+      _logoLpFired = true;
+      openLogoMenu({});
+    }, 500);
+  });
+  logo.addEventListener('mouseup',    () => clearTimeout(_logoLpTimer));
+  logo.addEventListener('mouseleave', () => clearTimeout(_logoLpTimer));
   logo.addEventListener('click', (e) => {
     e.stopPropagation();
-    const menu = document.getElementById('logoMenu');
-    if (menu && menu.style.display === 'block') {
-      closeLogoMenu();
-    } else {
-      openLogoMenu(e);
-    }
+    if (_logoLpFired) { _logoLpFired = false; return; }
+    // 單擊：不做任何事（由 IIFE 覆蓋後處理 notes 導航）
   });
-  // Touch support (prevent double-fire on mobile)
+  // Touch support
   logo.addEventListener('touchend', (e) => {
     e.preventDefault();
     e.stopPropagation();
+    // 長按由 IIFE 的 touchstart timer 處理；這裡只處理選單關閉
     const menu = document.getElementById('logoMenu');
-    if (menu && menu.style.display === 'block') {
-      closeLogoMenu();
-    } else {
-      openLogoMenu(e.changedTouches[0]);
-    }
+    if (menu && menu.style.display === 'block') { closeLogoMenu(); }
   });
 
   // ── One-time cleanup: done tasks without completedAt are orphans from old data.
@@ -5016,6 +5024,14 @@ function notesFlush() {
 // ── MD Preview state ───────────────────────────────────
 const _notesMdState = { A: false, B: false };
 
+// Parse helper: breaks:true讓單個換行對應換行，gfm支援---分隔線
+function _notesMdParse(text) {
+  if (typeof marked === 'undefined') return (text || '').replace(/\n/g, '<br>');
+  // 讓 --- 即使前後沒空行也能成為分隔線
+  const processed = (text || '').replace(/^[ \t]*(---+|===+|\*\*\*+)[ \t]*$/gm, '\n\n$1\n\n');
+  return marked.parse(processed, { breaks: true, gfm: true });
+}
+
 function notesToggleMd(side) {
   // (also exposed as window.notesToggleMd below)
   const ta  = document.getElementById('notesText' + side);
@@ -5028,8 +5044,8 @@ function notesToggleMd(side) {
   pre.classList.toggle('show', on);
   btn?.classList.toggle('active', on);
   btn?.setAttribute('title', on ? '切回編輯模式' : '切換 Markdown 預覽');
-  if (on && typeof marked !== 'undefined') {
-    pre.innerHTML = marked.parse(ta.value || '');
+  if (on) {
+    pre.innerHTML = _notesMdParse(ta.value || '');
     pre.ondblclick = () => notesToggleMd(side);
   } else {
     pre.ondblclick = null;
@@ -5041,7 +5057,7 @@ function notesLiveMd(side) {
   if (!_notesMdState[side]) return;
   const ta  = document.getElementById('notesText' + side);
   const pre = document.getElementById('notes-md-preview-' + side.toLowerCase());
-  if (ta && pre && typeof marked !== 'undefined') pre.innerHTML = marked.parse(ta.value || '');
+  if (ta && pre) pre.innerHTML = _notesMdParse(ta.value || '');
 }
 window.notesToggleMd = notesToggleMd;
 window.notesLiveMd   = notesLiveMd;
@@ -5052,11 +5068,13 @@ function notesRefreshPreviews() {
     if (!_notesMdState[side]) return;
     const ta  = document.getElementById('notesText' + side);
     const pre = document.getElementById('notes-md-preview-' + side.toLowerCase());
-    if (ta && pre && typeof marked !== 'undefined') pre.innerHTML = marked.parse(ta.value || '');
+    if (ta && pre) pre.innerHTML = _notesMdParse(ta.value || '');
   });
 }
 
-// ── Render tabs ────────────────────────────────────────
+// ── Render tabs (with drag-to-reorder) ────────────────────────────────────────
+let _tabDragIdx = null;
+
 function notesRenderTabs() {
   const row = document.getElementById('notes-tabs-row');
   if (!row) return;
@@ -5064,10 +5082,13 @@ function notesRenderTabs() {
   notesFolderData.forEach((tab, i) => {
     const div = document.createElement('div');
     div.className = 'notes-tab' + (i === notesTabIndex ? ' active' : '');
+    div.draggable = true;
+    div.dataset.tabIdx = i;
+
+    // 點擊切換
     div.onclick = () => {
       notesFlush();
       notesTabIndex = i;
-      // Reset MD preview state so toggles work fresh on new tab
       _notesMdState.A = false;
       _notesMdState.B = false;
       ['a','b'].forEach(s => {
@@ -5080,11 +5101,45 @@ function notesRenderTabs() {
       });
       notesRenderTabs();
     };
+
+    // 雙擊改名
     div.ondblclick = async e => {
       e.stopPropagation();
       const n = await _notesDlg.prompt('修改標籤名稱', tab.name);
       if (n?.trim()) { tab.name = n.trim(); notesRenderTabs(); notesSave(); }
     };
+
+    // 拖拉排序
+    div.addEventListener('dragstart', e => {
+      _tabDragIdx = i;
+      div.classList.add('tab-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    div.addEventListener('dragend', () => {
+      div.classList.remove('tab-dragging');
+      row.querySelectorAll('.notes-tab').forEach(el => el.classList.remove('tab-drag-over'));
+      _tabDragIdx = null;
+    });
+    div.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (_tabDragIdx === null || _tabDragIdx === i) return;
+      row.querySelectorAll('.notes-tab').forEach(el => el.classList.remove('tab-drag-over'));
+      div.classList.add('tab-drag-over');
+    });
+    div.addEventListener('drop', e => {
+      e.preventDefault();
+      if (_tabDragIdx === null || _tabDragIdx === i) return;
+      notesFlush();
+      const moved = notesFolderData.splice(_tabDragIdx, 1)[0];
+      notesFolderData.splice(i, 0, moved);
+      notesTabIndex = i < _tabDragIdx ? i : (i - 1 < 0 ? 0 : i - 1);
+      // 找到插入後的位置
+      notesTabIndex = notesFolderData.indexOf(moved);
+      _tabDragIdx = null;
+      notesRenderTabs();
+      notesSave();
+    });
+
     const nameSpan = document.createElement('span');
     nameSpan.textContent = tab.name;
     const delSpan = document.createElement('span');
@@ -5110,10 +5165,8 @@ function notesRenderTabs() {
       document.getElementById('notesTextB').value  = pg.b      || '';
       notesRefreshPreviews();
     }
-    // Update prev zone visibility
     const prevZone = document.getElementById('notes-prev-zone');
     if (prevZone) prevZone.style.visibility = tab.currentPage === 0 ? 'hidden' : 'visible';
-    // Update page number
     const pnd = document.getElementById('notes-page-num');
     if (pnd) pnd.textContent = (tab.currentPage + 1) + ' / ' + tab.pages.length;
   }
@@ -5168,6 +5221,97 @@ function notesHandleRightZone() {
 }
 window.notesHandleRightZone = notesHandleRightZone;
 
+// ── Page number click → title overview popup ─────────
+function notesShowTitleOverview(anchorEl) {
+  // Remove existing
+  const existing = document.getElementById('notes-title-overview');
+  if (existing) { existing.remove(); return; }
+
+  const tab = notesFolderData[notesTabIndex];
+  if (!tab) return;
+
+  const popup = document.createElement('div');
+  popup.id = 'notes-title-overview';
+  popup.style.cssText = `
+    position:fixed; z-index:10005;
+    background:var(--bg2); border:1px solid var(--border);
+    border-radius:12px; padding:8px 0;
+    box-shadow:0 8px 28px rgba(58,110,165,0.18);
+    min-width:180px; max-width:280px; max-height:320px;
+    overflow-y:auto;
+    animation: modalIn 0.15s ease;
+  `;
+
+  tab.pages.forEach((pg, pi) => {
+    const titleA = pg.titleA?.trim();
+    const titleB = pg.titleB?.trim();
+    const label = titleA && titleB ? `${titleA} / ${titleB}`
+                : titleA || titleB || `第 ${pi+1} 頁（無標題）`;
+    const isCurrent = pi === tab.currentPage;
+
+    const row = document.createElement('div');
+    row.style.cssText = `
+      padding:8px 14px; font-size:13px; cursor:pointer;
+      color:${isCurrent ? 'var(--green)' : 'var(--text)'};
+      background:${isCurrent ? 'rgba(58,110,165,0.07)' : 'transparent'};
+      display:flex; align-items:center; gap:8px;
+      transition:background 0.15s;
+    `;
+    row.onmouseover = () => { if (!isCurrent) row.style.background = 'rgba(58,110,165,0.05)'; };
+    row.onmouseout  = () => { if (!isCurrent) row.style.background = 'transparent'; };
+
+    const pageNum = document.createElement('span');
+    pageNum.style.cssText = 'font-size:10px;color:var(--text-faint);flex-shrink:0;min-width:22px;';
+    pageNum.textContent = (pi+1);
+
+    const titleSpan = document.createElement('span');
+    titleSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    titleSpan.textContent = label;
+
+    if (isCurrent) {
+      const dot = document.createElement('span');
+      dot.style.cssText = 'width:5px;height:5px;border-radius:50%;background:var(--green);flex-shrink:0;margin-left:auto;';
+      row.appendChild(pageNum);
+      row.appendChild(titleSpan);
+      row.appendChild(dot);
+    } else {
+      row.appendChild(pageNum);
+      row.appendChild(titleSpan);
+    }
+
+    row.addEventListener('click', () => {
+      notesFlush();
+      tab.currentPage = pi;
+      notesRenderTabs();
+      popup.remove();
+    });
+    popup.appendChild(row);
+  });
+
+  document.body.appendChild(popup);
+
+  // Position above/below the anchor
+  const rect = anchorEl.getBoundingClientRect();
+  const pw = popup.offsetWidth || 200;
+  const ph = popup.offsetHeight || 200;
+  let left = rect.left + rect.width/2 - pw/2;
+  let top  = rect.top - ph - 8;
+  if (top < 8) top = rect.bottom + 8;
+  if (left < 8) left = 8;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+
+  // Close on outside click
+  const closeHandler = e => {
+    if (!popup.contains(e.target) && e.target !== anchorEl) {
+      popup.remove();
+      document.removeEventListener('click', closeHandler);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closeHandler), 0);
+}
+
 // ── Page number long-press context menu ────────────────
 let _notesPageCtxTab = null;
 function notesShowPageCtx(e) {
@@ -5206,14 +5350,22 @@ function notesRunSearch(q) {
   const hits = [];
   notesFolderData.forEach((tab, ti) => {
     (tab.pages||[]).forEach((pg, pi) => {
-      const hay = [pg.titleA||'', pg.a||'', pg.titleB||'', pg.b||''].join('\n').toLowerCase();
+      // 搜尋所有欄位包含標題
+      const fields = [pg.titleA||'', pg.a||'', pg.titleB||'', pg.b||''];
+      const hay = fields.join('\n').toLowerCase();
       if (!hay.includes(term)) return;
-      const raw  = [pg.titleA||'', pg.a||'', pg.titleB||'', pg.b||''].join('\n');
-      const idx  = hay.indexOf(term);
-      const ss   = Math.max(0, idx-30);
+      // 決定顯示標題：優先用有命中的標題
+      let displayTitle = '第 '+(pi+1)+' 頁';
+      if ((pg.titleA||'').toLowerCase().includes(term)) displayTitle = pg.titleA;
+      else if ((pg.titleB||'').toLowerCase().includes(term)) displayTitle = pg.titleB;
+      else if (pg.titleA) displayTitle = pg.titleA;
+      else if (pg.titleB) displayTitle = pg.titleB;
+      // 找 snippet
+      const raw = fields.join('\n');
+      const idx = hay.indexOf(term);
+      const ss  = Math.max(0, idx-30);
       const snip = (ss>0?'…':'') + raw.slice(ss, idx+term.length+50).replace(/\n/g,' ') + (idx+term.length+50<raw.length?'…':'');
-      const title= pg.titleA || pg.titleB || ('第 '+(pi+1)+' 頁');
-      hits.push({ ti, pi, tabName: tab.name, title, snip });
+      hits.push({ ti, pi, tabName: tab.name, title: displayTitle, snip });
     });
   });
   res.innerHTML = '';
@@ -5337,12 +5489,21 @@ function notesWirePageCtx() {
   const pnd = document.getElementById('notes-page-num');
   if (!pnd) return;
 
-  // Long press on page number
+  // Single click → title overview
+  pnd.addEventListener('click', e => {
+    e.stopPropagation();
+    notesShowTitleOverview(pnd);
+  });
+
+  // Long press on page number → edit context menu (mobile)
   let _lpTimer = null;
   pnd.addEventListener('touchstart', e => {
     clearTimeout(_lpTimer);
     const t = e.touches[0];
-    _lpTimer = setTimeout(() => notesShowPageCtx({ clientX: t.clientX, clientY: t.clientY }), 500);
+    _lpTimer = setTimeout(() => {
+      // long press: show ctx menu
+      notesShowPageCtx({ clientX: t.clientX, clientY: t.clientY });
+    }, 500);
   }, { passive: true });
   pnd.addEventListener('touchend',  () => clearTimeout(_lpTimer), { passive: true });
   pnd.addEventListener('touchmove', () => clearTimeout(_lpTimer), { passive: true });
@@ -5428,7 +5589,7 @@ showPage = function(id, skipRender) {
   _origShowPage(id, skipRender);
 };
 
-// ── Logo: single click → notes, long press → menu ─────
+// ── Logo: 長按 → 設定選單，單擊 → notes 導航 ─────
 function notesRewireLogo() {
   const logo = document.getElementById('logoBtn');
   if (!logo) return;
@@ -5444,8 +5605,7 @@ function notesRewireLogo() {
     _lpFired = false;
     _lp = setTimeout(() => {
       _lpFired = true;
-      openLogoMenu({ clientX: 0, clientY: 0 });
-      // Reposition properly
+      // 長按 → 開設定選單
       const rect = newLogo.getBoundingClientRect();
       const menu = document.getElementById('logoMenu');
       if (menu) {
@@ -5464,15 +5624,14 @@ function notesRewireLogo() {
   newLogo.addEventListener('click', e => {
     e.stopPropagation();
     if (_lpFired) { _lpFired = false; return; }
-    // Single click → if on notes, go back; otherwise go to notes
+    // 單擊：設定選單若開著則關掉
     const menu = document.getElementById('logoMenu');
     if (menu && menu.style.display === 'block') { closeLogoMenu(); return; }
+    // 單擊切換 notes
     if (_notesIsVisible) {
-      // Navigate back to previous page (default: tree)
       const prevPage = window._notesPrevPage || 'tree';
       showPage(prevPage);
     } else {
-      // Remember current page before going to notes
       const activePage = document.querySelector('.page.active');
       if (activePage) window._notesPrevPage = activePage.id.replace('page-', '');
       showPage('notes');
@@ -5507,6 +5666,7 @@ function notesRewireLogo() {
     e.stopPropagation();
     const menu = document.getElementById('logoMenu');
     if (menu && menu.style.display === 'block') { closeLogoMenu(); return; }
+    // 單擊切換 notes
     if (_notesIsVisible) {
       const prevPage = window._notesPrevPage || 'tree';
       showPage(prevPage);
