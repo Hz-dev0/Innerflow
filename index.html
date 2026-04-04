@@ -3514,8 +3514,10 @@ function renderTodayPanel() {
     const gIcon = goalIconMap[t.goal] || '●';
     const isOverdue = t.scheduledFor < todayStr;
     const overdueStyle = isOverdue && !t.done ? 'border-color:rgba(192,86,90,0.3);background:rgba(192,86,90,0.04);' : '';
+    const stripeColor = isOverdue && !t.done ? 'var(--rose)' : '#C9A227';
+    const stripeTitle = isOverdue && !t.done ? '逾期 — 點擊取消標記' : '今日處理中 — 點擊取消標記';
     return `<div class="today-task-chip${t.done ? ' done-chip' : ''}"
-      style="${overdueStyle}cursor:grab"
+      style="${overdueStyle}cursor:grab;position:relative;padding-left:18px;overflow:hidden"
       data-idx="${idx}" data-id="${t.id}"
       draggable="true"
       onclick="navigateToTask(${t.id})"
@@ -3524,14 +3526,28 @@ function renderTodayPanel() {
       ondrop="todayChipDrop(event,${idx})"
       ondragend="todayChipDragEnd(event)"
       title="點擊跳轉到此任務（可拖曳排序）">
+      ${!t.done ? `<div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:${stripeColor};border-radius:3px 0 0 3px;opacity:0.85;cursor:pointer;transition:width 0.15s,opacity 0.15s;flex-shrink:0" title="${stripeTitle}" onclick="event.stopPropagation();setTaskStatus(${t.id},'none')" onmouseover="this.style.width='6px';this.style.opacity=1" onmouseout="this.style.width='4px';this.style.opacity=0.85"></div>` : ''}
       <span class="today-chip-drag-handle" onclick="event.stopPropagation()" title="拖曳排序">⠿</span>
       <div class="today-chip-check${t.done ? ' checked' : ''}" onclick="event.stopPropagation();toggleTask(${t.id});renderTodayPanel()">${t.done ? '✓' : ''}</div>
       <span class="today-chip-goal">${gIcon}</span>
       <span class="today-chip-name" style="${isOverdue && !t.done ? 'color:var(--rose)' : ''}">${t.name}</span>
       ${isOverdue && !t.done ? '<span style="font-size:10px;color:var(--rose);flex-shrink:0;font-weight:600">逾期</span>' : ''}
-      ${!t.done ? `<span style="font-size:10px;color:var(--text-faint);cursor:pointer;flex-shrink:0;padding:1px 5px;border-radius:4px;transition:all 0.2s" onclick="event.stopPropagation();setTaskStatus(${t.id},'none')" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'" title="移除今日標記">✕</span>` : ''}
+      ${!t.done ? `<span style="font-size:12px;color:var(--text-faint);cursor:pointer;flex-shrink:0;padding:1px 5px;border-radius:4px;transition:all 0.2s" onclick="event.stopPropagation();deleteTodayTask(${t.id})" onmouseover="this.style.color='var(--rose)';this.style.background='rgba(192,86,90,0.08)'" onmouseout="this.style.color='var(--text-faint)';this.style.background='transparent'" title="刪除此任務">🗑</span>` : ''}
     </div>`;
   }).join('');
+}
+
+// ── Delete task from today panel ──
+function deleteTodayTask(id) {
+  const t = state.tasks.find(x => x.id === id);
+  if (!t) return;
+  state.tasks = state.tasks.filter(x => x.id !== id);
+  renderTodayPanel();
+  renderTasks();
+  renderTree();
+  renderStats();
+  syncToCloud();
+  showToast('🗑 任務已刪除');
 }
 
 // Today panel drag handlers
@@ -5001,6 +5017,7 @@ function notesFlush() {
 const _notesMdState = { A: false, B: false };
 
 function notesToggleMd(side) {
+  // (also exposed as window.notesToggleMd below)
   const ta  = document.getElementById('notesText' + side);
   const pre = document.getElementById('notes-md-preview-' + side.toLowerCase());
   const btn = document.getElementById('notes-md-toggle-' + side.toLowerCase());
@@ -5026,6 +5043,9 @@ function notesLiveMd(side) {
   const pre = document.getElementById('notes-md-preview-' + side.toLowerCase());
   if (ta && pre && typeof marked !== 'undefined') pre.innerHTML = marked.parse(ta.value || '');
 }
+window.notesToggleMd = notesToggleMd;
+window.notesLiveMd   = notesLiveMd;
+window.notesAutoSave = notesAutoSave;
 
 function notesRefreshPreviews() {
   ['A','B'].forEach(side => {
