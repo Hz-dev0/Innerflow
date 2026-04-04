@@ -1696,7 +1696,7 @@
         <div class="card-title">✦ 還沒決定要做，但聽起來很有趣</div>
         <div class="sandbox-list" id="sandboxList"></div>
         <div style="display:flex;gap:10px;margin-top:16px">
-          <input id="sandboxInput" placeholder="一個讓你好奇的想法、主題或冒險…" style="flex:1;background:var(--bg3);border:1px solid rgba(201,162,39,0.45);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border-color 0.2s" onfocus="this.style.borderColor='#c9a227'" onblur="this.style.borderColor='rgba(201,162,39,0.45)'" onkeydown="if(event.key==='Enter')addSandbox()">
+          <input id="sandboxInput" placeholder="一個讓你好奇的想法、主題或冒險…" style="flex:1;background:rgba(201,162,39,0.13);border:1px solid rgba(201,162,39,0.45);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border-color 0.2s,background 0.2s" onfocus="this.style.borderColor='#c9a227';this.style.background='rgba(201,162,39,0.22)'" onblur="this.style.borderColor='rgba(201,162,39,0.45)';this.style.background='rgba(201,162,39,0.13)'" onkeydown="if(event.key==='Enter')addSandbox()">
           <button class="btn-confirm" onclick="addSandbox()" style="background:rgba(201,162,39,0.18);border:1px solid rgba(201,162,39,0.55);color:#b8922a;font-weight:600">丟進來</button>
         </div>
         <div style="font-size:11px;color:var(--text-faint);margin-top:8px">這裡沒有截止日期，沒有完成率壓力，只有好奇心本身。</div>
@@ -4980,6 +4980,8 @@ window._notesDlg = _notesDlg;
 
 // ── Persistence ────────────────────────────────────────
 function notesSave() {
+  // Always flush current textarea content into data before saving
+  try { notesFlush(); } catch(e) {}
   try {
     localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify({
       tabs: notesFolderData,
