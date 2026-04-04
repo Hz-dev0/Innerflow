@@ -2369,12 +2369,22 @@ async function loadFromCloud() {
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
       state.wishPoints  = typeof data.wishPoints === 'number' ? data.wishPoints : (state.wishPoints || 0);
-      // Restore notes from cloud if present and local is empty
+      // Restore notes from cloud — use whichever version is newer (by updatedAt timestamp)
       if (data.notes && data.notes.tabs) {
         try {
           const localRaw = localStorage.getItem('innerflow_notes_v1');
           if (!localRaw) {
+            // No local data at all → always use cloud
             localStorage.setItem('innerflow_notes_v1', JSON.stringify(data.notes));
+          } else {
+            const localNotes = JSON.parse(localRaw);
+            const cloudTs = data.notes.updatedAt || 0;
+            const localTs = localNotes.updatedAt || 0;
+            if (cloudTs > localTs) {
+              // Cloud is newer → overwrite local
+              localStorage.setItem('innerflow_notes_v1', JSON.stringify(data.notes));
+            }
+            // else local is newer or equal → keep local (will be pushed on next syncToCloud)
           }
         } catch(e) {}
       }
@@ -4973,7 +4983,8 @@ function notesSave() {
   try {
     localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify({
       tabs: notesFolderData,
-      lastTab: notesTabIndex
+      lastTab: notesTabIndex,
+      updatedAt: Date.now()
     }));
   } catch(e) {}
   // Sync notes to cloud if connected
