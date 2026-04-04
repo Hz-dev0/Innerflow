@@ -1572,19 +1572,18 @@
       flex-direction: column;
       padding: 10px 10px 8px;
       gap: 10px;
-      overflow: hidden; /* container itself does NOT scroll */
+      overflow: hidden;
     }
     .notes-note-box {
       flex: 1 1 0%;
       min-height: 0;
-      height: 0; /* flex distributes space; height:0 + flex:1 makes each half the space */
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
     .notes-textarea {
       flex: 1 1 0%;
       min-height: 0;
-      height: 0; /* let flex fill the box, not intrinsic height */
       overflow-y: scroll !important;
       -webkit-overflow-scrolling: touch;
       touch-action: pan-y;
@@ -5096,6 +5095,9 @@ function notesToggleMd(side) {
   if (on) {
     pre.innerHTML = _notesMdParse(ta.value || '');
     pre.ondblclick = () => notesToggleMd(side);
+    // Hide toolbar when entering MD preview
+    const toolbar = document.getElementById('notes-md-toolbar');
+    if (toolbar) toolbar.classList.remove('show');
   } else {
     pre.ondblclick = null;
     setTimeout(() => ta.focus(), 40);
@@ -5232,6 +5234,8 @@ function notesRenderTabs() {
     const pnd = document.getElementById('notes-page-num');
     if (pnd) pnd.textContent = (tab.currentPage + 1) + ' / ' + tab.pages.length;
   }
+  // Explicitly size textareas on mobile after each render
+  setTimeout(notesSizeMobile, 30);
 }
 
 // ── Add / Delete tabs ──────────────────────────────────
@@ -5519,7 +5523,8 @@ function notesInitToolbar() {
     ta.value = ta.value.slice(0,s) + before + sel + after + ta.value.slice(e);
     ta.selectionStart = s + before.length;
     ta.selectionEnd   = s + before.length + sel.length;
-    ta.focus(); ta.dispatchEvent(new Event('input',{bubbles:true})); hideToolbar();
+    ta.focus(); ta.dispatchEvent(new Event('input',{bubbles:true}));
+    if (!isTouchDevice()) hideToolbar();
   }
   function prefixLine(pfx) {
     const ta = _activeTA; if (!ta) return;
@@ -5527,7 +5532,8 @@ function notesInitToolbar() {
     let ls = s; while (ls > 0 && ta.value[ls-1] !== '\n') ls--;
     ta.value = ta.value.slice(0, ls) + pfx + ta.value.slice(ls);
     ta.selectionStart = ta.selectionEnd = s + pfx.length;
-    ta.focus(); ta.dispatchEvent(new Event('input',{bubbles:true})); hideToolbar();
+    ta.focus(); ta.dispatchEvent(new Event('input',{bubbles:true}));
+    if (!isTouchDevice()) hideToolbar();
   }
 
   function bind(id, fn) {
@@ -5546,7 +5552,8 @@ function notesInitToolbar() {
     const s=ta.selectionStart;
     ta.value=ta.value.slice(0,s)+'\n---\n'+ta.value.slice(s);
     ta.selectionStart=ta.selectionEnd=s+5;
-    ta.focus(); ta.dispatchEvent(new Event('input',{bubbles:true})); hideToolbar(); });
+    ta.focus(); ta.dispatchEvent(new Event('input',{bubbles:true}));
+    if (!isTouchDevice()) hideToolbar(); });
 
   toolbar.querySelectorAll('.ntb-color-dot').forEach(dot => {
     const fn = e => { e.preventDefault(); wrapSel('<span style="color:'+dot.dataset.color+'">','</span>'); };
@@ -5557,34 +5564,63 @@ function notesInitToolbar() {
     dot.addEventListener('mousedown', fn); dot.addEventListener('touchend', fn);
   });
 
-  const isTouchDevice = () => window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  const isTouchDevice = () => ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
+  // Track which textarea is active
+  function setActiveTA(ta) { _activeTA = ta; }
+
+  // Show toolbar anchored to textarea (desktop) or fixed bottom (mobile)
+  function showToolbar() {
+    toolbar.classList.add('show');
+    if (!isTouchDevice() && _activeTA) {
+      const r = _activeTA.getBoundingClientRect();
+      showAt(r.left + r.width / 2, r.top + 36);
+    }
+    // On touch: CSS handles position (left:0 right:0 bottom:...)
+  }
+
+  // Wire focus/blur on textareas
+  ['notesTextA','notesTextB'].forEach(id => {
+    const ta = document.getElementById(id);
+    if (!ta) return;
+    ta.addEventListener('focus', () => {
+      setActiveTA(ta);
+      showToolbar();
+    });
+    // Hide toolbar when focus leaves notes entirely (not to toolbar itself)
+    ta.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (!toolbar.contains(document.activeElement) &&
+            !['notesTextA','notesTextB','notesTitleA','notesTitleB'].includes(document.activeElement?.id)) {
+          hideToolbar();
+        }
+      }, 150);
+    });
+  });
+
+  // Desktop: also show on text selection in textarea
   document.addEventListener('mouseup', e => {
     if (e.target.classList.contains('notes-textarea')) {
-      _activeTA = e.target;
-      setTimeout(() => {
-        if (_activeTA && _activeTA.selectionStart !== _activeTA.selectionEnd) {
-          if (isTouchDevice()) {
-            // On touch: CSS positions toolbar at bottom, just show it
-            toolbar.classList.add('show');
-          } else {
-            const r = _activeTA.getBoundingClientRect();
-            showAt(_activeTA.getBoundingClientRect().left + _activeTA.getBoundingClientRect().width/2, r.top+36);
-          }
-        }
-      }, 10);
-    } else if (!toolbar.contains(e.target)) { hideToolbar(); }
+      setActiveTA(e.target);
+      showToolbar();
+    } else if (!toolbar.contains(e.target)) {
+      // Only hide on desktop if clicking truly outside
+      if (!isTouchDevice()) hideToolbar();
+    }
   });
+
+  // Touch: toolbar stays visible while textarea is focused; tap outside hides it
   document.addEventListener('touchend', e => {
     if (e.target.classList.contains('notes-textarea')) {
-      _activeTA = e.target;
-      setTimeout(() => {
-        if (_activeTA && _activeTA.selectionStart !== _activeTA.selectionEnd) {
-          // On touch: CSS positions toolbar at bottom, just show it
-          toolbar.classList.add('show');
-        }
-      }, 600);
-    } else if (!toolbar.contains(e.target)) { hideToolbar(); }
+      setActiveTA(e.target);
+      // showToolbar called by focus event
+    } else if (!toolbar.contains(e.target) && isTouchDevice()) {
+      // Tapped outside textarea and toolbar
+      const active = document.activeElement;
+      if (!active || !active.classList.contains('notes-textarea')) {
+        hideToolbar();
+      }
+    }
   });
   document.addEventListener('contextmenu', e => {
     if (!e.target.classList.contains('notes-textarea')) return;
@@ -5661,6 +5697,8 @@ function notesShow() {
   notesLoad();
   notesEnsureDefaults();
   notesRenderTabs();
+  // Size textareas explicitly on Android so each scrolls independently
+  setTimeout(notesSizeMobile, 60);
 }
 
 function notesHide() {
@@ -5829,6 +5867,36 @@ function notesInitKeys() {
   });
 }
 
+// ── Mobile: explicitly size note boxes so each textarea scrolls independently ──
+function notesSizeMobile() {
+  if (window.innerWidth > 680) return;
+  const content = document.querySelector('.notes-folder-content');
+  const boxes = document.querySelectorAll('.notes-note-box');
+  if (!content || boxes.length === 0) return;
+  // Available height = content height minus gap between boxes
+  const gap = 10;
+  const totalGap = gap * (boxes.length - 1);
+  const availH = content.clientHeight - totalGap - 20; // 20 = top+bottom padding
+  const boxH = Math.max(80, Math.floor(availH / boxes.length));
+  boxes.forEach(box => {
+    box.style.height = boxH + 'px';
+    box.style.maxHeight = boxH + 'px';
+    box.style.flex = 'none';
+    // Make the textarea fill the box minus title input height
+    const title = box.querySelector('.notes-title-input');
+    const ta = box.querySelector('.notes-textarea');
+    if (ta) {
+      const titleH = title ? title.offsetHeight + 8 : 0; // 8px gap
+      const taH = Math.max(60, boxH - titleH - 2);
+      ta.style.height = taH + 'px';
+      ta.style.maxHeight = taH + 'px';
+      ta.style.flex = 'none';
+      ta.style.overflowY = 'scroll';
+    }
+  });
+}
+window.notesSizeMobile = notesSizeMobile;
+
 // ── Init ───────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
   notesInitToolbar();
@@ -5839,6 +5907,10 @@ document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('.notes-textarea').forEach(ta => {
     ta.style.touchAction = 'pan-y';
     ta.style.webkitOverflowScrolling = 'touch';
+  });
+  // Re-size on orientation change / keyboard show-hide
+  window.addEventListener('resize', () => {
+    if (_notesIsVisible) setTimeout(notesSizeMobile, 100);
   });
   // Wire search close on outside click
   document.addEventListener('click', e => {
