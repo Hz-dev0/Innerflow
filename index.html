@@ -1358,6 +1358,7 @@
     outline: none; font-size: 16px; padding-bottom: 6px;
     background: transparent; width: 100%; font-family: inherit;
     transition: border-bottom-color 0.2s;
+    padding-right: 40px;
   }
   .notes-title-input:focus { border-bottom-color: var(--green); }
   .notes-textarea {
@@ -1375,7 +1376,7 @@
 
   /* MD toggle button */
   .notes-md-toggle {
-    position: absolute; top: 36px; right: 0;
+    position: absolute; top: 0; right: 0;
     font-size: 11px; font-weight: 700;
     color: var(--text-faint); background: none; border: none;
     cursor: pointer; padding: 2px 6px; border-radius: 6px;
@@ -1496,7 +1497,7 @@
     position: fixed; z-index: 9998; display: none;
     background: var(--bg2); border: 1px solid rgba(58,110,165,0.3);
     border-radius: 10px; box-shadow: 0 6px 20px rgba(58,110,165,0.15);
-    padding: 4px 6px; gap: 2px; align-items: center; flex-wrap: wrap;
+    padding: 4px 6px; gap: 2px; align-items: center;
     max-width: calc(100vw - 24px); transform: translateX(-50%);
     pointer-events: all;
   }
@@ -1649,7 +1650,10 @@
       </div>
       <!-- Today Tasks Panel -->
       <div class="today-panel" id="todayPanel">
-        <div class="today-panel-title">☀ 今日任務 <span id="todayPanelCount" style="font-size:10px;background:var(--green-dim);color:var(--green);border-radius:20px;padding:1px 8px;font-weight:600;letter-spacing:0"></span></div>
+        <div class="today-panel-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>☀ 今日任務 <span id="todayPanelCount" style="font-size:10px;background:var(--green-dim);color:var(--green);border-radius:20px;padding:1px 8px;font-weight:600;letter-spacing:0"></span></span>
+          <button onclick="openAddTaskForToday()" style="background:none;border:1px solid rgba(58,110,165,0.3);border-radius:6px;color:var(--green);font-size:11px;padding:2px 9px;cursor:pointer;font-family:inherit;transition:all 0.2s;line-height:1.5" onmouseover="this.style.background='rgba(58,110,165,0.08)'" onmouseout="this.style.background='none'" title="新增今日任務">＋ 新增</button>
+        </div>
         <div id="todayPanelList"></div>
       </div>
     </div>
@@ -1935,6 +1939,8 @@
   <button id="ntb-h4">H4</button>
   <div class="ntb-sep"></div>
   <button id="ntb-bold"><b>B</b></button>
+  <button id="ntb-underline"><u>U</u></button>
+  <button id="ntb-box">▭</button>
   <button id="ntb-ul">• 列</button>
   <button id="ntb-ol">1. 列</button>
   <button id="ntb-hr">—</button>
@@ -2128,15 +2134,7 @@
     <span style="font-size:17px">⚙️</span>
     <span>使用設定</span>
   </div>
-  <div onclick="document.getElementById('onboardModal').classList.add('open');closeLogoMenu()" style="
-    display:flex;align-items:center;gap:10px;
-    padding:10px 14px;border-radius:9px;
-    font-size:14px;color:var(--text-dim);cursor:pointer;
-    transition:all 0.15s;
-  " onmouseover="this.style.background='var(--bg3)';this.style.color='var(--text)'" onmouseout="this.style.background='transparent';this.style.color='var(--text-dim)'">
-    <span style="font-size:17px">💡</span>
-    <span>使用說明</span>
-  </div>
+
 </div>
 
 <!-- Add Wish Modal -->
@@ -2367,6 +2365,15 @@ async function loadFromCloud() {
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
       state.wishPoints  = typeof data.wishPoints === 'number' ? data.wishPoints : (state.wishPoints || 0);
+      // Restore notes from cloud if present and local is empty
+      if (data.notes && data.notes.tabs) {
+        try {
+          const localRaw = localStorage.getItem('innerflow_notes_v1');
+          if (!localRaw) {
+            localStorage.setItem('innerflow_notes_v1', JSON.stringify(data.notes));
+          }
+        } catch(e) {}
+      }
       // Restore lotteryState from cloud (cross-device sync)
       if (data.lotteryState && typeof data.lotteryState === 'object') {
         lotteryState = { ...lotteryState, ...data.lotteryState };
@@ -2378,6 +2385,11 @@ async function loadFromCloud() {
     console.warn('無法讀取雲端資料', e);
   }
   return false;
+}
+
+// ── Notes cloud sync helper (called from IIFE notesSave) ──
+function syncNotesToCloud() {
+  syncToCloud();
 }
 
 async function syncToCloud() {
@@ -2395,7 +2407,7 @@ async function syncToCloud() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'save',
-        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], todayOrder: state.todayOrder || [], lotteryState: lotteryState, wishPoints: state.wishPoints || 0 }
+        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], todayOrder: state.todayOrder || [], lotteryState: lotteryState, wishPoints: state.wishPoints || 0, notes: (function(){ try { return JSON.parse(localStorage.getItem('innerflow_notes_v1') || 'null'); } catch(e){ return null; } })() }
       })
     });
     if (dot) { dot.className = 'sync-dot synced'; setTimeout(() => { if (dot) dot.className = 'sync-dot synced'; }, 2000); }
@@ -3205,6 +3217,18 @@ function openAddTask() {
   document.getElementById('newTaskName').focus();
 }
 
+function openAddTaskForToday() {
+  document.getElementById('addModal').classList.add('open');
+  // Pre-fill today's date so it auto-appears in today panel
+  document.getElementById('newTaskDate').value = localDateStr();
+  if (state.pendingGoalForAdd) {
+    document.getElementById('newTaskGoal').value = state.pendingGoalForAdd;
+    state.pendingGoalForAdd = null;
+  }
+  document.getElementById('newTaskName').focus();
+  state._addTaskForToday = true;
+}
+
 function clearGoalFilter() {
   state.goalFilter = null;
   const label = document.getElementById('filtered-label');
@@ -3599,9 +3623,12 @@ function toggleTask(id) {
     checkRewardUnlocks();
     renderRewards();
     onTaskCompleted();
-    // If interval-recurring, schedule next occurrence
+    // If interval-recurring, schedule next occurrence then remove the completed original
     if (t.recurring && t.recurMode === 'interval') {
       scheduleIntervalTask(t);
+      // Remove the completed original — the clone is the new single instance
+      state.tasks = state.tasks.filter(x => x.id !== t.id);
+      if (state.done > 0) state.done--;
     }
   } else {
     t.completedAt = null; // clear completion date when unchecking
@@ -3779,6 +3806,12 @@ function addTask() {
     newTask.scheduledFor = todayStr;
     newTask.status = 'active';
   }
+  // If opened via "新增今日任務" button, always schedule for today
+  if (state._addTaskForToday) {
+    newTask.scheduledFor = todayStr;
+    newTask.status = 'active';
+    state._addTaskForToday = false;
+  }
   state.tasks.push(newTask);
   document.getElementById('newTaskName').value = '';
   document.getElementById('newTaskMeaning').value = '';
@@ -3788,9 +3821,15 @@ function addTask() {
   document.getElementById('newIntervalInput').style.display = 'none';
   document.querySelectorAll('input[name="newRecurMode"]')[0].checked = true;
   closeModal('addModal');
-  showPage('tasks');
-  renderTasks();
-  renderTree();
+  // If added from the tree today panel, stay on tree page
+  if (newTask.scheduledFor === todayStr && document.getElementById('page-tree').classList.contains('active')) {
+    renderTree();
+    renderTodayPanel();
+  } else {
+    showPage('tasks');
+    renderTasks();
+    renderTree();
+  }
   showToast('🌱 任務已種下，等待發芽');
   syncToCloud();
 }
@@ -4871,9 +4910,9 @@ const _notesDlg = (() => {
       ti().textContent = title;
       if (isConfirm) {
         inp().style.display = 'none';
-        cn().style.display  = '';
+        cn().style.display  = 'inline-block';
       } else {
-        inp().style.display = '';
+        inp().style.display = 'block';
         inp().value = defaultVal;
         cn().style.display  = '';
         setTimeout(() => { inp().focus(); inp().select(); }, 80);
@@ -4912,6 +4951,10 @@ function notesSave() {
       tabs: notesFolderData,
       lastTab: notesTabIndex
     }));
+  } catch(e) {}
+  // Sync notes to cloud if connected
+  try {
+    if (typeof syncNotesToCloud === 'function') syncNotesToCloud();
   } catch(e) {}
 }
 function notesLoad() {
@@ -5004,6 +5047,17 @@ function notesRenderTabs() {
     div.onclick = () => {
       notesFlush();
       notesTabIndex = i;
+      // Reset MD preview state so toggles work fresh on new tab
+      _notesMdState.A = false;
+      _notesMdState.B = false;
+      ['a','b'].forEach(s => {
+        const ta = document.getElementById('notesText' + s.toUpperCase());
+        const pre = document.getElementById('notes-md-preview-' + s);
+        const btn = document.getElementById('notes-md-toggle-' + s);
+        if (ta)  ta.style.display = '';
+        if (pre) pre.classList.remove('show');
+        if (btn) { btn.classList.remove('active'); btn.setAttribute('title','切換 Markdown 預覽'); }
+      });
       notesRenderTabs();
     };
     div.ondblclick = async e => {
@@ -5210,6 +5264,8 @@ function notesInitToolbar() {
   bind('ntb-h3',   () => prefixLine('### '));
   bind('ntb-h4',   () => prefixLine('#### '));
   bind('ntb-bold', () => wrapSel('**','**'));
+  bind('ntb-underline', () => wrapSel('<u>','</u>'));
+  bind('ntb-box',  () => wrapSel('<span style="border:1px solid currentColor;border-radius:3px;padding:0 4px;">','</span>'));
   bind('ntb-ul',   () => prefixLine('- '));
   bind('ntb-ol',   () => prefixLine('1. '));
   bind('ntb-hr',   () => { const ta=_activeTA; if(!ta) return;
@@ -5332,6 +5388,11 @@ showPage = function(id, skipRender) {
   // Hide the notes overlay if navigating away
   document.getElementById('page-notes').classList.toggle('active', id === 'notes');
   if (id === 'notes') {
+    // Remember the previous page so logo click can go back
+    const activePage = document.querySelector('.page.active');
+    if (activePage && activePage.id !== 'page-notes') {
+      window._notesPrevPage = activePage.id.replace('page-', '');
+    }
     // Mark mob/sidebar notes active
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.querySelectorAll('.mob-nav-item').forEach(n => n.classList.remove('active'));
@@ -5383,10 +5444,19 @@ function notesRewireLogo() {
   newLogo.addEventListener('click', e => {
     e.stopPropagation();
     if (_lpFired) { _lpFired = false; return; }
-    // Single click → go to notes
+    // Single click → if on notes, go back; otherwise go to notes
     const menu = document.getElementById('logoMenu');
     if (menu && menu.style.display === 'block') { closeLogoMenu(); return; }
-    showPage('notes');
+    if (_notesIsVisible) {
+      // Navigate back to previous page (default: tree)
+      const prevPage = window._notesPrevPage || 'tree';
+      showPage(prevPage);
+    } else {
+      // Remember current page before going to notes
+      const activePage = document.querySelector('.page.active');
+      if (activePage) window._notesPrevPage = activePage.id.replace('page-', '');
+      showPage('notes');
+    }
   });
 
   // Touch support
@@ -5417,7 +5487,14 @@ function notesRewireLogo() {
     e.stopPropagation();
     const menu = document.getElementById('logoMenu');
     if (menu && menu.style.display === 'block') { closeLogoMenu(); return; }
-    showPage('notes');
+    if (_notesIsVisible) {
+      const prevPage = window._notesPrevPage || 'tree';
+      showPage(prevPage);
+    } else {
+      const activePage = document.querySelector('.page.active');
+      if (activePage) window._notesPrevPage = activePage.id.replace('page-', '');
+      showPage('notes');
+    }
   });
   newLogo.addEventListener('touchmove', () => clearTimeout(_touchLp), { passive: true });
 }
