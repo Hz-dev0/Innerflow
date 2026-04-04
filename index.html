@@ -1468,7 +1468,7 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .notes-search-empty { padding: 12px 16px; font-size: 13px; color: var(--text-faint); font-style: italic; }
 
-  /* Markdown toolbar */
+  /* Markdown toolbar — desktop: floats near cursor; mobile: fixed at bottom */
   #notes-md-toolbar {
     position: fixed; z-index: 9998; display: none;
     background: var(--bg2); border: 1px solid rgba(58,110,165,0.3);
@@ -1477,25 +1477,30 @@
     max-width: calc(100vw - 24px); transform: translateX(-50%);
     pointer-events: all;
   }
-  @media (hover: none) and (pointer: coarse) {
+  #notes-md-toolbar.show { display: flex; }
+  /* Mobile: always pinned to bottom, never floats */
+  @media (max-width: 680px) {
     #notes-md-toolbar {
-      left: 0 !important; right: 0 !important; top: auto !important;
+      left: 0 !important;
+      right: 0 !important;
+      top: auto !important;
       bottom: calc(60px + env(safe-area-inset-bottom)) !important;
-      border-radius: 0;
       transform: none !important;
+      border-radius: 0;
       width: 100% !important;
       max-width: 100% !important;
       box-sizing: border-box;
       overflow-x: auto;
       overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
-      padding: 6px 10px;
+      padding: 6px 12px;
       flex-wrap: nowrap;
       scrollbar-width: none;
+      border-left: none;
+      border-right: none;
     }
     #notes-md-toolbar::-webkit-scrollbar { display: none; }
   }
-  #notes-md-toolbar.show { display: flex; }
   #notes-md-toolbar button {
     border: none; background: none; border-radius: 6px;
     padding: 4px 7px; font-size: 11px; font-weight: 700;
@@ -1567,12 +1572,18 @@
   .npctx-i.danger:hover { background: rgba(58,110,165,0.1); color: var(--text); }
   .npctx-sep { height: 1px; background: var(--border); margin: 4px 8px; }
 
-  /* Mobile: fixed height per box so each textarea scrolls independently */
+  /* Mobile: JS sets exact pixel heights; each textarea scrolls independently */
   @media (max-width: 680px) {
-    .notes-folder-content {
+    #page-notes {
+      overflow: hidden;
+      display: flex;
       flex-direction: column;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
+    }
+    .notes-folder-content {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      flex-direction: column;
       padding: 0;
       gap: 0;
       background: var(--bg2);
@@ -1581,6 +1592,7 @@
     .notes-note-box {
       flex: none;
       width: 100%;
+      /* JS overrides this with exact px, but CSS fallback */
       height: calc((100vh - 52px - 60px - 40px) / 2);
       min-height: 160px;
       display: flex;
@@ -5520,8 +5532,11 @@ function notesInitToolbar() {
   if (!toolbar) return;
   let _activeTA = null;
 
+  const _isMobile = () => window.innerWidth <= 680;
   function hideToolbar() { toolbar.classList.remove('show'); }
   function showAt(x, y) {
+    // On mobile the toolbar is CSS-pinned to bottom, never float
+    if (_isMobile()) { toolbar.classList.add('show'); return; }
     toolbar.classList.add('show');
     const tw = toolbar.offsetWidth || 300;
     const th = toolbar.offsetHeight || 40;
@@ -5529,7 +5544,7 @@ function notesInitToolbar() {
     if (lx < 8) lx = 8;
     if (lx + tw > window.innerWidth - 8) lx = window.innerWidth - tw - 8;
     let ty = y - th - 8;
-    if (ty < 8) ty = y + 8; // flip below cursor if would go off top
+    if (ty < 8) ty = y + 8;
     if (ty + th > window.innerHeight - 8) ty = window.innerHeight - th - 8;
     toolbar.style.left = lx + 'px';
     toolbar.style.top  = ty + 'px';
@@ -5588,14 +5603,16 @@ function notesInitToolbar() {
   // Track which textarea is active
   function setActiveTA(ta) { _activeTA = ta; }
 
-  // Show toolbar anchored to textarea (desktop) or fixed bottom (mobile)
+  // Show toolbar: mobile = CSS-pinned bottom; desktop = float near textarea
   function showToolbar() {
-    toolbar.classList.add('show');
-    if (!isTouchDevice() && _activeTA) {
+    if (_isMobile()) {
+      toolbar.classList.add('show');
+    } else if (_activeTA) {
       const r = _activeTA.getBoundingClientRect();
       showAt(r.left + r.width / 2, r.top + 36);
+    } else {
+      toolbar.classList.add('show');
     }
-    // On touch: CSS handles position (left:0 right:0 bottom:...)
   }
 
   // Helper: is this textarea currently in MD preview mode?
