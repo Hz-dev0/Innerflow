@@ -5149,10 +5149,31 @@ function notesChangeSubPage(dir) {
   const tab = notesFolderData[notesTabIndex];
   if (!tab?.pages) return;
   notesFlush();
-  notesDropEmptyCurrentPage();
-  const newP = tab.currentPage + dir;
-  if (newP < 0 || newP >= tab.pages.length) return;
-  tab.currentPage = newP;
+
+  // Check if current page is empty BEFORE deciding target
+  const pg = tab.pages[tab.currentPage];
+  const isEmpty = pg && !(pg.titleA?.trim() || pg.a?.trim() || pg.titleB?.trim() || pg.b?.trim());
+
+  if (isEmpty && tab.pages.length > 1) {
+    // Remove the empty page first, then navigate
+    // After removal, the target index depends on direction:
+    // dir=-1 (going back): remove current empty page → currentPage adjusts → new target is currentPage-1
+    // dir=+1 (going forward): remove current empty page → pages shift, stay at same index which is now next page
+    const idx = tab.currentPage;
+    tab.pages.splice(idx, 1);
+    if (dir === -1) {
+      // Going back: after removal current slot is now the next page; target = idx - 1
+      tab.currentPage = Math.max(0, idx - 1);
+    } else {
+      // Going forward: after removal the next page slid into idx; clamp just in case
+      tab.currentPage = Math.min(idx, tab.pages.length - 1);
+    }
+  } else {
+    const newP = tab.currentPage + dir;
+    if (newP < 0 || newP >= tab.pages.length) return;
+    tab.currentPage = newP;
+  }
+
   notesRenderTabs();
   clearTimeout(notesSaveTimer);
   notesSaveTimer = setTimeout(notesSave, 800);
