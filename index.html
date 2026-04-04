@@ -1567,7 +1567,7 @@
   .npctx-i.danger:hover { background: rgba(58,110,165,0.1); color: var(--text); }
   .npctx-sep { height: 1px; background: var(--border); margin: 4px 8px; }
 
-  /* Mobile: JS sets exact px heights; each textarea scrolls independently */
+  /* Mobile: pure CSS flex — no JS pixel calculation needed */
   @media (max-width: 680px) {
     .notes-folder-content {
       flex-direction: column;
@@ -1575,15 +1575,34 @@
       padding: 0;
       gap: 0;
       background: var(--bg2);
+      height: 100%;
     }
     .notes-note-box {
-      box-sizing: border-box;
-      border-bottom: 1px solid var(--border);
+      flex: 1 1 0%;
+      min-height: 0;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
     }
     .notes-note-box:last-of-type { border-bottom: none; }
     .notes-textarea {
+      flex: 1 1 0%;
+      min-height: 0;
+      height: 0;
       resize: none;
+      overflow-y: auto;
+      touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+    }
+    .notes-md-preview {
+      flex: 1 1 0%;
+      min-height: 0;
+      height: 0;
+      overflow-y: auto;
       touch-action: pan-y;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
@@ -5866,64 +5885,11 @@ function notesInitKeys() {
   });
 }
 
-// ── Mobile: set exact pixel heights so each box scrolls independently ──
+// ── Mobile sizing now handled entirely by CSS flex ──
 function notesSizeMobile() {
-  if (window.innerWidth > 680) return;
-  const tabsWrapper = document.querySelector('.notes-tabs-wrapper');
-  const tabH = tabsWrapper ? tabsWrapper.getBoundingClientRect().height : 40;
-  const navH = 60; // bottom nav
-  const headerH = 52;
-  // Each box gets half the remaining space
-  const boxH = Math.floor((window.innerHeight - headerH - navH - tabH) / 2);
-
-  // Set folder-content to column layout, overflow hidden (each child scrolls itself)
-  const fc = document.querySelector('.notes-folder-content');
-  if (fc) {
-    fc.style.flexDirection = 'column';
-    fc.style.overflowY = 'hidden';
-    fc.style.padding = '0';
-    fc.style.gap = '0';
-  }
-
-  const boxes = document.querySelectorAll('.notes-note-box');
-  boxes.forEach(box => {
-    box.style.position = 'relative';
-    box.style.top = '';
-    box.style.left = '';
-    box.style.right = '';
-    box.style.zIndex = '';
-    box.style.height = boxH + 'px';
-    box.style.flex = 'none';
-    box.style.overflow = 'hidden';
-    box.style.display = 'flex';
-    box.style.flexDirection = 'column';
-    box.style.padding = '8px 10px';
-    box.style.boxSizing = 'border-box';
-
-    const titleEl = box.querySelector('.notes-title-input');
-    const titleH = titleEl ? (titleEl.getBoundingClientRect().height || 32) + 10 : 36;
-    const innerH = Math.max(60, boxH - titleH - 16);
-
-    const ta  = box.querySelector('.notes-textarea');
-    const pre = box.querySelector('.notes-md-preview');
-
-    if (ta) {
-      ta.style.height = innerH + 'px';
-      ta.style.flex = 'none';
-      ta.style.overflowY = 'auto';
-      ta.style.touchAction = 'pan-y';
-      ta.style.webkitOverflowScrolling = 'touch';
-      ta.style.overscrollBehavior = 'contain';
-    }
-    if (pre) {
-      pre.style.height = innerH + 'px';
-      pre.style.flex = 'none';
-      pre.style.overflowY = 'auto';
-      pre.style.touchAction = 'pan-y';
-      pre.style.webkitOverflowScrolling = 'touch';
-      pre.style.overscrollBehavior = 'contain';
-    }
-  });
+  // No-op: CSS @media (max-width:680px) handles all sizing via flex.
+  // Previously this function calculated pixel heights which caused
+  // inconsistent scroll behaviour depending on render timing.
 }
 window.notesSizeMobile = notesSizeMobile;
 
