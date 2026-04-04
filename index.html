@@ -438,6 +438,12 @@
     max-width: 300px;
   }
   .toast.show { display: flex; }
+  @media (max-width: 680px) {
+    .toast {
+      bottom: calc(70px + env(safe-area-inset-bottom));
+      right: 12px; left: 12px; max-width: none;
+    }
+  }
   @keyframes slideUp { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
   /* ── Context Menu ── */
@@ -1469,10 +1475,20 @@
   }
   @media (hover: none) and (pointer: coarse) {
     #notes-md-toolbar {
-      left: 50% !important; top: auto !important;
-      bottom: calc(16px + 60px + env(safe-area-inset-bottom)) !important;
-      border-radius: 12px;
+      left: 0 !important; right: 0 !important; top: auto !important;
+      bottom: calc(60px + env(safe-area-inset-bottom)) !important;
+      border-radius: 0;
+      transform: none !important;
+      width: 100vw;
+      max-width: 100vw;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding: 6px 10px;
+      flex-wrap: nowrap;
+      scrollbar-width: none;
     }
+    #notes-md-toolbar::-webkit-scrollbar { display: none; }
   }
   #notes-md-toolbar.show { display: flex; }
   #notes-md-toolbar button {
@@ -1548,8 +1564,11 @@
 
   /* Mobile: stack note boxes vertically */
   @media (max-width: 680px) {
-    .notes-folder-content { flex-direction: column; padding: 12px 12px 50px; gap: 10px; }
-    .notes-note-box { flex: none; height: calc(50% - 5px); }
+    .notes-folder-content { flex-direction: column; padding: 12px 12px 50px; gap: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .notes-note-box { flex: none; height: auto; min-height: 240px; }
+    .notes-textarea { min-height: 180px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+    /* Hide prev/next arrows on mobile - swipe to navigate */
+    #notes-prev-zone, #notes-next-zone { display: none !important; }
   }
 
 </style>
@@ -2535,21 +2554,50 @@ function renderRewards() {
       const pct = r.count === 0 ? 100 : Math.min(100, Math.round(current / r.count * 100));
       const icon = goalIcons[r.goal] || '🎯';
       const canAdd = available > 0 && !unlocked;
-      return `<div class="sandbox-item wish-item" id="wish-${r.id}" style="cursor:default;justify-content:space-between;gap:10px">
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span style="font-size:13px;color:var(--text);font-weight:500">${r.name}</span>
-            <span style="font-size:11px;color:${unlocked ? '#c9a227' : 'var(--green)'};white-space:nowrap">${current} / ${r.count} ${unlocked ? '🎉 已解鎖' : `(${pct}%)`}</span>
+      // Progress bar segments (RPG-style)
+      const totalSegs = r.count || 3;
+      const filledSegs = Math.min(current, totalSegs);
+      const segBar = Array.from({length: totalSegs}, (_, i) =>
+        `<div style="flex:1;height:6px;border-radius:3px;background:${i < filledSegs ? 'var(--green)' : 'var(--border)'};transition:background 0.3s"></div>`
+      ).join('');
+      return `<div class="sandbox-item wish-item" id="wish-${r.id}" style="cursor:default;justify-content:space-between;gap:10px;flex-direction:column;padding:12px 14px;user-select:none" data-wish-id="${r.id}">
+        <div style="display:flex;align-items:flex-start;gap:10px;width:100%">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:13px;color:var(--text);font-weight:500">${r.name}</span>
+              ${unlocked ? `<span style="font-size:11px;color:#c9a227;white-space:nowrap;font-weight:600">🎉 已解鎖</span>` : `<span style="font-size:11px;color:var(--text-faint);white-space:nowrap">${current}/${r.count}</span>`}
+            </div>
+            <div style="font-size:11px;color:var(--text-faint);margin-top:3px">${icon} ${r.goal} · 長按可編輯或刪除</div>
+            <div style="display:flex;gap:3px;margin-top:8px">${segBar}</div>
           </div>
-          <div style="font-size:11px;color:var(--text-faint);margin-top:2px">${icon} ${r.goal} · 需 ${r.count} 點解鎖</div>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
-          <span title="${canAdd ? `配入一點（剩餘 ${available} 點）` : available <= 0 ? '點數不足，完成任務來獲得' : '已解鎖'}" onclick="${canAdd ? `allocateWishPoint(${r.id})` : ''}" style="font-size:14px;cursor:${canAdd ? 'pointer' : 'default'};opacity:${canAdd ? '1' : '0.3'};padding:2px 4px;border-radius:5px;transition:all 0.2s;user-select:none" ${canAdd ? `onmouseover="this.style.background='rgba(74,130,196,0.1)'" onmouseout="this.style.background='transparent'"` : ''}>✨</span>
-          ${!unlocked ? `<span style="font-size:12px;cursor:pointer;color:var(--text-faint);padding:2px 6px;border-radius:5px;transition:all 0.2s" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text-faint)'" onclick="openEditWish(${r.id})">✏️</span>` : ''}
-          ${!unlocked ? `<span class="sandbox-del" title="刪除願望" onclick="deleteReward(${r.id})">×</span>` : ''}
+          <!-- RPG unlock key: big, prominent -->
+          <button title="${canAdd ? `配入一點（剩餘 ${available} 點）` : available <= 0 ? '完成任務獲得點數' : '已解鎖'}"
+            onclick="${canAdd ? `allocateWishPoint(${r.id})` : ''}"
+            style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+                   width:52px;height:52px;border-radius:10px;border:2px solid ${canAdd ? 'var(--green)' : 'var(--border)'};
+                   background:${canAdd ? 'rgba(58,110,165,0.1)' : 'transparent'};
+                   cursor:${canAdd ? 'pointer' : 'default'};transition:all 0.2s;font-family:inherit;
+                   ${canAdd ? 'box-shadow:0 2px 10px rgba(58,110,165,0.18)' : 'opacity:0.4'}"
+            ${canAdd ? `onmouseover="this.style.background='rgba(58,110,165,0.2)';this.style.transform='scale(1.06)'" onmouseout="this.style.background='rgba(58,110,165,0.1)';this.style.transform='scale(1)'"` : ''}>
+            <span style="font-size:20px;line-height:1">${unlocked ? '🔓' : canAdd ? '🗝️' : '🔒'}</span>
+            <span style="font-size:9px;color:${canAdd ? 'var(--green)' : 'var(--text-faint)'};font-weight:600;letter-spacing:0.04em">${canAdd ? `+1` : unlocked ? '已解鎖' : '不足'}</span>
+          </button>
         </div>
       </div>`;
     }).join('');
+
+    // Attach long-press for edit/delete context menu on each wish item
+    wishes.forEach(r => {
+      const el = document.getElementById('wish-' + r.id);
+      if (!el) return;
+      const current = getWishProgress(r);
+      const unlocked = current >= r.count;
+      attachLongPress(el, () => {
+        if (navigator.vibrate) navigator.vibrate(30);
+        const rect = el.getBoundingClientRect();
+        showWishCtxMenu(r.id, unlocked, rect.left + rect.width/2, rect.top);
+      });
+    });
   }
   renderQuotes();
 }
@@ -2587,6 +2635,50 @@ function attachLongPress(el, callback) {
   el.addEventListener('touchstart', (e) => { e.preventDefault(); start(e); }, { passive: false });
   el.addEventListener('touchend', cancel);
   el.addEventListener('touchcancel', cancel);
+}
+
+// ── Wish Context Menu (long-press) ──
+let _wishCtxMenu = null;
+function showWishCtxMenu(id, unlocked, x, y) {
+  closeWishCtxMenu();
+  const r = state.rewards.find(r => r.id === id);
+  if (!r) return;
+  const menu = document.createElement('div');
+  menu.id = 'wishCtxMenu';
+  menu.style.cssText = `position:fixed;z-index:500;background:var(--bg2);border:1px solid var(--border);
+    border-radius:12px;padding:6px 0;min-width:160px;
+    box-shadow:0 8px 28px rgba(74,130,196,0.18);animation:modalIn 0.15s ease`;
+  const items = [];
+  if (!unlocked) {
+    items.push(`<div class="ctx-item" onclick="closeWishCtxMenu();openEditWish(${id})">✏️ 編輯願望</div>`);
+    items.push(`<div class="ctx-sep"></div>`);
+    items.push(`<div class="ctx-item danger" onclick="closeWishCtxMenu();deleteReward(${id})">🗑 刪除願望</div>`);
+  } else {
+    items.push(`<div class="ctx-item" onclick="closeWishCtxMenu();openClaimReward(${id})">🎉 領取願望</div>`);
+  }
+  menu.innerHTML = items.join('');
+  document.body.appendChild(menu);
+  _wishCtxMenu = menu;
+  // Position: center above item, clamp to viewport
+  requestAnimationFrame(() => {
+    const mw = menu.offsetWidth || 160;
+    const mh = menu.offsetHeight || 80;
+    let left = x - mw/2;
+    let top  = y - mh - 8;
+    if (left < 8) left = 8;
+    if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+    if (top < 8) top = y + 8;
+    menu.style.left = left + 'px';
+    menu.style.top  = top + 'px';
+  });
+  setTimeout(() => document.addEventListener('click', closeWishCtxMenuOnOutside), 10);
+}
+function closeWishCtxMenu() {
+  if (_wishCtxMenu) { _wishCtxMenu.remove(); _wishCtxMenu = null; }
+  document.removeEventListener('click', closeWishCtxMenuOnOutside);
+}
+function closeWishCtxMenuOnOutside(e) {
+  if (_wishCtxMenu && !_wishCtxMenu.contains(e.target)) closeWishCtxMenu();
 }
 
 // ── Edit Wish ──
@@ -3573,6 +3665,12 @@ function toggleTask(id) {
     onTaskCompleted();
     // If interval-recurring, schedule next occurrence then remove the completed original
     if (t.recurring && t.recurMode === 'interval') {
+      // Archive to doneHistory BEFORE removing so it appears in completed records
+      if (!state.doneHistory) state.doneHistory = [];
+      const archiveKey = t.id + '_' + t.completedAt;
+      if (!state.doneHistory.some(h => h.id === archiveKey)) {
+        state.doneHistory.push({ id: archiveKey, taskId: t.id, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt, recurring: true });
+      }
       scheduleIntervalTask(t);
       // Remove the completed original — the clone is the new single instance
       state.tasks = state.tasks.filter(x => x.id !== t.id);
@@ -4055,10 +4153,11 @@ function renderLottery() {
     drawBtn.title = '重新洗牌（不消耗券）';
   }
 
-  // Update progress text: show raw todayDone / 3 (no modulo)
+  // Update progress text: show remainder toward next ticket (resets to 0 after every 3)
   const lotteryProgress = document.getElementById('lotteryProgress');
   if (lotteryProgress) {
-    lotteryProgress.innerHTML = `獲得券 <span id="todayDone">${lotteryState.todayDone}</span>/3`;
+    const progressToNext = lotteryState.todayDone % 3;
+    lotteryProgress.innerHTML = `獲得券 <span id="todayDone">${progressToNext}</span>/3`;
   }
 
   const grid = document.getElementById('lotteryGrid');
@@ -5663,14 +5762,17 @@ function notesRewireLogo() {
 function notesInitSwipe() {
   const content = document.querySelector('.notes-folder-content');
   if (!content) return;
-  let sx=0, sy=0;
+  let sx=0, sy=0, swipeFromTextarea=false;
   content.addEventListener('touchstart', e => {
     if (e.touches.length !== 1) return;
     sx = e.touches[0].clientX;
     sy = e.touches[0].clientY;
+    // If the touch started inside a textarea or title input, don't intercept for page swipe
+    swipeFromTextarea = !!(e.target && (e.target.classList.contains('notes-textarea') || e.target.classList.contains('notes-title-input')));
   }, { passive: true });
   content.addEventListener('touchend', e => {
     if (e.changedTouches.length !== 1) return;
+    if (swipeFromTextarea) return; // let textarea handle its own scroll
     const dx = e.changedTouches[0].clientX - sx;
     const dy = e.changedTouches[0].clientY - sy;
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 60) {
@@ -5703,6 +5805,11 @@ document.addEventListener('DOMContentLoaded', function() {
   notesWirePageCtx();
   notesInitSwipe();
   notesInitKeys();
+  // Fix: ensure textareas can scroll independently on iOS by setting touch-action
+  document.querySelectorAll('.notes-textarea').forEach(ta => {
+    ta.style.touchAction = 'pan-y';
+    ta.style.webkitOverflowScrolling = 'touch';
+  });
   // Wire search close on outside click
   document.addEventListener('click', e => {
     const bar = document.getElementById('notes-search-bar');
