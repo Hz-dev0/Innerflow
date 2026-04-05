@@ -1416,17 +1416,17 @@
   .notes-md-toggle {
     flex-shrink: 0;
     font-size: 12px; font-weight: 700;
-    color: var(--text-faint); background: none;
-    border: 1.5px solid var(--border);
+    color: var(--gold); background: none;
+    border: 1.5px solid rgba(130,154,177,0.45);
     border-radius: 7px;
     cursor: pointer; padding: 0 10px;
-    opacity: 0.6; transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+    opacity: 0.8; transition: opacity 0.15s, background 0.15s, border-color 0.15s, color 0.15s;
     font-family: inherit; z-index: 2;
     align-self: stretch;
     display: flex; align-items: center; justify-content: center;
     min-width: 40px;
   }
-  .notes-md-toggle:hover { opacity: 1; background: rgba(58,110,165,0.08); border-color: var(--green); }
+  .notes-md-toggle:hover { opacity: 1; background: rgba(130,154,177,0.1); border-color: var(--gold); }
   .notes-md-toggle.active { opacity: 1; color: var(--green); border-color: var(--green); background: rgba(58,110,165,0.07); }
 
   /* MD preview */
@@ -1680,22 +1680,22 @@
     <div class="logo" id="logoBtn">
       InnerFlow
     </div>
-    <!-- Notes import/export button: only visible on notes page -->
-    <button id="notes-io-btn" onclick="notesShowIoMenu()" title="匯入 / 匯出筆記"
-      style="display:none;align-items:center;justify-content:center;
-             width:30px;height:30px;border-radius:50%;
-             border:1px solid var(--border);background:transparent;
-             color:var(--text-dim);cursor:pointer;flex-shrink:0;
-             transition:all 0.2s;padding:0;margin-left:6px;"
-      onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)';this.style.background='rgba(58,110,165,0.08)'"
-      onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)';this.style.background='transparent'">
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 13h10"/>
-        <path d="M8 10V3"/>
-        <path d="M5 6l3-3 3 3"/>
-      </svg>
-    </button>
     <div class="header-right">
+      <!-- Notes import/export button: only visible on notes page -->
+      <button id="notes-io-btn" onclick="notesShowIoMenu()" title="匯入 / 匯出筆記"
+        style="display:none;align-items:center;justify-content:center;
+               width:30px;height:30px;border-radius:50%;
+               border:1px solid var(--border);background:transparent;
+               color:var(--text-dim);cursor:pointer;flex-shrink:0;
+               transition:all 0.2s;padding:0;"
+        onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)';this.style.background='rgba(58,110,165,0.08)'"
+        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)';this.style.background='transparent'">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 13h10"/>
+          <path d="M8 10V3"/>
+          <path d="M5 6l3-3 3 3"/>
+        </svg>
+      </button>
       <div class="energy-bar-wrap">
         <span class="energy-label" style="font-size:11px;color:var(--text-dim);font-weight:500">精力</span>
         <div class="energy-slider-wrap">
@@ -1706,7 +1706,7 @@
             title="精力指數：低 / 中 / 高">
         </div>
       </div>
-      <div id="syncDot" class="sync-dot" title="雲端同步狀態（長按 Logo 設定）"></div>
+      <div id="syncDot" class="sync-dot" style="cursor:pointer" title="點擊立即同步 / 長按 Logo 設定" onclick="syncDotClicked()"></div>
     </div>
   </header>
 
@@ -2511,6 +2511,22 @@ async function syncToCloud() {
     if (_pendingSync) { _pendingSync = false; syncToCloud(); } // retry the queued write
   }
 }
+
+// ── Manual sync on syncDot click ──
+function syncDotClicked() {
+  const url = getApiUrl();
+  if (!url) {
+    // No cloud configured — open settings
+    openApiModal();
+    return;
+  }
+  // Force sync even if isSyncing (reset flag)
+  isSyncing = false;
+  _pendingSync = false;
+  if (typeof showToast === 'function') showToast('☁️ 同步中…');
+  syncToCloud();
+}
+window.syncDotClicked = syncDotClicked;
 
 // ── State ──
 let state = {
