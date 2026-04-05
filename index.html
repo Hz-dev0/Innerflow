@@ -1552,10 +1552,11 @@
     position: fixed; z-index: 9998; display: none;
     background: var(--bg2); border: 1px solid rgba(58,110,165,0.3);
     border-radius: 10px; box-shadow: 0 6px 20px rgba(58,110,165,0.15);
-    padding: 4px 6px; gap: 2px; align-items: center;
+    padding: 6px 8px; gap: 2px;
+    flex-direction: column;
+    align-items: stretch;
     max-width: calc(100vw - 24px);
     pointer-events: all;
-    flex-wrap: wrap;
   }
   #notes-md-toolbar.mobile-bottom {
     left: 0 !important; right: 0 !important;
@@ -1564,35 +1565,58 @@
     border-radius: 12px 12px 0 0;
     border-bottom: none;
     width: 100vw; max-width: 100vw;
-    padding: 8px 6px 6px;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 3px;
+    padding: 6px 6px 4px;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0;
     transform: none !important;
+  }
+  /* Mobile-bottom rows */
+  #notes-md-toolbar.mobile-bottom .ntb-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 0;
+  }
+  #notes-md-toolbar.mobile-bottom .ntb-row + .ntb-row {
+    border-top: 1px solid var(--border);
+    margin-top: 2px;
+    padding-top: 4px;
   }
   /* Mobile-bottom: bigger tap targets */
   #notes-md-toolbar.mobile-bottom button {
-    padding: 8px 10px !important;
+    padding: 7px 10px !important;
     font-size: 13px !important;
-    min-height: 40px !important;
+    min-height: 38px !important;
     border-radius: 8px !important;
   }
   #notes-md-toolbar.mobile-bottom .ntb-sep {
-    height: 24px !important;
+    height: 22px !important;
     margin: 0 3px !important;
   }
   #notes-md-toolbar.mobile-bottom .ntb-colors {
-    padding: 4px 5px !important;
-    gap: 6px !important;
+    padding: 3px 5px !important;
+    gap: 7px !important;
   }
   #notes-md-toolbar.mobile-bottom .ntb-color-dot {
-    width: 22px !important; height: 22px !important;
+    width: 24px !important; height: 24px !important;
   }
   #notes-md-toolbar.mobile-bottom .ntb-hl-dot {
-    width: 22px !important; height: 16px !important;
+    width: 24px !important; height: 18px !important;
     border-radius: 4px !important;
   }
   #notes-md-toolbar.show { display: flex; }
+  /* Desktop: two rows stacked */
+  #notes-md-toolbar .ntb-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  #notes-md-toolbar .ntb-row + .ntb-row {
+    border-top: 1px solid var(--border);
+    margin-top: 2px;
+    padding-top: 2px;
+  }
   #notes-md-toolbar button {
     border: none; background: none; border-radius: 6px;
     padding: 4px 7px; font-size: 11px; font-weight: 700;
@@ -1995,29 +2019,33 @@
 
 <!-- Notes Markdown toolbar -->
 <div id="notes-md-toolbar">
-  <button id="ntb-h3">H3</button>
-  <button id="ntb-h4">H4</button>
-  <div class="ntb-sep"></div>
-  <button id="ntb-bold"><b>B</b></button>
-  <button id="ntb-underline"><u>U</u></button>
-  <button id="ntb-box">▭</button>
-  <button id="ntb-ul">• 列</button>
-  <button id="ntb-ol">1. 列</button>
-  <button id="ntb-hr">—</button>
-  <div class="ntb-sep"></div>
-  <div class="ntb-colors">
-    <div class="ntb-color-dot" style="background:#3A6EA5" data-color="#3A6EA5"></div>
-    <div class="ntb-color-dot" style="background:#c0565a" data-color="#c0565a"></div>
-    <div class="ntb-color-dot" style="background:#66bb6a" data-color="#66bb6a"></div>
-    <div class="ntb-color-dot" style="background:#f09a3e" data-color="#f09a3e"></div>
+  <!-- Row 1: format buttons -->
+  <div class="ntb-row">
+    <button id="ntb-h3">H3</button>
+    <button id="ntb-h4">H4</button>
+    <div class="ntb-sep"></div>
+    <button id="ntb-bold"><b>B</b></button>
+    <button id="ntb-underline"><u>U</u></button>
+    <button id="ntb-box">▭</button>
+    <button id="ntb-ul">• 列</button>
+    <button id="ntb-ol">1. 列</button>
   </div>
-  <div class="ntb-sep"></div>
-  <div class="ntb-colors">
-    <div class="ntb-hl-dot" style="background:#FFD1DC" data-hl="#FFD1DC"></div>
-    <div class="ntb-hl-dot" style="background:#FFFACD" data-hl="#FFFACD"></div>
-    <div class="ntb-hl-dot" style="background:#C0C0C0" data-hl="#C0C0C0"></div>
-    <div class="ntb-hl-dot" style="background:#CCF7FF" data-hl="#CCF7FF"></div>
-    <div class="ntb-hl-dot" style="background:#C4FFDF" data-hl="#C4FFDF"></div>
+  <!-- Row 2: colours -->
+  <div class="ntb-row">
+    <div class="ntb-colors">
+      <div class="ntb-color-dot" style="background:#3A6EA5" data-color="#3A6EA5"></div>
+      <div class="ntb-color-dot" style="background:#c0565a" data-color="#c0565a"></div>
+      <div class="ntb-color-dot" style="background:#66bb6a" data-color="#66bb6a"></div>
+      <div class="ntb-color-dot" style="background:#f09a3e" data-color="#f09a3e"></div>
+    </div>
+    <div class="ntb-sep"></div>
+    <div class="ntb-colors">
+      <div class="ntb-hl-dot" style="background:#FFD1DC" data-hl="#FFD1DC"></div>
+      <div class="ntb-hl-dot" style="background:#FFFACD" data-hl="#FFFACD"></div>
+      <div class="ntb-hl-dot" style="background:#C0C0C0" data-hl="#C0C0C0"></div>
+      <div class="ntb-hl-dot" style="background:#CCF7FF" data-hl="#CCF7FF"></div>
+      <div class="ntb-hl-dot" style="background:#C4FFDF" data-hl="#C4FFDF"></div>
+    </div>
   </div>
 </div>
 
