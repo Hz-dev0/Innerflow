@@ -1249,19 +1249,19 @@
     background: var(--bg);
     display: none;
     flex-direction: column;
+    /* Prevent body scroll from leaking through */
+    overscroll-behavior: none;
   }
   #page-notes.active { display: flex; }
 
-  /* On mobile, sit between header and bottom nav */
   @media (max-width: 680px) {
     #page-notes {
       top: 52px;
       bottom: calc(60px + env(safe-area-inset-bottom));
+      /* Contain all scroll within the notes area */
       overflow: hidden;
-      touch-action: none; /* block body scroll propagation on Android WebView */
     }
   }
-  /* On desktop, sit below header row */
   @media (min-width: 681px) {
     #page-notes { top: 56px; }
   }
@@ -1318,17 +1318,53 @@
   }
   #notes-add-tab-btn:hover { opacity: 1; }
 
-  /* Content area */
+  /* ── Content area (desktop: two columns, mobile: single column) ── */
   .notes-folder-content {
-    display: flex; gap: 16px; flex: 1; min-height: 0;
-    overflow: hidden; width: 100%;
-    padding: 16px 16px 50px; box-sizing: border-box;
-    background: var(--bg2); position: relative;
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    width: 100%;
+    background: var(--bg2);
+    position: relative;
   }
+
+  /* Desktop: side-by-side with padding */
+  @media (min-width: 681px) {
+    .notes-folder-content {
+      gap: 16px;
+      padding: 16px 16px 50px;
+      box-sizing: border-box;
+    }
+  }
+
   .notes-note-box {
-    flex: 1 1 0%; display: flex; flex-direction: column;
-    gap: 8px; height: 100%; min-width: 0; position: relative;
+    flex: 1 1 0%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    position: relative;
+    /* Contain scrolling inside each box */
+    overflow: hidden;
   }
+
+  /* Mobile: stack vertically, each half the content area */
+  @media (max-width: 680px) {
+    .notes-folder-content {
+      flex-direction: column;
+      gap: 0;
+    }
+    .notes-note-box {
+      flex: 1 1 0%;
+      min-height: 0;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      box-sizing: border-box;
+    }
+    .notes-note-box:last-of-type { border-bottom: none; }
+  }
+
   .notes-title-input {
     border: none; border-bottom: 2px solid var(--border);
     font-weight: 600; color: var(--text);
@@ -1336,21 +1372,36 @@
     background: transparent; width: 100%; font-family: inherit;
     transition: border-bottom-color 0.2s;
     padding-right: 40px;
+    flex-shrink: 0;
   }
   .notes-title-input:focus { border-bottom-color: var(--green); }
+
+  /* ── Textarea: key fix for mobile scrolling ── */
   .notes-textarea {
-    flex: 1; border: 1px solid var(--border);
-    border-radius: 10px; padding: 12px; resize: none;
-    outline: none; background: var(--bg3);
-    font-size: 14px; color: var(--text);
-    line-height: 1.7; overflow-y: auto;
-    width: 100%; font-family: inherit;
+    flex: 1;
+    min-height: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    resize: none;
+    outline: none;
+    background: var(--bg3);
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.7;
+    overflow-y: auto;
+    width: 100%;
+    font-family: inherit;
     -webkit-user-select: text !important;
-    user-select: text !important; cursor: text;
+    user-select: text !important;
+    cursor: text;
     transition: border-color 0.2s;
+    /* Crucial: let the textarea handle vertical pan, not the parent */
     touch-action: pan-y;
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+    /* Prevent scroll from escaping to parent (body) */
+    overscroll-behavior-y: contain;
+    /* Remove height:0 hack — flex:1 + min-height:0 is enough */
   }
   .notes-textarea:focus { border-color: rgba(58,110,165,0.4); }
 
@@ -1368,11 +1419,23 @@
 
   /* MD preview */
   .notes-md-preview {
-    flex: 1; overflow-y: auto; padding: 12px;
-    border: 1px solid var(--border); border-radius: 10px;
-    background: var(--bg3); font-size: 14px; color: var(--text);
-    line-height: 1.7; display: none;
-    user-select: text; -webkit-user-select: text; cursor: default;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg3);
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.7;
+    display: none;
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: default;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
   }
   .notes-md-preview.show { display: block; }
   .notes-md-preview h1,.notes-md-preview h2,.notes-md-preview h3 {
@@ -1397,7 +1460,7 @@
   .notes-md-preview th,.notes-md-preview td{border:1px solid var(--border);padding:4px 8px}
   .notes-md-preview th{background:rgba(58,110,165,0.07);font-weight:700}
 
-  /* Sub-page nav arrows */
+  /* Sub-page nav arrows (desktop only) */
   .notes-page-nav {
     position: absolute; top: 50%; transform: translateY(-50%);
     width: 24px; height: 52px; z-index: 20;
@@ -1472,7 +1535,7 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .notes-search-empty { padding: 12px 16px; font-size: 13px; color: var(--text-faint); font-style: italic; }
 
-  /* Markdown toolbar — desktop: floats near cursor */
+  /* Markdown toolbar */
   #notes-md-toolbar {
     position: fixed; z-index: 9998; display: none;
     background: var(--bg2); border: 1px solid rgba(58,110,165,0.3);
@@ -1482,7 +1545,6 @@
     pointer-events: all;
     flex-wrap: wrap;
   }
-  /* Mobile: fixed at bottom, wraps into 2 stacked rows */
   #notes-md-toolbar.mobile-bottom {
     left: 0 !important; right: 0 !important;
     top: auto !important;
@@ -1568,56 +1630,8 @@
   .npctx-i.danger:hover { background: rgba(58,110,165,0.1); color: var(--text); }
   .npctx-sep { height: 1px; background: var(--border); margin: 4px 8px; }
 
-  /* Mobile: pure CSS flex — no JS pixel calculation needed */
+  /* Mobile: hide desktop-only elements */
   @media (max-width: 680px) {
-    .notes-folder-content {
-      flex-direction: column;
-      overflow: hidden;
-      padding: 0;
-      gap: 0;
-      background: var(--bg2);
-      height: 100%;
-    }
-    .notes-note-box {
-      flex: 1 1 0%;
-      min-height: 0;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      box-sizing: border-box;
-      padding: 8px 10px;
-      border-bottom: 1px solid var(--border);
-    }
-    .notes-note-box:last-of-type { border-bottom: none; }
-    .notes-textarea {
-      flex: 1;
-      min-height: 0;
-      height: 0;
-      resize: none;
-      overflow-y: auto;
-      touch-action: pan-y !important;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior-y: contain !important;
-      overscroll-behavior: contain !important;
-      position: relative;
-    }
-    .notes-textarea, .notes-md-preview {
-      overscroll-behavior-y: contain !important;
-      touch-action: pan-y !important;
-      -webkit-overflow-scrolling: touch;
-    }
-    .notes-md-preview {
-      flex: 1 1 0%;
-      min-height: 0;
-      height: 0;
-      overflow-y: auto;
-      overscroll-behavior: contain !important;
-    }
-    #page-notes.active {
-      position: fixed;
-      overflow: hidden;
-      height: 100%;
-    }
     #notes-prev-zone, #notes-next-zone { display: none !important; }
     #notes-md-toolbar { display: none !important; }
   }
@@ -1632,6 +1646,19 @@
     <div class="logo" id="logoBtn">
       InnerFlow
     </div>
+    <!-- Notes import/export button: only visible on notes page -->
+    <button id="notes-io-btn" onclick="notesShowIoMenu()" style="
+      display:none;
+      align-items:center;gap:5px;
+      padding:4px 12px;border-radius:20px;
+      border:1px solid var(--border);
+      background:transparent;color:var(--text-dim);
+      font-size:12px;cursor:pointer;font-family:inherit;
+      transition:all 0.2s;white-space:nowrap;
+      margin-left:8px;
+    " onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'"
+       onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'"
+       title="筆記匯入 / 匯出">↑↓ 匯入匯出</button>
     <div class="header-right">
       <div class="energy-bar-wrap">
         <span class="energy-label" style="font-size:11px;color:var(--text-dim);font-weight:500">精力</span>
@@ -2296,7 +2323,27 @@ async function saveApiUrl(fragment) {
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
       state.wishPoints  = typeof data.wishPoints === 'number' ? data.wishPoints : (state.wishPoints || 0);
+      // ── Restore notes from cloud on first login (new device) ──
+      if (data.notes && data.notes.tabs) {
+        try {
+          const localRaw = localStorage.getItem('innerflow_notes_v1');
+          if (!localRaw) {
+            localStorage.setItem('innerflow_notes_v1', JSON.stringify(data.notes));
+          } else {
+            const localNotes = JSON.parse(localRaw);
+            const cloudTs = data.notes.updatedAt || 0;
+            const localTs = localNotes.updatedAt || 0;
+            const localIsEmpty = !localNotes.tabs || localNotes.tabs.every(tab =>
+              !tab.pages || tab.pages.every(pg => !pg.a?.trim() && !pg.b?.trim() && !pg.titleA?.trim() && !pg.titleB?.trim())
+            );
+            if (cloudTs > localTs || localIsEmpty) {
+              localStorage.setItem('innerflow_notes_v1', JSON.stringify(data.notes));
+            }
+          }
+        } catch(e) {}
+      }
       renderTasks(); renderSandbox(); renderStats(); renderRewards(); renderTree(); renderEnergyDots(); renderLottery();
+      if (typeof notesReloadFromStorage === 'function') notesReloadFromStorage();
     }
     return true;
   } catch (e) {
@@ -2606,32 +2653,44 @@ function renderRewards() {
       const icon = goalIcons[r.goal] || '🎯';
       const canAdd = available > 0 && !unlocked;
       // Progress bar segments (RPG-style)
-      const totalSegs = r.count || 3;
-      const filledSegs = Math.min(current, totalSegs);
-      const segBar = Array.from({length: totalSegs}, (_, i) =>
-        `<div style="flex:1;height:6px;border-radius:3px;background:${i < filledSegs ? 'var(--green)' : 'var(--border)'};transition:background 0.3s"></div>`
-      ).join('');
-      return `<div class="sandbox-item wish-item" id="wish-${r.id}" style="cursor:default;justify-content:space-between;gap:10px;flex-direction:column;padding:12px 14px;user-select:none" data-wish-id="${r.id}">
-        <div style="display:flex;align-items:flex-start;gap:10px;width:100%">
+      // Progress bar: smooth single bar, blue unfilled → light gold when unlocked
+      const barColor = unlocked ? 'rgba(201,162,39,0.55)' : 'rgba(58,110,165,0.75)';
+      const barBg    = unlocked ? 'rgba(201,162,39,0.12)' : 'rgba(58,110,165,0.1)';
+      const itemOpacity = unlocked ? '0.6' : '1';
+      const itemBorder  = unlocked ? 'rgba(201,162,39,0.3)' : 'var(--border)';
+      return `<div class="sandbox-item wish-item" id="wish-${r.id}"
+        style="cursor:default;justify-content:space-between;gap:8px;flex-direction:column;
+               padding:12px 14px;user-select:none;
+               opacity:${itemOpacity};
+               border-color:${itemBorder};
+               background:${unlocked ? 'rgba(201,162,39,0.04)' : 'rgba(255,255,255,0.02)'};
+               transition:opacity 0.4s,border-color 0.4s,background 0.4s"
+        data-wish-id="${r.id}">
+        <div style="display:flex;align-items:center;gap:10px;width:100%">
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <span style="font-size:13px;color:var(--text);font-weight:500">${r.name}</span>
-              ${unlocked ? `<span style="font-size:11px;color:#c9a227;white-space:nowrap;font-weight:600">🎉 已解鎖</span>` : `<span style="font-size:11px;color:var(--text-faint);white-space:nowrap">${current}/${r.count}</span>`}
+              <span style="font-size:13px;color:${unlocked ? 'rgba(201,162,39,0.85)' : 'var(--text)'};font-weight:500;transition:color 0.4s">${r.name}</span>
+              ${unlocked
+                ? `<span style="font-size:10px;color:rgba(201,162,39,0.8);white-space:nowrap;font-weight:600;letter-spacing:0.04em">✓ 已解鎖</span>`
+                : `<span style="font-size:10px;color:var(--text-faint);white-space:nowrap">${current} / ${r.count}</span>`}
             </div>
-            <div style="font-size:11px;color:var(--text-faint);margin-top:3px">${icon} ${r.goal} · 長按可編輯或刪除</div>
-            <div style="display:flex;gap:3px;margin-top:8px">${segBar}</div>
+            <div style="font-size:11px;color:var(--text-faint);margin-top:2px">${icon} ${r.goal} · 長按可編輯或刪除</div>
+            <!-- Smooth progress bar -->
+            <div style="margin-top:8px;height:5px;border-radius:3px;background:${barBg};overflow:hidden;transition:background 0.4s">
+              <div style="height:100%;width:${pct}%;border-radius:3px;background:${barColor};transition:width 0.5s ease,background 0.4s"></div>
+            </div>
           </div>
-          <!-- RPG unlock key: big, prominent -->
+          <!-- Allocate point button -->
           <button title="${canAdd ? `配入一點（剩餘 ${available} 點）` : available <= 0 ? '完成任務獲得點數' : '已解鎖'}"
             onclick="${canAdd ? `allocateWishPoint(${r.id})` : ''}"
             style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
-                   width:52px;height:52px;border-radius:10px;border:2px solid ${canAdd ? 'var(--green)' : 'var(--border)'};
-                   background:${canAdd ? 'rgba(58,110,165,0.1)' : 'transparent'};
+                   width:48px;height:48px;border-radius:10px;border:1.5px solid ${canAdd ? 'var(--green)' : 'var(--border)'};
+                   background:${canAdd ? 'rgba(58,110,165,0.08)' : 'transparent'};
                    cursor:${canAdd ? 'pointer' : 'default'};transition:all 0.2s;font-family:inherit;
-                   ${canAdd ? 'box-shadow:0 2px 10px rgba(58,110,165,0.18)' : 'opacity:0.4'}"
-            ${canAdd ? `onmouseover="this.style.background='rgba(58,110,165,0.2)';this.style.transform='scale(1.06)'" onmouseout="this.style.background='rgba(58,110,165,0.1)';this.style.transform='scale(1)'"` : ''}>
-            <span style="font-size:20px;line-height:1">${unlocked ? '🔓' : canAdd ? '🗝️' : '🔒'}</span>
-            <span style="font-size:9px;color:${canAdd ? 'var(--green)' : 'var(--text-faint)'};font-weight:600;letter-spacing:0.04em">${canAdd ? `+1` : unlocked ? '已解鎖' : '不足'}</span>
+                   ${!canAdd ? 'opacity:0.35' : ''}"
+            ${canAdd ? `onmouseover="this.style.background='rgba(58,110,165,0.18)';this.style.transform='scale(1.08)'" onmouseout="this.style.background='rgba(58,110,165,0.08)';this.style.transform='scale(1)'"` : ''}>
+            <span style="font-size:18px;line-height:1">${unlocked ? '🔓' : canAdd ? '🗝️' : '🔒'}</span>
+            <span style="font-size:9px;color:${canAdd ? 'var(--green)' : 'var(--text-faint)'};font-weight:600;letter-spacing:0.04em">${canAdd ? '+1' : unlocked ? '已解鎖' : '不足'}</span>
           </button>
         </div>
       </div>`;
@@ -4998,21 +5057,20 @@ const _notesDlg = (() => {
   const ov  = () => document.getElementById('notes-dlg-overlay');
   const ti  = () => document.getElementById('notes-dlg-title');
   const inp = () => document.getElementById('notes-dlg-input');
-  const ok  = () => document.getElementById('notes-dlg-confirm');
-  const cn  = () => document.getElementById('notes-dlg-cancel');
 
   function _open(title, { isConfirm=false, defaultVal='' } = {}) {
     if (_res) { const old=_res; _res=null; _cleanup(); old(null); }
     return new Promise(resolve => {
       _res = resolve;
       ti().textContent = title;
+      const cnBtn = document.getElementById('notes-dlg-cancel');
       if (isConfirm) {
         inp().style.display = 'none';
-        cn().style.display  = 'inline-block';
+        if (cnBtn) cnBtn.style.display = 'inline-block';
       } else {
         inp().style.display = 'block';
         inp().value = defaultVal;
-        cn().style.display  = '';
+        if (cnBtn) cnBtn.style.display = '';
         setTimeout(() => { inp().focus(); inp().select(); }, 80);
       }
       ov().classList.add('visible');
@@ -5044,7 +5102,6 @@ window._notesDlg = _notesDlg;
 
 // ── Persistence ────────────────────────────────────────
 function notesSave() {
-  // Always flush current textarea content into data before saving
   try { notesFlush(); } catch(e) {}
   try {
     localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify({
@@ -5053,11 +5110,11 @@ function notesSave() {
       updatedAt: Date.now()
     }));
   } catch(e) {}
-  // Sync notes to cloud if connected
   try {
     if (typeof syncNotesToCloud === 'function') syncNotesToCloud();
   } catch(e) {}
 }
+
 function notesLoad() {
   try {
     const raw = localStorage.getItem(NOTES_STORAGE_KEY);
@@ -5069,6 +5126,16 @@ function notesLoad() {
     }
   } catch(e) {}
 }
+
+// ── Public: reload from localStorage (called after cloud sync) ──
+function notesReloadFromStorage() {
+  notesLoad();
+  notesEnsureDefaults();
+  if (_notesIsVisible) {
+    notesRenderTabs();
+  }
+}
+window.notesReloadFromStorage = notesReloadFromStorage;
 
 function notesEnsureDefaults() {
   if (notesFolderData.length === 0) {
@@ -5101,16 +5168,13 @@ function notesFlush() {
 // ── MD Preview state ───────────────────────────────────
 const _notesMdState = { A: true, B: true };
 
-// Parse helper: breaks:true讓單個換行對應換行，gfm支援---分隔線
 function _notesMdParse(text) {
   if (typeof marked === 'undefined') return (text || '').replace(/\n/g, '<br>');
-  // 讓 --- 即使前後沒空行也能成為分隔線
   const processed = (text || '').replace(/^[ \t]*(---+|===+|\*\*\*+)[ \t]*$/gm, '\n\n$1\n\n');
   return marked.parse(processed, { breaks: true, gfm: true });
 }
 
 function notesToggleMd(side) {
-  // (also exposed as window.notesToggleMd below)
   const ta  = document.getElementById('notesText' + side);
   const pre = document.getElementById('notes-md-preview-' + side.toLowerCase());
   const btn = document.getElementById('notes-md-toggle-' + side.toLowerCase());
@@ -5124,7 +5188,6 @@ function notesToggleMd(side) {
   if (on) {
     pre.innerHTML = _notesMdParse(ta.value || '');
     pre.ondblclick = () => notesToggleMd(side);
-    // Hide toolbar when entering MD preview
     const toolbar = document.getElementById('notes-md-toolbar');
     if (toolbar) toolbar.classList.remove('show');
   } else {
@@ -5177,7 +5240,6 @@ function notesRenderTabs() {
     div.draggable = true;
     div.dataset.tabIdx = i;
 
-    // 點擊切換
     div.onclick = () => {
       notesFlush();
       notesDropEmptyCurrentPage();
@@ -5195,14 +5257,12 @@ function notesRenderTabs() {
       notesRenderTabs();
     };
 
-    // 雙擊改名
     div.ondblclick = async e => {
       e.stopPropagation();
       const n = await _notesDlg.prompt('修改標籤名稱', tab.name);
       if (n?.trim()) { tab.name = n.trim(); notesRenderTabs(); notesSave(); }
     };
 
-    // 拖拉排序
     div.addEventListener('dragstart', e => {
       _tabDragIdx = i;
       div.classList.add('tab-dragging');
@@ -5225,8 +5285,6 @@ function notesRenderTabs() {
       notesFlush();
       const moved = notesFolderData.splice(_tabDragIdx, 1)[0];
       notesFolderData.splice(i, 0, moved);
-      notesTabIndex = i < _tabDragIdx ? i : (i - 1 < 0 ? 0 : i - 1);
-      // 找到插入後的位置
       notesTabIndex = notesFolderData.indexOf(moved);
       _tabDragIdx = null;
       notesRenderTabs();
@@ -5263,8 +5321,6 @@ function notesRenderTabs() {
     const pnd = document.getElementById('notes-page-num');
     if (pnd) pnd.textContent = (tab.currentPage + 1) + ' / ' + tab.pages.length;
   }
-  // Explicitly size textareas on mobile after each render
-  setTimeout(notesSizeMobile, 30);
 }
 
 // ── Add / Delete tabs ──────────────────────────────────
@@ -5307,22 +5363,15 @@ function notesChangeSubPage(dir) {
   if (!tab?.pages) return;
   notesFlush();
 
-  // Check if current page is empty BEFORE deciding target
   const pg = tab.pages[tab.currentPage];
   const isEmpty = pg && !(pg.titleA?.trim() || pg.a?.trim() || pg.titleB?.trim() || pg.b?.trim());
 
   if (isEmpty && tab.pages.length > 1) {
-    // Remove the empty page first, then navigate
-    // After removal, the target index depends on direction:
-    // dir=-1 (going back): remove current empty page → currentPage adjusts → new target is currentPage-1
-    // dir=+1 (going forward): remove current empty page → pages shift, stay at same index which is now next page
     const idx = tab.currentPage;
     tab.pages.splice(idx, 1);
     if (dir === -1) {
-      // Going back: after removal current slot is now the next page; target = idx - 1
       tab.currentPage = Math.max(0, idx - 1);
     } else {
-      // Going forward: after removal the next page slid into idx; clamp just in case
       tab.currentPage = Math.min(idx, tab.pages.length - 1);
     }
   } else {
@@ -5353,7 +5402,6 @@ window.notesHandleRightZone = notesHandleRightZone;
 
 // ── Page number click → title overview popup ─────────
 function notesShowTitleOverview(anchorEl) {
-  // Remove existing
   const existing = document.getElementById('notes-title-overview');
   if (existing) { existing.remove(); return; }
 
@@ -5421,7 +5469,6 @@ function notesShowTitleOverview(anchorEl) {
 
   document.body.appendChild(popup);
 
-  // Position above/below the anchor
   const rect = anchorEl.getBoundingClientRect();
   const pw = popup.offsetWidth || 200;
   const ph = popup.offsetHeight || 200;
@@ -5433,7 +5480,6 @@ function notesShowTitleOverview(anchorEl) {
   popup.style.left = left + 'px';
   popup.style.top  = top  + 'px';
 
-  // Close on outside click
   const closeHandler = e => {
     if (!popup.contains(e.target) && e.target !== anchorEl) {
       popup.remove();
@@ -5453,63 +5499,66 @@ function notesShowPageCtx(e) {
   const mw = menu.offsetWidth  || 160;
   const mh = menu.offsetHeight || 120;
   let x = e.clientX ?? 0, y = e.clientY ?? 0;
-  x = Math.min(x, window.innerWidth  - mw - 8); x = Math.max(x, 8);
-  y = Math.min(y, window.innerHeight - mh - 8); y = Math.max(y, 8);
-  menu.style.left = x + 'px'; menu.style.top = y + 'px';
+  if (x + mw > window.innerWidth  - 8) x = window.innerWidth  - mw - 8;
+  if (y + mh > window.innerHeight - 8) y = window.innerHeight - mh - 8;
+  menu.style.left = x + 'px';
+  menu.style.top  = y + 'px';
 }
 
 // ── Search ─────────────────────────────────────────────
-function notesToggleSearch(forceOpen) {
+function notesToggleSearch(force) {
   const bar = document.getElementById('notes-search-bar');
   const btn = document.getElementById('notes-search-btn');
-  const inp = document.getElementById('notes-search-input');
-  const res = document.getElementById('notes-search-results');
   if (!bar) return;
-  const open = forceOpen !== undefined ? forceOpen : !bar.classList.contains('open');
+  const open = force !== undefined ? force : !bar.classList.contains('open');
   bar.classList.toggle('open', open);
   btn?.classList.toggle('active', open);
-  if (open) { setTimeout(() => inp?.focus(), 60); }
-  else { if (inp) inp.value = ''; if (res) { res.innerHTML=''; res.classList.remove('show'); } }
+  if (open) {
+    const inp = document.getElementById('notes-search-input');
+    if (inp) { inp.value = ''; inp.focus(); }
+  } else {
+    const res = document.getElementById('notes-search-results');
+    if (res) res.classList.remove('show');
+  }
 }
 window.notesToggleSearch = notesToggleSearch;
 
 function notesRunSearch(q) {
   const res = document.getElementById('notes-search-results');
   if (!res) return;
-  const term = q.trim().toLowerCase();
-  if (!term) { res.innerHTML=''; res.classList.remove('show'); return; }
+  res.innerHTML = '';
+  const query = (q || '').trim().toLowerCase();
+  if (!query) { res.classList.remove('show'); return; }
+
   const hits = [];
   notesFolderData.forEach((tab, ti) => {
-    (tab.pages||[]).forEach((pg, pi) => {
-      // 搜尋所有欄位包含標題
-      const fields = [pg.titleA||'', pg.a||'', pg.titleB||'', pg.b||''];
-      const hay = fields.join('\n').toLowerCase();
-      if (!hay.includes(term)) return;
-      // 決定顯示標題：優先用有命中的標題
-      let displayTitle = '第 '+(pi+1)+' 頁';
-      if ((pg.titleA||'').toLowerCase().includes(term)) displayTitle = pg.titleA;
-      else if ((pg.titleB||'').toLowerCase().includes(term)) displayTitle = pg.titleB;
-      else if (pg.titleA) displayTitle = pg.titleA;
-      else if (pg.titleB) displayTitle = pg.titleB;
-      // 找 snippet
-      const raw = fields.join('\n');
-      const idx = hay.indexOf(term);
-      const ss  = Math.max(0, idx-30);
-      const snip = (ss>0?'…':'') + raw.slice(ss, idx+term.length+50).replace(/\n/g,' ') + (idx+term.length+50<raw.length?'…':'');
-      hits.push({ ti, pi, tabName: tab.name, title: displayTitle, snip });
+    tab.pages.forEach((pg, pi) => {
+      const titleA = (pg.titleA || '').toLowerCase();
+      const textA  = (pg.a      || '').toLowerCase();
+      const titleB = (pg.titleB || '').toLowerCase();
+      const textB  = (pg.b      || '').toLowerCase();
+      if (titleA.includes(query) || textA.includes(query) || titleB.includes(query) || textB.includes(query)) {
+        const snippet = [pg.a, pg.b].filter(Boolean).join(' ').replace(/\n/g,' ').slice(0, 80);
+        hits.push({ ti, pi, tab: tab.name, titleA: pg.titleA, titleB: pg.titleB, snippet });
+      }
     });
   });
-  res.innerHTML = '';
-  if (hits.length === 0) {
-    res.innerHTML = '<div class="notes-search-empty">找不到相符的筆記</div>';
+
+  if (!hits.length) {
+    const empty = document.createElement('div');
+    empty.className = 'notes-search-empty';
+    empty.textContent = '找不到相關筆記';
+    res.appendChild(empty);
   } else {
-    hits.slice(0,20).forEach(h => {
+    hits.forEach(h => {
       const item = document.createElement('div');
       item.className = 'notes-search-item';
-      item.innerHTML = '<div class="notes-search-title"></div><div class="notes-search-meta"></div><div class="notes-search-snippet"></div>';
-      item.querySelector('.notes-search-title').textContent = h.title;
-      item.querySelector('.notes-search-meta').textContent  = h.tabName + '  ·  第 '+(h.pi+1)+' 頁';
-      item.querySelector('.notes-search-snippet').textContent = h.snip;
+      const label = [h.titleA, h.titleB].filter(Boolean).join(' / ') || '（無標題）';
+      item.innerHTML = `
+        <span class="notes-search-title">${label}</span>
+        <span class="notes-search-meta">${h.tab} · 第 ${h.pi+1} 頁</span>
+        <span class="notes-search-snippet">${h.snippet}</span>
+      `;
       item.addEventListener('click', () => {
         notesFlush();
         notesTabIndex = h.ti;
@@ -5564,12 +5613,14 @@ function notesInitToolbar() {
   bind('ntb-box',  () => wrapSel('<span style="border:1px solid currentColor;border-radius:3px;padding:0 4px;">','</span>'));
   bind('ntb-ul',   () => prefixLine('- '));
   bind('ntb-ol',   () => prefixLine('1. '));
-  bind('ntb-hr',   () => { const ta=_activeTA; if(!ta) return;
+  bind('ntb-hr',   () => {
+    const ta=_activeTA; if(!ta) return;
     const s=ta.selectionStart;
     ta.value=ta.value.slice(0,s)+'\n---\n'+ta.value.slice(s);
     ta.selectionStart=ta.selectionEnd=s+5;
     ta.focus(); ta.dispatchEvent(new Event('input',{bubbles:true}));
-    if (!isTouchDevice()) hideToolbar(); });
+    if (!isTouchDevice()) hideToolbar();
+  });
 
   toolbar.querySelectorAll('.ntb-color-dot').forEach(dot => {
     const fn = e => { e.preventDefault(); wrapSel('<span style="color:'+dot.dataset.color+'">','</span>'); };
@@ -5581,13 +5632,10 @@ function notesInitToolbar() {
   });
 
   const isTouchDevice = () => ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-
-  // Track which textarea is active
   function setActiveTA(ta) { _activeTA = ta; }
 
-  // PC only: show toolbar near cursor, clamped to viewport
   function showToolbar(mouseX, mouseY) {
-    if (isTouchDevice()) return; // mobile: hidden by CSS
+    if (isTouchDevice()) return;
     if (!_activeTA) return;
     toolbar.style.left = '';
     toolbar.style.top  = '';
@@ -5599,23 +5647,19 @@ function notesInitToolbar() {
     const cy = (mouseY !== undefined) ? mouseY : r.top;
     let lx = cx - tw / 2;
     let ty = cy - th - 10;
-    // Clamp horizontally within viewport
     if (lx < 8) lx = 8;
     if (lx + tw > window.innerWidth - 8) lx = window.innerWidth - tw - 8;
-    // Flip below cursor if too close to top
     if (ty < 8) ty = cy + 14;
     if (ty + th > window.innerHeight - 8) ty = window.innerHeight - th - 8;
     toolbar.style.left = lx + 'px';
     toolbar.style.top  = ty + 'px';
   }
 
-  // Wire focus/blur on textareas — toolbar shows in EDIT MODE only
   ['notesTextA','notesTextB'].forEach(id => {
     const ta = document.getElementById(id);
     if (!ta) return;
     ta.addEventListener('focus', () => {
       setActiveTA(ta);
-      // On focus without mouse position, show near top of textarea
       if (ta.style.display !== 'none') showToolbar();
     });
     ta.addEventListener('blur', () => {
@@ -5628,7 +5672,6 @@ function notesInitToolbar() {
     });
   });
 
-  // Desktop mouseup: show near where the user released the mouse
   document.addEventListener('mouseup', e => {
     if (isTouchDevice()) return;
     if (e.target.classList.contains('notes-textarea')) {
@@ -5652,19 +5695,16 @@ function notesWirePageCtx() {
   const pnd = document.getElementById('notes-page-num');
   if (!pnd) return;
 
-  // Single click → title overview
   pnd.addEventListener('click', e => {
     e.stopPropagation();
     notesShowTitleOverview(pnd);
   });
 
-  // Long press on page number → edit context menu (mobile)
   let _lpTimer = null;
   pnd.addEventListener('touchstart', e => {
     clearTimeout(_lpTimer);
     const t = e.touches[0];
     _lpTimer = setTimeout(() => {
-      // long press: show ctx menu
       notesShowPageCtx({ clientX: t.clientX, clientY: t.clientY });
     }, 500);
   }, { passive: true });
@@ -5672,7 +5712,6 @@ function notesWirePageCtx() {
   pnd.addEventListener('touchmove', () => clearTimeout(_lpTimer), { passive: true });
   pnd.addEventListener('contextmenu', e => { e.preventDefault(); notesShowPageCtx(e); });
 
-  // Wire menu items
   document.getElementById('notes-ctx-after')?.addEventListener('click', async () => {
     const tab = _notesPageCtxTab || notesFolderData[notesTabIndex];
     notesFlush();
@@ -5702,7 +5741,6 @@ function notesWirePageCtx() {
     document.getElementById('notes-page-ctx').classList.remove('show');
   });
 
-  // Close ctx menu on outside click
   document.addEventListener('click', e => {
     const ctx = document.getElementById('notes-page-ctx');
     if (ctx && !ctx.contains(e.target) && e.target !== pnd) ctx.classList.remove('show');
@@ -5715,27 +5753,9 @@ function notesShow() {
   notesLoad();
   notesEnsureDefaults();
   notesRenderTabs();
-  notesSizeMobile();
-  // Android WebView: isolate each textarea's touch so it never bubbles to parent
-  _notesIsolateTouchOnTextareas();
-}
-
-// Attach touch isolation to both textareas — safe to call multiple times
-// (uses a flag on the element to avoid duplicate listeners)
-function _notesIsolateTouchOnTextareas() {
-  ['notesTextA', 'notesTextB'].forEach(id => {
-    const ta = document.getElementById(id);
-    if (!ta || ta._touchIsolated) return;
-    ta._touchIsolated = true;
-    ta.addEventListener('touchstart', e => {
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-    }, { passive: true });
-    ta.addEventListener('touchmove', e => {
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-    }, { passive: true });
-  });
+  // Show the import/export button in the header
+  const ioBtn = document.getElementById('notes-io-btn');
+  if (ioBtn) ioBtn.style.display = 'inline-flex';
 }
 
 function notesHide() {
@@ -5743,33 +5763,31 @@ function notesHide() {
   clearTimeout(notesSaveTimer);
   notesSave();
   _notesIsVisible = false;
+  // Hide the import/export button
+  const ioBtn = document.getElementById('notes-io-btn');
+  if (ioBtn) ioBtn.style.display = 'none';
+  _notesCloseIoMenu();
 }
 
 // ── Override showPage to handle notes ─────────────────
 const _origShowPage = showPage;
 showPage = function(id, skipRender) {
-  // If leaving notes, flush + save
   if (_notesIsVisible && id !== 'notes') notesHide();
-  // Hide the notes overlay if navigating away
   document.getElementById('page-notes').classList.toggle('active', id === 'notes');
   if (id === 'notes') {
-    // Remember the previous page so logo click can go back
     const activePage = document.querySelector('.page.active');
     if (activePage && activePage.id !== 'page-notes') {
       window._notesPrevPage = activePage.id.replace('page-', '');
     }
-    // Mark mob/sidebar notes active
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.querySelectorAll('.mob-nav-item').forEach(n => n.classList.remove('active'));
     const sn = document.getElementById('nav-notes');
     const mn = document.getElementById('mob-notes');
     if (sn) sn.classList.add('active');
     if (mn) mn.classList.add('active');
-    // On desktop, hide the .app grid main/aside so notes sits on top cleanly
     notesShow();
     return;
   }
-  // Regular navigation
   _origShowPage(id, skipRender);
 };
 
@@ -5778,7 +5796,6 @@ function notesRewireLogo() {
   const logo = document.getElementById('logoBtn');
   if (!logo) return;
 
-  // Remove all existing listeners by cloning
   const newLogo = logo.cloneNode(true);
   logo.parentNode.replaceChild(newLogo, logo);
 
@@ -5789,7 +5806,6 @@ function notesRewireLogo() {
     _lpFired = false;
     _lp = setTimeout(() => {
       _lpFired = true;
-      // 長按 → 開設定選單
       const rect = newLogo.getBoundingClientRect();
       const menu = document.getElementById('logoMenu');
       if (menu) {
@@ -5808,10 +5824,8 @@ function notesRewireLogo() {
   newLogo.addEventListener('click', e => {
     e.stopPropagation();
     if (_lpFired) { _lpFired = false; return; }
-    // 單擊：設定選單若開著則關掉
     const menu = document.getElementById('logoMenu');
     if (menu && menu.style.display === 'block') { closeLogoMenu(); return; }
-    // 單擊切換 notes
     if (_notesIsVisible) {
       const prevPage = window._notesPrevPage || 'tree';
       showPage(prevPage);
@@ -5822,7 +5836,6 @@ function notesRewireLogo() {
     }
   });
 
-  // Touch support
   let _touchLp = null;
   let _touchFired = false;
   newLogo.addEventListener('touchstart', e => {
@@ -5850,7 +5863,6 @@ function notesRewireLogo() {
     e.stopPropagation();
     const menu = document.getElementById('logoMenu');
     if (menu && menu.style.display === 'block') { closeLogoMenu(); return; }
-    // 單擊切換 notes
     if (_notesIsVisible) {
       const prevPage = window._notesPrevPage || 'tree';
       showPage(prevPage);
@@ -5863,64 +5875,22 @@ function notesRewireLogo() {
   newLogo.addEventListener('touchmove', () => clearTimeout(_touchLp), { passive: true });
 }
 
-// ── Swipe left/right on notes page (mobile) ───────────
+// ── Swipe left/right on notes page tabs (title inputs only) ───────────
 function notesInitSwipe() {
-  // Bind after DOM is ready — use capture on the stable container,
-  // never on textarea/input directly (WPA WebView: they have scrollHeight=0 at bind time)
-  function _init() {
-    const folder = document.querySelector('.notes-folder-content');
-    if (!folder || folder._swipeInit) return;
-    folder._swipeInit = true;
-
-    let sx = 0, sy = 0, startTarget = null;
-
-    // ── Capture phase: record touch origin ───────────────
-    folder.addEventListener('touchstart', e => {
-      if (e.touches.length !== 1) return;
-      sx = e.touches[0].clientX;
-      sy = e.touches[0].clientY;
-      startTarget = e.target;
-    }, { passive: true, capture: true });
-
-    // ── Capture phase: stop textarea scroll leaking out ──
-    folder.addEventListener('touchmove', e => {
-      const ta = e.target.closest('.notes-textarea');
-      if (!ta) return;
-      // Always stop propagation so parent/preview never scrolls
-      e.stopPropagation();
-      // At scroll edges: prevent browser bounce
-      const dy = e.touches[0].clientY - sy;
-      const atTop    = ta.scrollTop <= 0 && dy > 0;
-      const atBottom = ta.scrollHeight - ta.scrollTop <= ta.clientHeight + 1 && dy < 0;
-      if ((atTop || atBottom) && e.cancelable) e.preventDefault();
-    }, { passive: false, capture: true });
-
-    // ── Bubble phase: detect swipe on title or free area ─
-    folder.addEventListener('touchend', e => {
-      if (e.changedTouches.length !== 1) return;
-      const dx = e.changedTouches[0].clientX - sx;
-      const dy = e.changedTouches[0].clientY - sy;
-      // Must be clearly horizontal
-      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
-      // Allow swipe from title input or any non-textarea area
-      const inTextarea = !!startTarget?.closest('.notes-textarea');
-      if (inTextarea) return;
-      notesChangeSubPage(dx < 0 ? 1 : -1);
+  // Only title inputs support swipe-to-change-page (textareas use native scroll)
+  const titles = [document.getElementById('notesTitleA'), document.getElementById('notesTitleB')];
+  titles.forEach(el => {
+    if (!el) return;
+    el.addEventListener('touchstart', e => {
+      el._startX = e.touches[0].clientX;
     }, { passive: true });
-  }
-
-  // Try immediately, then again on DOMContentLoaded and after any showPage('notes')
-  _init();
-  document.addEventListener('DOMContentLoaded', _init);
-
-  const _origShowPage = window.showPage;
-  if (_origShowPage) {
-    window.showPage = function(id, ...args) {
-      const result = _origShowPage.apply(this, [id, ...args]);
-      if (id === 'notes') setTimeout(_init, 50);
-      return result;
-    };
-  }
+    el.addEventListener('touchend', e => {
+      const deltaX = e.changedTouches[0].clientX - (el._startX || 0);
+      if (Math.abs(deltaX) > 60) {
+        notesChangeSubPage(deltaX > 0 ? -1 : 1);
+      }
+    }, { passive: true });
+  });
 }
 
 // ── Arrow-key page navigation ──────────────────────────
@@ -5941,13 +5911,157 @@ function notesInitKeys() {
   });
 }
 
-// ── Mobile sizing now handled entirely by CSS flex ──
-function notesSizeMobile() {
-  // No-op: CSS @media (max-width:680px) handles all sizing via flex.
-  // Previously this function calculated pixel heights which caused
-  // inconsistent scroll behaviour depending on render timing.
-}
+// No-op (kept for any external callers)
+function notesSizeMobile() {}
 window.notesSizeMobile = notesSizeMobile;
+
+// ── Import / Export ────────────────────────────────────
+let _ioMenu = null;
+
+function notesShowIoMenu() {
+  if (_ioMenu) { _ioMenu.remove(); _ioMenu = null; return; }
+  const btn = document.getElementById('notes-io-btn');
+  const rect = btn ? btn.getBoundingClientRect() : { left: 60, bottom: 56, right: 160 };
+
+  const menu = document.createElement('div');
+  menu.id = 'notes-io-menu';
+  menu.style.cssText = `
+    position:fixed;z-index:10010;
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:12px;padding:6px 0;
+    box-shadow:0 8px 28px rgba(58,110,165,0.18);
+    min-width:180px;animation:modalIn 0.15s ease;
+  `;
+  const items = [
+    { label: '📤 匯出為 .txt', fn: 'notesExportTxt()' },
+    { label: '📤 匯出為 .md',  fn: 'notesExportMd()' },
+    { label: '📤 匯出為 JSON', fn: 'notesExportJson()' },
+    { sep: true },
+    { label: '📥 從 JSON 匯入', fn: 'notesImportJson()' },
+  ];
+  menu.innerHTML = items.map(it => {
+    if (it.sep) return `<div style="height:1px;background:var(--border);margin:4px 8px"></div>`;
+    return `<div onclick="${it.fn};_notesCloseIoMenu()" style="
+      padding:9px 16px;font-size:13px;color:var(--text);cursor:pointer;
+      transition:background 0.12s;
+    " onmouseover="this.style.background='rgba(58,110,165,0.07)'"
+       onmouseout="this.style.background='transparent'">${it.label}</div>`;
+  }).join('');
+
+  document.body.appendChild(menu);
+  _ioMenu = menu;
+
+  // Position below the button
+  const mw = 190;
+  let left = rect.left;
+  if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+  menu.style.left = left + 'px';
+  menu.style.top  = (rect.bottom + 6) + 'px';
+
+  setTimeout(() => document.addEventListener('click', _notesIoOutside), 0);
+}
+
+function _notesCloseIoMenu() {
+  if (_ioMenu) { _ioMenu.remove(); _ioMenu = null; }
+  document.removeEventListener('click', _notesIoOutside);
+}
+
+function _notesIoOutside(e) {
+  if (_ioMenu && !_ioMenu.contains(e.target) && e.target.id !== 'notes-io-btn') {
+    _notesCloseIoMenu();
+  }
+}
+window.notesShowIoMenu = notesShowIoMenu;
+window._notesCloseIoMenu = _notesCloseIoMenu;
+
+function notesExportTxt() {
+  notesFlush();
+  const lines = [];
+  notesFolderData.forEach(tab => {
+    lines.push(`===== ${tab.name} =====`);
+    tab.pages.forEach((pg, i) => {
+      lines.push(`--- 第 ${i+1} 頁 ---`);
+      if (pg.titleA) lines.push(`[A] ${pg.titleA}`);
+      if (pg.a)      lines.push(pg.a);
+      if (pg.titleB) lines.push(`[B] ${pg.titleB}`);
+      if (pg.b)      lines.push(pg.b);
+    });
+    lines.push('');
+  });
+  _notesDownload('innerflow_notes.txt', lines.join('
+'), 'text/plain');
+}
+window.notesExportTxt = notesExportTxt;
+
+function notesExportMd() {
+  notesFlush();
+  const lines = [];
+  notesFolderData.forEach(tab => {
+    lines.push(`# ${tab.name}`);
+    tab.pages.forEach((pg, i) => {
+      lines.push(`## 第 ${i+1} 頁`);
+      if (pg.titleA) lines.push(`### ${pg.titleA}`);
+      if (pg.a)      lines.push(pg.a);
+      if (pg.titleB) lines.push(`
+---
+### ${pg.titleB}`);
+      if (pg.b)      lines.push(pg.b);
+    });
+    lines.push('');
+  });
+  _notesDownload('innerflow_notes.md', lines.join('
+'), 'text/markdown');
+}
+window.notesExportMd = notesExportMd;
+
+function notesExportJson() {
+  notesFlush();
+  const data = JSON.stringify({ tabs: notesFolderData, exportedAt: new Date().toISOString() }, null, 2);
+  _notesDownload('innerflow_notes.json', data, 'application/json');
+}
+window.notesExportJson = notesExportJson;
+
+function notesImportJson() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (!data.tabs || !Array.isArray(data.tabs)) {
+        alert('格式錯誤：找不到 tabs 欄位，請選擇正確的 innerflow 筆記 JSON 檔案');
+        return;
+      }
+      const ok = await _notesDlg.confirm(`確定匯入「${file.name}」？這會覆蓋目前所有標籤頁的內容。`);
+      if (!ok) return;
+      notesFlush();
+      notesFolderData = data.tabs;
+      notesTabIndex = 0;
+      notesEnsureDefaults();
+      notesSave();
+      notesRenderTabs();
+      showToast?.('📥 筆記已匯入');
+    } catch(err) {
+      alert('匯入失敗：' + err.message);
+    }
+  };
+  input.click();
+}
+window.notesImportJson = notesImportJson;
+
+function _notesDownload(filename, content, type) {
+  const blob = new Blob([content], { type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
 
 // ── Init ───────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
@@ -5955,11 +6069,6 @@ document.addEventListener('DOMContentLoaded', function() {
   notesWirePageCtx();
   notesInitSwipe();
   notesInitKeys();
-  // Re-size on orientation change / keyboard show-hide
-  window.addEventListener('resize', () => {
-    if (_notesIsVisible) setTimeout(notesSizeMobile, 100);
-  });
-  // Wire search close on outside click
   document.addEventListener('click', e => {
     const bar = document.getElementById('notes-search-bar');
     const res = document.getElementById('notes-search-results');
@@ -5967,13 +6076,12 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-// Rewire logo after main init() runs
-// (use a small delay to ensure init() has already replaced listeners)
 window.addEventListener('load', () => {
   setTimeout(notesRewireLogo, 200);
 });
 
 })(); // end IIFE
+
 
 </script>
 </body>
