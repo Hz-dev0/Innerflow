@@ -1365,14 +1365,21 @@
     .notes-note-box:last-of-type { border-bottom: none; }
   }
 
+  /* Title row: input + MD button side by side */
+  .notes-title-row {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    flex-shrink: 0;
+    position: relative;
+  }
   .notes-title-input {
     border: none; border-bottom: 2px solid var(--border);
     font-weight: 600; color: var(--text);
     outline: none; font-size: 16px; padding-bottom: 6px;
-    background: transparent; width: 100%; font-family: inherit;
+    background: transparent; flex: 1; font-family: inherit;
     transition: border-bottom-color 0.2s;
-    padding-right: 40px;
-    flex-shrink: 0;
+    min-width: 0;
   }
   .notes-title-input:focus { border-bottom-color: var(--green); }
 
@@ -1407,15 +1414,20 @@
 
   /* MD toggle button */
   .notes-md-toggle {
-    position: absolute; top: 0; right: 0;
-    font-size: 11px; font-weight: 700;
-    color: var(--text-faint); background: none; border: none;
-    cursor: pointer; padding: 2px 6px; border-radius: 6px;
-    opacity: 0.5; transition: opacity 0.15s, background 0.15s;
+    flex-shrink: 0;
+    font-size: 12px; font-weight: 700;
+    color: var(--text-faint); background: none;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    cursor: pointer; padding: 0 10px;
+    opacity: 0.6; transition: opacity 0.15s, background 0.15s, border-color 0.15s;
     font-family: inherit; z-index: 2;
+    align-self: stretch;
+    display: flex; align-items: center; justify-content: center;
+    min-width: 40px;
   }
-  .notes-md-toggle:hover { opacity: 1; background: rgba(58,110,165,0.08); }
-  .notes-md-toggle.active { opacity: 1; color: var(--green); }
+  .notes-md-toggle:hover { opacity: 1; background: rgba(58,110,165,0.08); border-color: var(--green); }
+  .notes-md-toggle.active { opacity: 1; color: var(--green); border-color: var(--green); background: rgba(58,110,165,0.07); }
 
   /* MD preview */
   .notes-md-preview {
@@ -1949,15 +1961,19 @@
     <div class="notes-page-nav" id="notes-prev-zone" onclick="notesChangeSubPage(-1)">❮</div>
     <!-- Note A -->
     <div class="notes-note-box">
-      <button class="notes-md-toggle" id="notes-md-toggle-a" onclick="notesToggleMd('A')" title="切換 Markdown 預覽">MD</button>
-      <input type="text" id="notesTitleA" class="notes-title-input" placeholder="標題" oninput="notesAutoSave()">
+      <div class="notes-title-row">
+        <input type="text" id="notesTitleA" class="notes-title-input" placeholder="標題" oninput="notesAutoSave()">
+        <button class="notes-md-toggle" id="notes-md-toggle-a" onclick="notesToggleMd('A')" title="切換 Markdown 預覽">MD</button>
+      </div>
       <textarea id="notesTextA" class="notes-textarea" placeholder="內容（支援 Markdown）" oninput="notesAutoSave();notesLiveMd('A')"></textarea>
       <div id="notes-md-preview-a" class="notes-md-preview"></div>
     </div>
     <!-- Note B -->
     <div class="notes-note-box">
-      <button class="notes-md-toggle" id="notes-md-toggle-b" onclick="notesToggleMd('B')" title="切換 Markdown 預覽">MD</button>
-      <input type="text" id="notesTitleB" class="notes-title-input" placeholder="標題" oninput="notesAutoSave()">
+      <div class="notes-title-row">
+        <input type="text" id="notesTitleB" class="notes-title-input" placeholder="標題" oninput="notesAutoSave()">
+        <button class="notes-md-toggle" id="notes-md-toggle-b" onclick="notesToggleMd('B')" title="切換 Markdown 預覽">MD</button>
+      </div>
       <textarea id="notesTextB" class="notes-textarea" placeholder="內容（支援 Markdown）" oninput="notesAutoSave();notesLiveMd('B')"></textarea>
       <div id="notes-md-preview-b" class="notes-md-preview"></div>
     </div>
