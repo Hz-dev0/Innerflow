@@ -1595,9 +1595,10 @@
       height: 0;
       resize: none;
       overflow-y: auto;
-      touch-action: pan-y;
+      touch-action: pan-y !important;
       -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
+      overscroll-behavior: contain !important;
+      position: relative;
     }
     .notes-md-preview {
       flex: 1 1 0%;
@@ -5857,6 +5858,54 @@ function notesRewireLogo() {
 function notesInitSwipe() {
   let sx = 0, sy = 0, swipeTarget = null;
 
+  // ── Per-element touch isolation on textareas ──────────
+  function _bindTextareaIsolation() {
+    ['notesTextA', 'notesTextB'].forEach(id => {
+      const ta = document.getElementById(id);
+      if (!ta || ta._swipeIsolated) return;
+      ta._swipeIsolated = true;
+      ta.addEventListener('touchmove', e => {
+        e.stopPropagation();
+      }, { passive: false });
+    });
+  }
+
+  // ── Per-element swipe on title inputs ─────────────────
+  function _bindTitleSwipe() {
+    ['notesTitleA', 'notesTitleB'].forEach(id => {
+      const ti = document.getElementById(id);
+      if (!ti || ti._swipeBound) return;
+      ti._swipeBound = true;
+      let tsx = 0, tsy = 0;
+      ti.addEventListener('touchstart', e => {
+        if (e.touches.length !== 1) return;
+        tsx = e.touches[0].clientX;
+        tsy = e.touches[0].clientY;
+      }, { passive: true });
+      ti.addEventListener('touchend', e => {
+        if (e.changedTouches.length !== 1) return;
+        const dx = e.changedTouches[0].clientX - tsx;
+        const dy = e.changedTouches[0].clientY - tsy;
+        if (Math.abs(dx) > Math.abs(dy) * 1.5 && Math.abs(dx) > 60) {
+          notesChangeSubPage(dx < 0 ? 1 : -1);
+        }
+      }, { passive: true });
+    });
+  }
+
+  // Call once on init, and re-bind after notes become visible
+  // (elements may not exist until notesShow() renders them)
+  const _origNotesShow = window.notesShow;
+  window.notesShow = function() {
+    if (_origNotesShow) _origNotesShow.apply(this, arguments);
+    _bindTextareaIsolation();
+    _bindTitleSwipe();
+  };
+  // Also attempt immediate bind in case elements already exist
+  _bindTextareaIsolation();
+  _bindTitleSwipe();
+
+  // ── Document-level swipe for non-textarea areas ───────
   document.addEventListener('touchstart', e => {
     if (!_notesIsVisible) return;
     if (e.touches.length !== 1) { swipeTarget = null; return; }
@@ -5866,25 +5915,16 @@ function notesInitSwipe() {
     const inTextarea  = !!el.closest('.notes-textarea');
     const inTitle     = !!el.closest('.notes-title-input');
     const inPageNotes = !!el.closest('#page-notes');
-    if (!inPageNotes) { swipeTarget = null; return; }
-    // Title input: allow swipe navigation
-    if (inTitle)    { swipeTarget = 'title'; return; }
-    // Textarea: block swipe nav, but stop propagation on move
-    if (inTextarea) { swipeTarget = 'textarea'; return; }
+    if (!inPageNotes)  { swipeTarget = null; return; }
+    if (inTextarea)    { swipeTarget = null; return; } // handled per-element above
+    if (inTitle)       { swipeTarget = null; return; } // handled per-element above
     swipeTarget = 'notes';
   }, { passive: true });
-
-  // Stop textarea touchmove from bubbling to preview/viewport
-  document.addEventListener('touchmove', e => {
-    if (swipeTarget === 'textarea') {
-      e.stopPropagation();
-    }
-  }, { passive: false });
 
   document.addEventListener('touchend', e => {
     const target = swipeTarget;
     swipeTarget = null;
-    if (target !== 'notes' && target !== 'title') return;
+    if (target !== 'notes') return;
     if (e.changedTouches.length !== 1) return;
     const dx = e.changedTouches[0].clientX - sx;
     const dy = e.changedTouches[0].clientY - sy;
