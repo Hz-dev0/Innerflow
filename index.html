@@ -1597,17 +1597,26 @@
       overflow-y: auto;
       touch-action: pan-y !important;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain !important;
       overscroll-behavior: contain !important;
       position: relative;
+    }
+    .notes-textarea, .notes-md-preview {
+      overscroll-behavior-y: contain !important;
+      touch-action: pan-y !important;
+      -webkit-overflow-scrolling: touch;
     }
     .notes-md-preview {
       flex: 1 1 0%;
       min-height: 0;
       height: 0;
       overflow-y: auto;
-      touch-action: pan-y;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
+      overscroll-behavior: contain !important;
+    }
+    #page-notes.active {
+      position: fixed;
+      overflow: hidden;
+      height: 100%;
     }
     #notes-prev-zone, #notes-next-zone { display: none !important; }
     #notes-md-toolbar { display: none !important; }
@@ -5858,19 +5867,26 @@ function notesRewireLogo() {
 function notesInitSwipe() {
   let sx = 0, sy = 0, swipeTarget = null;
 
-  // ── Per-element touch isolation on textareas ──────────
+  // ── Textarea: stop scroll leak via stopScrollLeak pattern ─
+  const stopScrollLeak = (e) => {
+    const el = e.currentTarget;
+    // Always stopPropagation — prevents ANY parent from receiving
+    // this touchmove and triggering page/preview scroll
+    e.stopPropagation();
+  };
+
   function _bindTextareaIsolation() {
     ['notesTextA', 'notesTextB'].forEach(id => {
       const ta = document.getElementById(id);
       if (!ta || ta._swipeIsolated) return;
       ta._swipeIsolated = true;
-      ta.addEventListener('touchmove', e => {
-        e.stopPropagation();
-      }, { passive: false });
+      // passive:false required so stopPropagation is honoured by browser
+      ta.addEventListener('touchmove', stopScrollLeak, { passive: false });
+      ta.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
     });
   }
 
-  // ── Per-element swipe on title inputs ─────────────────
+  // ── Title inputs: explicit touchstart/touchend swipe binding ──
   function _bindTitleSwipe() {
     ['notesTitleA', 'notesTitleB'].forEach(id => {
       const ti = document.getElementById(id);
@@ -5886,26 +5902,27 @@ function notesInitSwipe() {
         if (e.changedTouches.length !== 1) return;
         const dx = e.changedTouches[0].clientX - tsx;
         const dy = e.changedTouches[0].clientY - tsy;
-        if (Math.abs(dx) > Math.abs(dy) * 1.5 && Math.abs(dx) > 60) {
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2) {
           notesChangeSubPage(dx < 0 ? 1 : -1);
         }
       }, { passive: true });
     });
   }
 
-  // Call once on init, and re-bind after notes become visible
-  // (elements may not exist until notesShow() renders them)
+  // Bind immediately and also after notesShow() in case DOM not ready yet
+  function _bindAll() {
+    _bindTextareaIsolation();
+    _bindTitleSwipe();
+  }
+
   const _origNotesShow = window.notesShow;
   window.notesShow = function() {
     if (_origNotesShow) _origNotesShow.apply(this, arguments);
-    _bindTextareaIsolation();
-    _bindTitleSwipe();
+    _bindAll();
   };
-  // Also attempt immediate bind in case elements already exist
-  _bindTextareaIsolation();
-  _bindTitleSwipe();
+  _bindAll();
 
-  // ── Document-level swipe for non-textarea areas ───────
+  // ── Document-level swipe for tabs / other non-input areas ──
   document.addEventListener('touchstart', e => {
     if (!_notesIsVisible) return;
     if (e.touches.length !== 1) { swipeTarget = null; return; }
@@ -5915,10 +5932,8 @@ function notesInitSwipe() {
     const inTextarea  = !!el.closest('.notes-textarea');
     const inTitle     = !!el.closest('.notes-title-input');
     const inPageNotes = !!el.closest('#page-notes');
-    if (!inPageNotes)  { swipeTarget = null; return; }
-    if (inTextarea)    { swipeTarget = null; return; } // handled per-element above
-    if (inTitle)       { swipeTarget = null; return; } // handled per-element above
-    swipeTarget = 'notes';
+    // textarea and title handle their own logic above
+    swipeTarget = (inPageNotes && !inTextarea && !inTitle) ? 'notes' : null;
   }, { passive: true });
 
   document.addEventListener('touchend', e => {
@@ -5928,7 +5943,7 @@ function notesInitSwipe() {
     if (e.changedTouches.length !== 1) return;
     const dx = e.changedTouches[0].clientX - sx;
     const dy = e.changedTouches[0].clientY - sy;
-    if (Math.abs(dx) > Math.abs(dy) * 1.5 && Math.abs(dx) > 60) {
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2) {
       notesChangeSubPage(dx < 0 ? 1 : -1);
     }
   }, { passive: true });
