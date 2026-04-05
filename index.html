@@ -6027,19 +6027,35 @@ function notesImportJson() {
     try {
       const text = await file.text();
       const data = JSON.parse(text);
-      if (!data.tabs || !Array.isArray(data.tabs)) {
-        alert('格式錯誤：找不到 tabs 欄位，請選擇正確的 innerflow 筆記 JSON 檔案');
+
+      // Support multiple JSON formats:
+      // 1. Our export format:          { tabs: [...], exportedAt: ... }
+      // 2. localStorage raw format:    { tabs: [...], lastTab: 0, updatedAt: ... }
+      // 3. Cloud full-backup format:   { tasks: [...], notes: { tabs: [...] }, ... }
+      // 4. Direct tabs array:          [{ name, pages, ... }]
+      let tabs = null;
+      if (Array.isArray(data)) {
+        tabs = data; // raw array of tabs
+      } else if (data.tabs && Array.isArray(data.tabs)) {
+        tabs = data.tabs; // our export / localStorage format
+      } else if (data.notes && data.notes.tabs && Array.isArray(data.notes.tabs)) {
+        tabs = data.notes.tabs; // cloud full-backup format
+      }
+
+      if (!tabs) {
+        alert('格式錯誤：無法辨識此 JSON 的筆記結構。\n\n支援格式：\n・從本程式匯出的 .json\n・localStorage 備份\n・雲端完整備份（含 notes.tabs 欄位）');
         return;
       }
-      const ok = await _notesDlg.confirm(`確定匯入「${file.name}」？這會覆蓋目前所有標籤頁的內容。`);
+
+      const ok = await _notesDlg.confirm('確定匯入「' + file.name + '」？這會覆蓋目前所有標籤頁的內容。');
       if (!ok) return;
       notesFlush();
-      notesFolderData = data.tabs;
+      notesFolderData = tabs;
       notesTabIndex = 0;
       notesEnsureDefaults();
       notesSave();
       notesRenderTabs();
-      showToast?.('📥 筆記已匯入');
+      if (typeof showToast === 'function') showToast('📥 筆記已匯入（共 ' + tabs.length + ' 個標籤）');
     } catch(err) {
       alert('匯入失敗：' + err.message);
     }
