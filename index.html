@@ -5865,35 +5865,62 @@ function notesRewireLogo() {
 
 // ── Swipe left/right on notes page (mobile) ───────────
 function notesInitSwipe() {
-  // ── Title inputs: capture:true intercepts before input swallows event ──
-  const titles = [document.getElementById('notesTitleA'), document.getElementById('notesTitleB')];
-  titles.forEach(el => {
-    if (!el) return;
-    el.addEventListener('touchstart', e => {
-      el._startX = e.touches[0].clientX;
+  // Bind after DOM is ready — use capture on the stable container,
+  // never on textarea/input directly (WPA WebView: they have scrollHeight=0 at bind time)
+  function _init() {
+    const folder = document.querySelector('.notes-folder-content');
+    if (!folder || folder._swipeInit) return;
+    folder._swipeInit = true;
+
+    let sx = 0, sy = 0, startTarget = null;
+
+    // ── Capture phase: record touch origin ───────────────
+    folder.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      sx = e.touches[0].clientX;
+      sy = e.touches[0].clientY;
+      startTarget = e.target;
     }, { passive: true, capture: true });
 
-    el.addEventListener('touchend', e => {
-      const deltaX = e.changedTouches[0].clientX - el._startX;
-      if (Math.abs(deltaX) > 50) {
-        notesChangeSubPage(deltaX > 0 ? -1 : 1);
-      }
-    }, { passive: true, capture: true });
-  });
-
-  // ── Textareas: kill scroll chaining + prevent edge bounce ──
-  [document.getElementById('notesTextA'), document.getElementById('notesTextB')].forEach(el => {
-    if (!el) return;
-    el.addEventListener('touchmove', (e) => {
+    // ── Capture phase: stop textarea scroll leaking out ──
+    folder.addEventListener('touchmove', e => {
+      const ta = e.target.closest('.notes-textarea');
+      if (!ta) return;
+      // Always stop propagation so parent/preview never scrolls
       e.stopPropagation();
-      const isAtTop    = el.scrollTop <= 0 && e.touches[0].clientY > (el._lastY || 0);
-      const isAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight && e.touches[0].clientY < (el._lastY || 0);
-      if (isAtTop || isAtBottom) {
-        if (e.cancelable) e.preventDefault();
-      }
-      el._lastY = e.touches[0].clientY;
-    }, { passive: false });
-  });
+      // At scroll edges: prevent browser bounce
+      const dy = e.touches[0].clientY - sy;
+      const atTop    = ta.scrollTop <= 0 && dy > 0;
+      const atBottom = ta.scrollHeight - ta.scrollTop <= ta.clientHeight + 1 && dy < 0;
+      if ((atTop || atBottom) && e.cancelable) e.preventDefault();
+    }, { passive: false, capture: true });
+
+    // ── Bubble phase: detect swipe on title or free area ─
+    folder.addEventListener('touchend', e => {
+      if (e.changedTouches.length !== 1) return;
+      const dx = e.changedTouches[0].clientX - sx;
+      const dy = e.changedTouches[0].clientY - sy;
+      // Must be clearly horizontal
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+      // Allow swipe from title input or any non-textarea area
+      const inTextarea = !!startTarget?.closest('.notes-textarea');
+      if (inTextarea) return;
+      notesChangeSubPage(dx < 0 ? 1 : -1);
+    }, { passive: true });
+  }
+
+  // Try immediately, then again on DOMContentLoaded and after any showPage('notes')
+  _init();
+  document.addEventListener('DOMContentLoaded', _init);
+
+  const _origShowPage = window.showPage;
+  if (_origShowPage) {
+    window.showPage = function(id, ...args) {
+      const result = _origShowPage.apply(this, [id, ...args]);
+      if (id === 'notes') setTimeout(_init, 50);
+      return result;
+    };
+  }
 }
 
 // ── Arrow-key page navigation ──────────────────────────
