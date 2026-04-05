@@ -5988,8 +5988,7 @@ function notesExportTxt() {
     });
     lines.push('');
   });
-  _notesDownload('innerflow_notes.txt', lines.join('
-'), 'text/plain');
+  _notesDownload('innerflow_notes.txt', lines.join('\n'), 'text/plain');
 }
 window.notesExportTxt = notesExportTxt;
 
@@ -6002,15 +6001,12 @@ function notesExportMd() {
       lines.push(`## 第 ${i+1} 頁`);
       if (pg.titleA) lines.push(`### ${pg.titleA}`);
       if (pg.a)      lines.push(pg.a);
-      if (pg.titleB) lines.push(`
----
-### ${pg.titleB}`);
+      if (pg.titleB) lines.push('\n---\n### ' + pg.titleB);
       if (pg.b)      lines.push(pg.b);
     });
     lines.push('');
   });
-  _notesDownload('innerflow_notes.md', lines.join('
-'), 'text/markdown');
+  _notesDownload('innerflow_notes.md', lines.join('\n'), 'text/markdown');
 }
 window.notesExportMd = notesExportMd;
 
