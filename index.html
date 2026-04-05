@@ -2835,8 +2835,8 @@ function showWishCtxMenu(id, unlocked, _x, _y) {
     animation:wishBtnIn 0.2s cubic-bezier(0.34,1.56,0.64,1);
   `;
 
-  const pill = (id, icon, label, colorVar, bgVar) => `
-    <button id="${id}" style="
+  const pill = (pid, icon, label, colorVar, bgVar) => `
+    <button id="${pid}" style="
       display:flex;align-items:center;gap:4px;
       padding:4px 10px 4px 7px;
       border-radius:20px;
@@ -2845,8 +2845,9 @@ function showWishCtxMenu(id, unlocked, _x, _y) {
       color:${colorVar};
       font-size:11px;font-weight:500;letter-spacing:0.02em;
       cursor:pointer;font-family:inherit;
+      -webkit-tap-highlight-color:transparent;
       backdrop-filter:blur(4px);
-      transition:all 0.15s;
+      transition:background 0.15s;
     ">${icon} ${label}</button>`;
 
   btns.innerHTML =
@@ -2859,28 +2860,37 @@ function showWishCtxMenu(id, unlocked, _x, _y) {
   const editBtn = document.getElementById('wishEditBtn_' + id);
   const delBtn  = document.getElementById('wishDelBtn_' + id);
 
-  const hover = (btn, bgHover, bgOut) => {
-    btn.addEventListener('mouseenter', () => btn.style.background = bgHover);
-    btn.addEventListener('mouseleave', () => btn.style.background = bgOut);
-  };
+  const stopAll = (e) => { e.stopPropagation(); };
+
   if (editBtn) {
-    hover(editBtn, 'rgba(130,154,177,0.22)', 'rgba(130,154,177,0.1)');
-    editBtn.addEventListener('mousedown', e => e.stopPropagation());
+    editBtn.addEventListener('mouseenter', () => editBtn.style.background = 'rgba(130,154,177,0.22)');
+    editBtn.addEventListener('mouseleave', () => editBtn.style.background = 'rgba(130,154,177,0.1)');
+    editBtn.addEventListener('mousedown',  stopAll);
+    editBtn.addEventListener('touchstart', stopAll, { passive: true });
+    editBtn.addEventListener('touchend',   stopAll, { passive: true });
     editBtn.addEventListener('click', e => { e.stopPropagation(); closeWishCtxMenu(); openEditWish(id); });
   }
   if (delBtn) {
-    hover(delBtn, 'rgba(192,86,90,0.18)', 'rgba(192,86,90,0.07)');
-    delBtn.addEventListener('mousedown', e => e.stopPropagation());
+    delBtn.addEventListener('mouseenter', () => delBtn.style.background = 'rgba(192,86,90,0.18)');
+    delBtn.addEventListener('mouseleave', () => delBtn.style.background = 'rgba(192,86,90,0.07)');
+    delBtn.addEventListener('mousedown',  stopAll);
+    delBtn.addEventListener('touchstart', stopAll, { passive: true });
+    delBtn.addEventListener('touchend',   stopAll, { passive: true });
     delBtn.addEventListener('click', e => { e.stopPropagation(); closeWishCtxMenu(); deleteReward(id); });
   }
 
-  setTimeout(() => document.addEventListener('mousedown', closeWishCtxMenuOnOutside), 10);
+  // 任何地方按下（mouse 或 touch）都關閉，按鈕本身已 stopPropagation 所以不受影響
+  setTimeout(() => {
+    document.addEventListener('mousedown',  closeWishCtxMenuOnOutside);
+    document.addEventListener('touchstart', closeWishCtxMenuOnOutside, { passive: true });
+  }, 10);
 }
 
 function closeWishCtxMenu() {
   if (_wishCtxMenu) { _wishCtxMenu.remove(); _wishCtxMenu = null; }
   _wishCtxId = null;
-  document.removeEventListener('mousedown', closeWishCtxMenuOnOutside);
+  document.removeEventListener('mousedown',  closeWishCtxMenuOnOutside);
+  document.removeEventListener('touchstart', closeWishCtxMenuOnOutside);
 }
 function closeWishCtxMenuOnOutside(e) {
   if (_wishCtxMenu && !_wishCtxMenu.contains(e.target)) closeWishCtxMenu();
