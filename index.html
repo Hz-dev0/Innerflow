@@ -5865,88 +5865,35 @@ function notesRewireLogo() {
 
 // ── Swipe left/right on notes page (mobile) ───────────
 function notesInitSwipe() {
-  let sx = 0, sy = 0, swipeTarget = null;
+  // ── Title inputs: capture:true intercepts before input swallows event ──
+  const titles = [document.getElementById('notesTitleA'), document.getElementById('notesTitleB')];
+  titles.forEach(el => {
+    if (!el) return;
+    el.addEventListener('touchstart', e => {
+      el._startX = e.touches[0].clientX;
+    }, { passive: true, capture: true });
 
-  // ── Textarea: stop scroll leak via stopScrollLeak pattern ─
-  const stopScrollLeak = (e) => {
-    const el = e.currentTarget;
-    // Always stopPropagation — prevents ANY parent from receiving
-    // this touchmove and triggering page/preview scroll
-    e.stopPropagation();
-  };
+    el.addEventListener('touchend', e => {
+      const deltaX = e.changedTouches[0].clientX - el._startX;
+      if (Math.abs(deltaX) > 50) {
+        notesChangeSubPage(deltaX > 0 ? -1 : 1);
+      }
+    }, { passive: true, capture: true });
+  });
 
-  function _bindTextareaIsolation() {
-    ['notesTextA', 'notesTextB'].forEach(id => {
-      const ta = document.getElementById(id);
-      if (!ta || ta._swipeIsolated) return;
-      ta._swipeIsolated = true;
-      // passive:false required so stopPropagation is honoured by browser
-      ta.addEventListener('touchmove', stopScrollLeak, { passive: false });
-      ta.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
-    });
-  }
-
-  // ── Title inputs: explicit touchstart/touchend swipe binding ──
-  function _bindTitleSwipe() {
-    ['notesTitleA', 'notesTitleB'].forEach(id => {
-      const ti = document.getElementById(id);
-      if (!ti || ti._swipeBound) return;
-      ti._swipeBound = true;
-      let tsx = 0, tsy = 0;
-      ti.addEventListener('touchstart', e => {
-        if (e.touches.length !== 1) return;
-        tsx = e.touches[0].clientX;
-        tsy = e.touches[0].clientY;
-      }, { passive: true });
-      ti.addEventListener('touchend', e => {
-        if (e.changedTouches.length !== 1) return;
-        const dx = e.changedTouches[0].clientX - tsx;
-        const dy = e.changedTouches[0].clientY - tsy;
-        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-          notesChangeSubPage(dx < 0 ? 1 : -1);
-        }
-      }, { passive: true });
-    });
-  }
-
-  // Bind immediately and also after notesShow() in case DOM not ready yet
-  function _bindAll() {
-    _bindTextareaIsolation();
-    _bindTitleSwipe();
-  }
-
-  const _origNotesShow = window.notesShow;
-  window.notesShow = function() {
-    if (_origNotesShow) _origNotesShow.apply(this, arguments);
-    _bindAll();
-  };
-  _bindAll();
-
-  // ── Document-level swipe for tabs / other non-input areas ──
-  document.addEventListener('touchstart', e => {
-    if (!_notesIsVisible) return;
-    if (e.touches.length !== 1) { swipeTarget = null; return; }
-    sx = e.touches[0].clientX;
-    sy = e.touches[0].clientY;
-    const el = e.target;
-    const inTextarea  = !!el.closest('.notes-textarea');
-    const inTitle     = !!el.closest('.notes-title-input');
-    const inPageNotes = !!el.closest('#page-notes');
-    // textarea and title handle their own logic above
-    swipeTarget = (inPageNotes && !inTextarea && !inTitle) ? 'notes' : null;
-  }, { passive: true });
-
-  document.addEventListener('touchend', e => {
-    const target = swipeTarget;
-    swipeTarget = null;
-    if (target !== 'notes') return;
-    if (e.changedTouches.length !== 1) return;
-    const dx = e.changedTouches[0].clientX - sx;
-    const dy = e.changedTouches[0].clientY - sy;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-      notesChangeSubPage(dx < 0 ? 1 : -1);
-    }
-  }, { passive: true });
+  // ── Textareas: kill scroll chaining + prevent edge bounce ──
+  [document.getElementById('notesTextA'), document.getElementById('notesTextB')].forEach(el => {
+    if (!el) return;
+    el.addEventListener('touchmove', (e) => {
+      e.stopPropagation();
+      const isAtTop    = el.scrollTop <= 0 && e.touches[0].clientY > (el._lastY || 0);
+      const isAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight && e.touches[0].clientY < (el._lastY || 0);
+      if (isAtTop || isAtBottom) {
+        if (e.cancelable) e.preventDefault();
+      }
+      el._lastY = e.touches[0].clientY;
+    }, { passive: false });
+  });
 }
 
 // ── Arrow-key page navigation ──────────────────────────
