@@ -1590,7 +1590,7 @@
     }
     .notes-note-box:last-of-type { border-bottom: none; }
     .notes-textarea {
-      flex: 1 1 0%;
+      flex: 1;
       min-height: 0;
       height: 0;
       resize: none;
@@ -5705,8 +5705,27 @@ function notesShow() {
   notesLoad();
   notesEnsureDefaults();
   notesRenderTabs();
-  // Size textareas explicitly on Android so each scrolls independently
-  setTimeout(notesSizeMobile, 60);
+  notesSizeMobile();
+  // Android WebView: isolate each textarea's touch so it never bubbles to parent
+  _notesIsolateTouchOnTextareas();
+}
+
+// Attach touch isolation to both textareas — safe to call multiple times
+// (uses a flag on the element to avoid duplicate listeners)
+function _notesIsolateTouchOnTextareas() {
+  ['notesTextA', 'notesTextB'].forEach(id => {
+    const ta = document.getElementById(id);
+    if (!ta || ta._touchIsolated) return;
+    ta._touchIsolated = true;
+    ta.addEventListener('touchstart', e => {
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    }, { passive: true });
+    ta.addEventListener('touchmove', e => {
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    }, { passive: true });
+  });
 }
 
 function notesHide() {
@@ -5836,36 +5855,43 @@ function notesRewireLogo() {
 
 // ── Swipe left/right on notes page (mobile) ───────────
 function notesInitSwipe() {
-  // Helper: attach horizontal swipe to an element for page change
-  // excludeSelector: if touch starts on matching element, don't intercept
-  function attachSwipe(el, excludeSelector) {
-    if (!el) return;
-    let sx = 0, sy = 0, blocked = false;
-    el.addEventListener('touchstart', e => {
-      if (e.touches.length !== 1) { blocked = true; return; }
-      sx = e.touches[0].clientX;
-      sy = e.touches[0].clientY;
-      blocked = excludeSelector ? !!e.target.closest(excludeSelector) : false;
-    }, { passive: true });
-    el.addEventListener('touchend', e => {
-      if (blocked || e.changedTouches.length !== 1) return;
-      const dx = e.changedTouches[0].clientX - sx;
-      const dy = e.changedTouches[0].clientY - sy;
-      // Only trigger page swipe if horizontal movement dominates AND > 60px
-      if (Math.abs(dx) > Math.abs(dy) * 1.5 && Math.abs(dx) > 60) {
-        notesChangeSubPage(dx < 0 ? 1 : -1);
-      }
-    }, { passive: true });
-  }
+  let sx = 0, sy = 0, swipeTarget = null;
 
-  // Swipe on the tab bar (title area) — no exclusions needed
-  attachSwipe(document.querySelector('.notes-tabs-wrapper'), null);
+  document.addEventListener('touchstart', e => {
+    if (!_notesIsVisible) return;
+    if (e.touches.length !== 1) { swipeTarget = null; return; }
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+    const el = e.target;
+    const inTextarea  = !!el.closest('.notes-textarea');
+    const inTitle     = !!el.closest('.notes-title-input');
+    const inPageNotes = !!el.closest('#page-notes');
+    if (!inPageNotes) { swipeTarget = null; return; }
+    // Title input: allow swipe navigation
+    if (inTitle)    { swipeTarget = 'title'; return; }
+    // Textarea: block swipe nav, but stop propagation on move
+    if (inTextarea) { swipeTarget = 'textarea'; return; }
+    swipeTarget = 'notes';
+  }, { passive: true });
 
-  // Swipe on content area — but NOT when started inside textarea or title input
-  attachSwipe(
-    document.querySelector('.notes-folder-content'),
-    '.notes-textarea, .notes-title-input'
-  );
+  // Stop textarea touchmove from bubbling to preview/viewport
+  document.addEventListener('touchmove', e => {
+    if (swipeTarget === 'textarea') {
+      e.stopPropagation();
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', e => {
+    const target = swipeTarget;
+    swipeTarget = null;
+    if (target !== 'notes' && target !== 'title') return;
+    if (e.changedTouches.length !== 1) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    const dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) > Math.abs(dy) * 1.5 && Math.abs(dx) > 60) {
+      notesChangeSubPage(dx < 0 ? 1 : -1);
+    }
+  }, { passive: true });
 }
 
 // ── Arrow-key page navigation ──────────────────────────
