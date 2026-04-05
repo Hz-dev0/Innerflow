@@ -1715,7 +1715,7 @@
       <!-- Today Tasks Panel -->
       <div class="today-panel" id="todayPanel">
         <div class="today-panel-title" style="display:flex;align-items:center;justify-content:space-between">
-          <span>☀ 今日任務 <span id="todayPanelCount" style="font-size:10px;background:var(--green-dim);color:var(--green);border-radius:20px;padding:1px 8px;font-weight:600;letter-spacing:0"></span></span>
+          <span>☀ 今日任務&#x20;<span id="todayPanelCount" style="font-size:10px;background:var(--green-dim);color:var(--green);border-radius:20px;padding:1px 8px;font-weight:600;letter-spacing:0"></span></span>
           <button onclick="openAddTaskForToday()" style="background:none;border:1px solid rgba(58,110,165,0.3);border-radius:6px;color:var(--green);font-size:11px;padding:2px 9px;cursor:pointer;font-family:inherit;transition:all 0.2s;line-height:1.5" onmouseover="this.style.background='rgba(58,110,165,0.08)'" onmouseout="this.style.background='none'" title="新增今日任務">＋ 新增</button>
         </div>
         <div id="todayPanelList"></div>
@@ -3637,7 +3637,7 @@ function renderTodayPanel() {
     return oa - ob;
   });
 
-  if (countBadge) countBadge.textContent = allToday.length > 0 ? allToday.length : '';
+  if (countBadge) countBadge.textContent = allToday.length;
 
   if (allToday.length === 0) {
     list.innerHTML = '<div class="today-panel-empty">今天還沒有標記任何任務。在任務旁點側邊藍線來安排今日。</div>';
