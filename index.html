@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>內流 InnerFlow — 為內驅力而生的任務工具</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=DM+Serif+Display:ital@0;1&family=Lato:wght@300;400&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
@@ -469,32 +469,7 @@
   .ctx-item.danger:hover { background: rgba(192,86,90,0.08); color: var(--rose); }
   .ctx-sep { height: 1px; background: var(--border); margin: 4px 6px; }
 
-  /* ── Reward Cards ── */
-  .reward-card {
-    display: flex; align-items: center; gap: 14px;
-    padding: 14px 16px; border-radius: 10px;
-    border: 1px solid var(--border);
-    background: var(--bg3);
-    transition: all 0.2s;
-  }
-  .reward-card:hover { border-color: rgba(184,146,42,0.4); }
-  .reward-card.claimed { opacity: 0.45; }
-  .reward-card.unlocked { border-color: rgba(184,146,42,0.55); background: rgba(184,146,42,0.06); }
-  .reward-icon { font-size: 24px; flex-shrink: 0; }
-  .reward-body { flex: 1; min-width: 0; }
-  .reward-name { font-size: 14px; color: var(--text); }
-  .reward-cond { font-size: 11px; color: var(--text-faint); margin-top: 3px; }
-  .reward-prog { font-size: 11px; color: var(--green); margin-top: 3px; font-weight: 400; }
-  .reward-actions { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
-  .reward-del { font-size: 13px; cursor: pointer; color: var(--text-faint); transition: color 0.2s; padding: 2px 6px; }
-  .reward-del:hover { color: var(--rose); }
-  .reward-claim-btn {
-    padding: 5px 12px; font-size: 12px; border-radius: 7px;
-    background: var(--gold-dim); border: 1px solid rgba(184,146,42,0.4);
-    color: var(--gold); cursor: pointer; font-family: inherit; transition: all 0.2s;
-    white-space: nowrap;
-  }
-  .reward-claim-btn:hover { background: rgba(184,146,42,0.2); }
+
 
   /* ── Progress bar ── */
   .prog-bar-wrap { display: flex; align-items: center; gap: 10px; }
@@ -2486,11 +2461,14 @@ async function loadFromCloud() {
             const localNotes = JSON.parse(localRaw);
             const cloudTs = data.notes.updatedAt || 0;
             const localTs = localNotes.updatedAt || 0;
-            if (cloudTs > localTs) {
-              // Cloud is newer → overwrite local
+            const localIsEmpty = !localNotes.tabs || localNotes.tabs.every(tab =>
+              !tab.pages || tab.pages.every(pg => !pg.a?.trim() && !pg.b?.trim() && !pg.titleA?.trim() && !pg.titleB?.trim())
+            );
+            if (cloudTs > localTs || localIsEmpty) {
+              // Cloud is newer or local is blank → overwrite local
               localStorage.setItem('innerflow_notes_v1', JSON.stringify(data.notes));
             }
-            // else local is newer or equal → keep local (will be pushed on next syncToCloud)
+            // else local is newer → keep local (will be pushed on next syncToCloud)
           }
         } catch(e) {}
       }
@@ -2646,7 +2624,7 @@ function switchWishZoneTab(tab) {
   if (tab === 'quote')   { if(tabQuote) tabQuote.classList.add('active');     if(quotePane) quotePane.style.display = 'block';     renderQuotes(); }
 }
 
-function switchWishTab(tab) { switchWishZoneTab(tab === 'wish' ? 'wish' : 'quote'); }
+
 
 let taskSectionOpen = true;
 function toggleTaskSection() {
@@ -2952,8 +2930,7 @@ function openAddWish() {
   document.getElementById('addRewardModal').classList.add('open');
   setTimeout(() => document.getElementById('newRewardName').focus(), 50);
 }
-// alias kept
-function openAddReward() { openAddWish(); }
+
 
 function addReward() {
   const name = document.getElementById('newRewardName').value.trim();
@@ -3213,11 +3190,18 @@ async function init() {
         lotteryState.todayFlipped = 0;
         lotteryState.rmSlot = undefined;
       } else {
-        // 同一天：以實際任務完成數為準，避免雲端數值偏高
-        const _actualDoneToday = state.tasks.filter(t => t.done && t.completedAt === _today).length;
-        // Only correct downward if actual count is lower, but never below flips already made
+        // 同一天：reconcile todayDone
+        // 計算「目前仍在 tasks 裡的今日完成數」＋「已從 tasks 移除但計入 doneHistory 的今日完成數」
+        // 後者涵蓋：非重複任務被 daily reset 刪除、interval 任務完成後立即移除
+        const _activeDoneToday = state.tasks.filter(t => t.done && t.completedAt === _today).length;
+        const _historyDoneToday = (state.doneHistory || []).filter(h => h.completedAt === _today).length;
+        const _trueDoneToday = _activeDoneToday + _historyDoneToday;
         const minDone = (lotteryState.todayFlipped || 0) * 3;
-        if (_actualDoneToday < lotteryState.todayDone) lotteryState.todayDone = Math.max(minDone, _actualDoneToday);
+        // 只在「誤按完成再取消」情境（真實完成數 < 雲端記錄）才往下修正
+        // 不因為任務被刪除/移除而壓低（那些完成是真實發生過的）
+        if (_trueDoneToday < lotteryState.todayDone) {
+          lotteryState.todayDone = Math.max(minDone, _trueDoneToday);
+        }
       }
       saveLottery();
       if (dot) dot.className = 'sync-dot synced';
@@ -3669,10 +3653,7 @@ function setTaskStatus(id, status) {
   syncToCloud();
 }
 
-function cycleTaskStatus(id) {
-  // Today → Cancel
-  setTaskStatus(id, 'cancelled');
-}
+
 
 // ── Neglect helpers ──
 function getNeglectDays() {
@@ -3682,11 +3663,12 @@ function getNeglectDays() {
 function isNeglected(t) {
   if (t.done || t.recurring) return false;
   const days = getNeglectDays();
-  // Check last completion date from doneHistory
-  const name = t.name;
   const history = state.doneHistory || [];
-  // Find most recent completion of this task name
-  const matches = history.filter(h => h.name === name && h.completedAt);
+  // Match by taskId (precise) — history entries store taskId as the original task's numeric id
+  const byId = history.filter(h => h.taskId === t.id && h.completedAt);
+  // Also match by name for tasks that were recreated / renamed (best-effort fallback)
+  const byName = history.filter(h => h.name === t.name && h.completedAt);
+  const matches = byId.length > 0 ? byId : byName;
   if (matches.length > 0) {
     matches.sort((a, b) => b.completedAt.localeCompare(a.completedAt));
     const lastDate = new Date(matches[0].completedAt);
@@ -4167,9 +4149,7 @@ function saveLottery() {
   localStorage.setItem('innerflow_lottery', JSON.stringify(lotteryState));
 }
 
-function countTodayDone() {
-  return lotteryState.todayDone;
-}
+
 
 function checkRandomMissionProgress() {
   const rm = lotteryState.randomMission;
@@ -4593,26 +4573,19 @@ function scrollToDoneList() {
   // Switch to show-all mode and re-render
   const doneList = document.getElementById('doneList');
   if (doneList) doneList.dataset.showAll = 'true';
+  // Ensure the card is visible before scrolling
+  const doneCard = document.getElementById('doneTasksCard');
+  if (doneCard) doneCard.style.display = 'block';
   renderStats();
   // Scroll the done list card into view
   setTimeout(() => {
-    const doneCard = document.getElementById('doneTasksCard');
     if (doneCard) {
       doneCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, 80);
 }
 
-function togglePastDoneSection() {
-  const section = document.getElementById('pastDoneSection');
-  const wrap = document.getElementById('pastDoneWrap');
-  const arrow = document.getElementById('pastDoneArrow');
-  if (!section || !wrap) return;
-  const isOpen = section.dataset.open === 'true';
-  section.dataset.open = isOpen ? 'false' : 'true';
-  wrap.style.maxHeight = isOpen ? '0' : '3000px';
-  if (arrow) arrow.style.transform = isOpen ? '' : 'rotate(90deg)';
-}
+
 
 function deletePastDoneTask(id) {
   const t = state.tasks.find(x => x.id === id);
