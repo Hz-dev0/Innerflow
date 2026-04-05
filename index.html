@@ -1552,11 +1552,33 @@
     border-radius: 12px 12px 0 0;
     border-bottom: none;
     width: 100vw; max-width: 100vw;
-    padding: 6px 8px 4px;
+    padding: 8px 6px 6px;
     flex-wrap: wrap;
     align-items: center;
-    gap: 2px;
+    gap: 3px;
     transform: none !important;
+  }
+  /* Mobile-bottom: bigger tap targets */
+  #notes-md-toolbar.mobile-bottom button {
+    padding: 8px 10px !important;
+    font-size: 13px !important;
+    min-height: 40px !important;
+    border-radius: 8px !important;
+  }
+  #notes-md-toolbar.mobile-bottom .ntb-sep {
+    height: 24px !important;
+    margin: 0 3px !important;
+  }
+  #notes-md-toolbar.mobile-bottom .ntb-colors {
+    padding: 4px 5px !important;
+    gap: 6px !important;
+  }
+  #notes-md-toolbar.mobile-bottom .ntb-color-dot {
+    width: 22px !important; height: 22px !important;
+  }
+  #notes-md-toolbar.mobile-bottom .ntb-hl-dot {
+    width: 22px !important; height: 16px !important;
+    border-radius: 4px !important;
   }
   #notes-md-toolbar.show { display: flex; }
   #notes-md-toolbar button {
@@ -1656,10 +1678,9 @@
       onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)';this.style.background='rgba(58,110,165,0.08)'"
       onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)';this.style.background='transparent'">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M8 2v8M5 7l3 3 3-3"/>
         <path d="M3 13h10"/>
-        <path d="M8 2v0" stroke="none"/>
-        <path d="M11 4l-3-3-3 3" stroke-width="1.5"/>
+        <path d="M8 10V3"/>
+        <path d="M5 6l3-3 3 3"/>
       </svg>
     </button>
     <div class="header-right">
@@ -2641,8 +2662,15 @@ function renderRewards() {
   const oldBar = document.getElementById('wishPointsBar');
   if (oldBar) oldBar.remove();
 
-  const wishes = state.rewards || [];
   const available = getAvailableWishPoints();
+  // Sort: unlocked wishes first, then locked
+  const wishes = (state.rewards || []).slice().sort((a, b) => {
+    const ua = getWishProgress(a) >= a.count;
+    const ub = getWishProgress(b) >= b.count;
+    if (ua && !ub) return -1;
+    if (!ua && ub) return 1;
+    return 0;
+  });
 
   if (wishes.length === 0) {
     wishList.innerHTML = '';
