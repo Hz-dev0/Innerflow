@@ -324,6 +324,7 @@
     animation: modalIn 0.25s ease;
   }
   @keyframes modalIn { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes wishBtnIn { from { opacity:0; transform:translateY(-6px) scale(0.9); } to { opacity:1; transform:translateY(0) scale(1); } }
   .modal-title { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 20px; color: var(--text); }
   .modal label { display: block; font-size: 11px; letter-spacing: 0.08em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px; }
   .modal input, .modal textarea, .modal select {
@@ -2729,7 +2730,7 @@ function renderRewards() {
       const itemBorder  = unlocked ? 'rgba(201,162,39,0.3)' : 'var(--border)';
       return `<div class="sandbox-item wish-item" id="wish-${r.id}"
         style="cursor:default;justify-content:space-between;gap:8px;flex-direction:column;
-               padding:12px 14px;user-select:none;
+               padding:12px 14px;user-select:none;position:relative;
                opacity:${itemOpacity};
                border-color:${itemBorder};
                background:${unlocked ? 'rgba(201,162,39,0.04)' : 'rgba(255,255,255,0.02)'};
@@ -2743,7 +2744,7 @@ function renderRewards() {
                 ? `<span style="font-size:10px;color:rgba(201,162,39,0.8);white-space:nowrap;font-weight:600;letter-spacing:0.04em">✓ 已解鎖</span>`
                 : `<span style="font-size:10px;color:var(--text-faint);white-space:nowrap">${current} / ${r.count}</span>`}
             </div>
-            <div style="font-size:11px;color:var(--text-faint);margin-top:2px">${icon} ${r.goal} · 長按可編輯或刪除</div>
+            <div style="font-size:11px;color:var(--text-faint);margin-top:2px">${icon} ${r.goal} · 長按可編輯／刪除</div>
             <!-- Smooth progress bar -->
             <div style="margin-top:8px;height:5px;border-radius:3px;background:${barBg};overflow:hidden;transition:background 0.4s">
               <div style="height:100%;width:${pct}%;border-radius:3px;background:${barColor};transition:width 0.5s ease,background 0.4s"></div>
@@ -2816,45 +2817,70 @@ function attachLongPress(el, callback) {
   el.addEventListener('touchcancel', cancel);
 }
 
-// ── Wish Context Menu (long-press) ──
+// ── Wish Action Buttons (long-press) ──
 let _wishCtxMenu = null;
-function showWishCtxMenu(id, unlocked, x, y) {
+let _wishCtxId = null;
+
+function showWishCtxMenu(id, unlocked, _x, _y) {
   closeWishCtxMenu();
-  const r = state.rewards.find(r => r.id === id);
-  if (!r) return;
-  const menu = document.createElement('div');
-  menu.id = 'wishCtxMenu';
-  menu.style.cssText = `position:fixed;z-index:500;background:var(--bg2);border:1px solid var(--border);
-    border-radius:12px;padding:6px 0;min-width:160px;
-    box-shadow:0 8px 28px rgba(74,130,196,0.18);animation:modalIn 0.15s ease`;
-  const items = [];
-  if (!unlocked) {
-    items.push(`<div class="ctx-item" onclick="closeWishCtxMenu();openEditWish(${id})">✏️ 編輯願望</div>`);
-    items.push(`<div class="ctx-sep"></div>`);
-    items.push(`<div class="ctx-item danger" onclick="closeWishCtxMenu();deleteReward(${id})">🗑 刪除願望</div>`);
-  } else {
-    items.push(`<div class="ctx-item" onclick="closeWishCtxMenu();openClaimReward(${id})">🎉 領取願望</div>`);
+  const el = document.getElementById('wish-' + id);
+  if (!el) return;
+  _wishCtxId = id;
+
+  const btns = document.createElement('div');
+  btns.id = 'wishCtxMenu';
+  btns.style.cssText = `
+    display:flex;gap:4px;justify-content:flex-end;
+    margin-top:6px;
+    animation:wishBtnIn 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  `;
+
+  const pill = (id, icon, label, colorVar, bgVar) => `
+    <button id="${id}" style="
+      display:flex;align-items:center;gap:4px;
+      padding:4px 10px 4px 7px;
+      border-radius:20px;
+      border:1px solid ${colorVar};
+      background:${bgVar};
+      color:${colorVar};
+      font-size:11px;font-weight:500;letter-spacing:0.02em;
+      cursor:pointer;font-family:inherit;
+      backdrop-filter:blur(4px);
+      transition:all 0.15s;
+    ">${icon} ${label}</button>`;
+
+  btns.innerHTML =
+    pill(`wishEditBtn_${id}`, '✏️', '編輯', 'var(--sky)', 'rgba(130,154,177,0.1)') +
+    pill(`wishDelBtn_${id}`, '×', '刪除', 'var(--rose)', 'rgba(192,86,90,0.07)');
+
+  el.appendChild(btns);
+  _wishCtxMenu = btns;
+
+  const editBtn = document.getElementById('wishEditBtn_' + id);
+  const delBtn  = document.getElementById('wishDelBtn_' + id);
+
+  const hover = (btn, bgHover, bgOut) => {
+    btn.addEventListener('mouseenter', () => btn.style.background = bgHover);
+    btn.addEventListener('mouseleave', () => btn.style.background = bgOut);
+  };
+  if (editBtn) {
+    hover(editBtn, 'rgba(130,154,177,0.22)', 'rgba(130,154,177,0.1)');
+    editBtn.addEventListener('mousedown', e => e.stopPropagation());
+    editBtn.addEventListener('click', e => { e.stopPropagation(); closeWishCtxMenu(); openEditWish(id); });
   }
-  menu.innerHTML = items.join('');
-  document.body.appendChild(menu);
-  _wishCtxMenu = menu;
-  // Position: center above item, clamp to viewport
-  requestAnimationFrame(() => {
-    const mw = menu.offsetWidth || 160;
-    const mh = menu.offsetHeight || 80;
-    let left = x - mw/2;
-    let top  = y - mh - 8;
-    if (left < 8) left = 8;
-    if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
-    if (top < 8) top = y + 8;
-    menu.style.left = left + 'px';
-    menu.style.top  = top + 'px';
-  });
-  setTimeout(() => document.addEventListener('click', closeWishCtxMenuOnOutside), 10);
+  if (delBtn) {
+    hover(delBtn, 'rgba(192,86,90,0.18)', 'rgba(192,86,90,0.07)');
+    delBtn.addEventListener('mousedown', e => e.stopPropagation());
+    delBtn.addEventListener('click', e => { e.stopPropagation(); closeWishCtxMenu(); deleteReward(id); });
+  }
+
+  setTimeout(() => document.addEventListener('mousedown', closeWishCtxMenuOnOutside), 10);
 }
+
 function closeWishCtxMenu() {
   if (_wishCtxMenu) { _wishCtxMenu.remove(); _wishCtxMenu = null; }
-  document.removeEventListener('click', closeWishCtxMenuOnOutside);
+  _wishCtxId = null;
+  document.removeEventListener('mousedown', closeWishCtxMenuOnOutside);
 }
 function closeWishCtxMenuOnOutside(e) {
   if (_wishCtxMenu && !_wishCtxMenu.contains(e.target)) closeWishCtxMenu();
@@ -4304,6 +4330,51 @@ function flipCard(i) {
   saveLottery();
   syncToCloud();
 
+  // ── 翻到許願牌：自動兌現願望 ──
+  if (card.isWish && card.wishId) {
+    const wishId = card.wishId;
+    setTimeout(() => {
+      const r = (state.rewards || []).find(x => x.id === wishId);
+      if (!r) return;
+      const wishName = r.name;
+      // 1. 扣除已配點並移除願望
+      const spent = r.allocatedPoints || 0;
+      state.wishPoints = Math.max(0, (state.wishPoints || 0) - spent);
+      state.rewards = state.rewards.filter(x => x.id !== wishId);
+      // 2. 清掉其他抽獎牌對此願望的引用
+      if (lotteryState.cards) {
+        lotteryState.cards.forEach(c2 => {
+          if (c2.wishId === wishId) { c2.isWish = false; c2.wishId = null; c2.icon = '🌊'; }
+        });
+        saveLottery();
+      }
+      // 3. 新增今日任務「願望成真✨ wishName」
+      const todayStr = localDateStr();
+      const wishTask = {
+        id: Date.now(),
+        name: `願望成真✨ ${wishName}`,
+        meaning: `來自許願池的願望：${wishName}`,
+        goal: r.goal || '',
+        energy: 'low',
+        done: false,
+        postponed: 0,
+        recurring: false,
+        recurMode: null,
+        recurInterval: 0,
+        taskDate: todayStr,
+        scheduledFor: todayStr,
+        status: 'active',
+      };
+      state.tasks.push(wishTask);
+      syncToCloud();
+      renderRewards();
+      renderTasks();
+      renderTree();
+      showToast(`🌊 願望成真！「${wishName}」已加入今日任務`);
+      syncToCloud();
+    }, 400); // slight delay so card flip animation plays first
+  }
+
   const cardEl = document.getElementById('lcard-' + i);
   if (cardEl) {
     cardEl.classList.add('flipping');
@@ -4404,8 +4475,7 @@ function renderLottery() {
         ${isRM ? rmFrontHtml : `
         <div class="card-reveal-icon">${c.icon}</div>
         <div class="card-reveal-text">${c.text}</div>
-        <div class="card-reveal-badge ${c.isWish ? 'wish' : 'quote'}">${c.isWish ? '★ 許願' : '格言'}</div>
-        ${c.isWish && c.wishId ? `<div onclick="openClaimReward(${c.wishId})" style="font-size:10px;cursor:pointer;color:var(--gold);margin-top:2px;text-decoration:underline">領取</div>` : ''}`}
+        <div class="card-reveal-badge ${c.isWish ? 'wish' : 'quote'}">${c.isWish ? '★ 許願' : '格言'}</div>`}
       </div>
     </div>`;
   }).join('');
