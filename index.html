@@ -189,33 +189,30 @@
     gap: clamp(6px, 2vw, 10px);
     padding: 4px 0 8px;
   }
-  .goal-card {
-    display: flex; flex-direction: column; align-items: center; gap: 7px;
-    padding: clamp(8px, 2.5vw, 14px) clamp(6px, 2vw, 10px) clamp(8px, 2.5vw, 12px);
-    border-radius: 12px;
-    border: 1.5px solid var(--border);
-    background: var(--bg3);
+  /* ── Life Tree Ring Cards ── */
+  .tree-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: clamp(8px,2vw,14px);
+    padding: 4px 0 8px;
+  }
+  .goal-card { display: none; }
+  .goal-card-bar { display: none; }
+  .goal-card-bar-fill { display: none; }
+  .goal-card-icon { display: none; }
+  .goal-ring-card {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 18px 10px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--bg2);
     cursor: pointer;
     transition: all 0.2s;
-    position: relative;
     user-select: none;
     min-width: 0;
   }
-  .goal-card:hover { border-color: rgba(74,130,196,0.45); background: rgba(74,130,196,0.05); transform: translateY(-2px); box-shadow: 0 4px 14px rgba(74,130,196,0.1); }
-  .goal-card.active-filter { border-color: var(--green); background: rgba(74,130,196,0.09); box-shadow: 0 0 0 2px rgba(74,130,196,0.15); }
-  .goal-card-icon { font-size: clamp(18px, 5vw, 24px); }
-  .goal-card-label { font-size: clamp(10px, 2.5vw, 12px); color: var(--text-dim); text-align: center; line-height: 1.4; word-break: break-word; }
-  .goal-card-badge {
-    position: absolute; top: 6px; right: 8px;
-    background: var(--green); color: #fff;
-    border-radius: 20px; padding: 1px 6px;
-    font-size: 9px; font-weight: 600; min-width: 16px; text-align: center;
-  }
-  .goal-card-bar {
-    width: 100%; height: 3px; border-radius: 2px;
-    background: var(--border); overflow: hidden; margin-top: 2px;
-  }
-  .goal-card-bar-fill { height: 100%; background: var(--green); border-radius: 2px; transition: width 0.4s ease; }
+  .goal-ring-card:hover { border-color: rgba(74,130,196,0.4); transform: translateY(-2px); }
+  .goal-ring-card.active-filter { border-width: 2px; }
 
   /* ── Task Side Stripe (clickable today marker) ── */
   .task-stripe {
@@ -267,8 +264,8 @@
   .task-check:hover { border-color: var(--green); }
   .task-check.checked { background: var(--green); border-color: var(--green); color: #fff; }
   .task-body { flex: 1; }
-  .task-name { font-size: 15px; line-height: 1.5; font-weight: 500; letter-spacing: 0.01em; color: var(--text-faint); }
-  .task-item.done .task-name { text-decoration: line-through; color: var(--text-dim); }
+  .task-name { font-size: 15px; line-height: 1.5; font-weight: 500; letter-spacing: 0.01em; }
+  .task-item.done .task-name { text-decoration: line-through; color: var(--text-dim) !important; }
   .task-meta { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
   .tag {
     font-size: 11px; padding: 2px 9px; border-radius: 20px;
@@ -806,7 +803,7 @@
   }
   .energy-slider-label {
     font-size: 11px; color: var(--text-dim); white-space: nowrap;
-    min-width: 28px; text-align: center; font-weight: 500;
+    min-width: 44px; text-align: center; font-weight: 500;
   }
   .energy-slider-label.low  { color: var(--rose); }
   .energy-slider-label.mid  { color: var(--gold); }
@@ -1696,16 +1693,11 @@
           <path d="M5 6l3-3 3 3"/>
         </svg>
       </button>
-      <div class="energy-bar-wrap">
-        <span class="energy-label" style="font-size:11px;color:var(--text-dim);font-weight:500">精力</span>
-        <div class="energy-slider-wrap">
-          <span class="energy-slider-label mid" id="energySliderLabel">中</span>
-          <input type="range" min="0" max="2" step="1" value="1"
-            class="energy-slider level-mid" id="energySlider"
-            oninput="onEnergySliderChange(this.value)"
-            title="精力指數：低 / 中 / 高">
-        </div>
-      </div>
+      <button id="energyCycleBtn" onclick="cycleEnergyLevel()" title="點擊切換精力模式"
+        style="display:flex;align-items:center;padding:4px 12px;border:1px solid var(--border);border-radius:20px;background:transparent;color:var(--text-dim);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.2s;white-space:nowrap">
+        <span id="energySliderLabel">🍃 輕鬆</span>
+        <input type="hidden" id="energySlider" value="1">
+      </button>
       <div id="syncDot" class="sync-dot" style="cursor:pointer" title="點擊立即同步 / 長按 Logo 設定" onclick="syncDotClicked()"></div>
     </div>
   </header>
@@ -1747,6 +1739,9 @@
           <!-- Rendered by renderTree() -->
         </div>
         <div style="text-align:center;font-size:12px;color:var(--text-faint);margin-top:8px">點擊目標卡片，篩選相關任務並新增任務時自動帶入分類</div>
+        <div style="text-align:center;margin-top:12px">
+          <button onclick="showInstantWants()" style="background:none;border:1px solid var(--border);border-radius:20px;padding:6px 18px;font-size:13px;color:var(--text-dim);cursor:pointer;font-family:inherit;transition:all 0.2s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">妳現在想要…？</button>
+        </div>
       </div>
       <!-- Today Tasks Panel -->
       <div class="today-panel" id="todayPanel">
@@ -1770,15 +1765,41 @@
             <span id="taskSectionArrow" onclick="toggleTaskSection()" title="收合篩選區" style="font-size:11px;color:var(--text-faint);transition:transform 0.2s;display:inline-block;cursor:pointer;padding:2px 6px;border-radius:4px;border:1px solid var(--border)" title="收合篩選區">▼</span>
           </div>
         </div>
-        <div id="taskSectionBody" style="overflow:hidden;transition:max-height 0.3s ease,opacity 0.2s ease;max-height:200px;opacity:1">
-          <div style="border-top:1px solid var(--border);padding-top:10px;margin-bottom:10px">
-            <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:8px">任務類型篩選</div>
-            <div class="filter-row" id="energyFilter">
-              <div class="filter-chip active" onclick="filterTaskType('all')">全部任務</div>
-              <div class="filter-chip" onclick="filterTaskType('once')">單次任務</div>
-              <div class="filter-chip" onclick="filterTaskType('recurring')">🔁 重複任務</div>
-              <div class="filter-chip" onclick="filterTaskType('scheduled')">📅 預期任務</div>
+        <div id="taskSectionBody" style="overflow:hidden;transition:max-height 0.3s ease,opacity 0.2s ease;max-height:300px;opacity:1">
+          <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:10px">
+
+            <!-- ── 三格摘要條 ── -->
+            <div id="filterStrip" style="display:flex;border:1px solid var(--border);border-radius:10px;background:var(--bg2);overflow:hidden;margin-bottom:0">
+
+              <div id="fstrip-freq" onclick="toggleFilterDim('freq')" style="flex:1;padding:6px 6px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-right:1px solid var(--border);transition:background 0.15s;user-select:none">
+                <span id="fstrip-freq-val" style="font-size:12px;color:var(--text-dim);white-space:nowrap">頻率</span>
+                <span id="fstrip-freq-num" style="display:none"></span>
+              </div>
+
+              <div id="fstrip-time" onclick="toggleFilterDim('time')" style="flex:1;padding:6px 6px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-right:1px solid var(--border);transition:background 0.15s;user-select:none">
+                <span id="fstrip-time-val" style="font-size:12px;color:var(--text-dim);white-space:nowrap">時間</span>
+                <span id="fstrip-time-num" style="display:none"></span>
+              </div>
+
+              <div id="fstrip-energy" onclick="toggleFilterDim('energy')" style="flex:1;padding:6px 6px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-right:1px solid var(--border);transition:background 0.15s;user-select:none">
+                <span id="fstrip-energy-val" style="font-size:12px;color:var(--text-dim);white-space:nowrap">精力</span>
+                <span id="fstrip-energy-num" style="display:none"></span>
+              </div>
+
+              <div id="fstrip-goal" onclick="toggleFilterDim('goal')" style="flex:1;padding:6px 6px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background 0.15s;user-select:none">
+                <span id="fstrip-goal-val" style="font-size:12px;color:var(--text-dim);white-space:nowrap">目標</span>
+                <span id="fstrip-goal-num" style="display:none"></span>
+              </div>
+
             </div>
+
+            <!-- ── 展開子選項區 ── -->
+            <div id="filterExpand" style="overflow:hidden;max-height:0;opacity:0;transition:max-height 0.25s ease,opacity 0.2s">
+              <div style="padding-top:10px">
+                <div class="filter-row" id="filterSubChips"></div>
+              </div>
+            </div>
+
           </div>
         </div>
         <div class="task-list" id="taskList"></div>
@@ -1821,12 +1842,12 @@
         <!-- Lottery pane -->
         <div id="lotteryPane">
           <div class="lottery-info">
-            <div class="lottery-ticket">🎫 持有券 <strong id="lotteryTickets">0</strong> 張</div>
-            <div class="lottery-progress" id="lotteryProgress">獲得券 <span id="todayDone">0</span>/3</div>
-            <button class="lottery-draw-btn" id="lotteryDrawBtn" onclick="drawLottery()">✦ 洗牌</button>
+            <div class="lottery-ticket">🎫 抽卡券 <strong id="lotteryTickets">0</strong> 張</div>
+            <div class="lottery-progress" id="lotteryProgress">💎 碎片 <span id="todayDone">0</span></div>
+            <button class="lottery-draw-btn" id="lotteryDrawBtn">✦ 洗牌</button>
           </div>
           <div class="lottery-grid" id="lotteryGrid"></div>
-          <div style="font-size:11px;color:var(--text-faint);margin-top:12px;text-align:center">翻牌消耗一張券 · 🔀 洗牌免費隨時更新 · ⭐ 隨機任務，★ 許願池，格言來自智慧庫</div>
+          <div style="font-size:11px;color:var(--text-faint);margin-top:12px;text-align:center">核心任務完成得抽卡券 · 日常維運得💎碎片 · 𖦏專注任務20%機率多一券 · ⚡充電任務不計入</div>
         </div>
 
         <!-- Quote pane -->
@@ -1860,63 +1881,46 @@
 
 <!-- Add Task Modal -->
 <div class="modal-overlay" id="addModal">
-  <div class="modal">
-    <div class="modal-title">✦ 新增一件有意義的事</div>
-    <label>任務名稱</label>
-    <input id="newTaskName" placeholder="你想完成什麼？">
-    <label>這件事對你的意義是什麼？</label>
-    <textarea id="newTaskMeaning" rows="2" placeholder="為什麼這件事值得你的時間和能量…"></textarea>
-    <div class="modal-row">
-      <div>
-        <label>掛載目標</label>
-        <select id="newTaskGoal">
-          <option value="成長">🌟 持續成長</option>
-          <option value="創作">🎨 創作表達</option>
-          <option value="關係">🤝 深度連結</option>
-          <option value="技能">💡 技能精進</option>
-          <option value="健康">🌿 身心健康</option>
-          <option value="探索">🔭 好奇探索</option>
-          <option value="貢獻">✨ 為世界貢獻</option>
-          <option value="日常">🏠 日常維運</option>
-        </select>
+  <div class="modal" style="padding:20px">
+    <div class="modal-title" style="font-size:18px;margin-bottom:14px">✦ 新增任務</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+      <input id="newTaskName" placeholder="任務名稱" style="flex:1;margin-bottom:0">
+      <button type="button" onclick="pickSandboxForName('new')" title="從沙盒選取任務名稱" style="padding:0 10px;height:38px;border:1px solid rgba(201,162,39,0.45);border-radius:8px;background:rgba(201,162,39,0.08);color:#b8922a;cursor:pointer;font-family:inherit;font-size:12px;white-space:nowrap;flex-shrink:0;transition:all 0.2s" onmouseover="this.style.background='rgba(201,162,39,0.18)'" onmouseout="this.style.background='rgba(201,162,39,0.08)'">🪐 沙盒</button>
+    </div>
+    <textarea id="newTaskMeaning" rows="2" placeholder="這件事對你的意義是…（選填）" style="margin-bottom:12px"></textarea>
+
+    <!-- 目標 + 能量：點擊切換 -->
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button type="button" id="newGoalBtn" onclick="cycleGoal()" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-size:13px;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.15s">🌟 技能修練</button>
+      <button type="button" id="newEnergyBtn" onclick="cycleEnergy()" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-size:13px;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.15s">🍃 輕鬆</button>
+      <input type="hidden" id="newTaskGoal" value="技能">
+      <input type="hidden" id="newTaskEnergy" value="easy">
+    </div>
+
+    <!-- 日期 + 重複：同一行 -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <input type="date" id="newTaskDate" style="flex:1;margin-bottom:0;font-size:13px;padding:7px 10px">
+      <button type="button" id="newRecurToggle" onclick="toggleRecurSimple('new')"
+        style="display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text-dim);font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.15s">
+        🔁 <span id="newRecurLabel">不重複</span>
+      </button>
+      <div id="newIntervalWrap" style="display:none;align-items:center;gap:4px;font-size:12px;color:var(--text-dim);white-space:nowrap">
+        每 <input type="number" id="newTaskInterval" min="1" max="365" value="1"
+          style="width:44px;padding:5px 6px;margin-bottom:0;font-size:12px;text-align:center;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text)"> 天
       </div>
-      <div>
-        <label>能量類型</label>
-        <select id="newTaskEnergy">
-          <option value="deep">🌊 深度思考</option>
-          <option value="flow">⚡ 靈感爆發</option>
-          <option value="light">🍃 輕鬆雜事</option>
-          <option value="rest">🌙 低耗能</option>
-        </select>
+      <input type="hidden" id="newTaskRecurring" value="false">
+      <input type="hidden" id="newRecurModeHidden" name="newRecurMode" value="daily">
+    </div>
+
+    <!-- 即時滿足：只在⚡充電時顯示 -->
+    <div id="newRewardWrap" style="display:none;margin-bottom:12px">
+      <div style="display:flex;gap:8px">
+        <input id="newTaskReward" placeholder="完成後可以…（自由填寫）" style="flex:1;margin-bottom:0">
       </div>
     </div>
-    <div style="margin-bottom:16px">
-      <label>任務日期 <span style="font-size:10px;color:var(--text-faint);text-transform:none;letter-spacing:0;font-weight:400">（選填 — 到了該日自動加入今日任務）</span></label>
-      <input type="date" id="newTaskDate" style="margin-bottom:16px">
-    </div>
-    <div style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <input type="checkbox" id="newTaskRecurring" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer" onchange="toggleRecurringOptions('new')">
-        <label for="newTaskRecurring" style="font-size:12px;color:var(--text-dim);cursor:pointer;text-transform:none;letter-spacing:0;margin-bottom:0">🔁 重複任務</label>
-      </div>
-      <div id="newRecurringOptions" style="display:none;margin-left:23px;padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
-        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.05em">重複模式</div>
-        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-bottom:0">
-            <input type="radio" name="newRecurMode" value="daily" checked style="accent-color:var(--green)" onchange="toggleIntervalInput('new')"> 每天自動重置
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-bottom:0">
-            <input type="radio" name="newRecurMode" value="interval" style="accent-color:var(--green)" onchange="toggleIntervalInput('new')"> 完成後幾天再出現
-          </label>
-        </div>
-        <div id="newIntervalInput" style="display:none;align-items:center;gap:8px">
-          <span style="font-size:12px;color:var(--text-dim)">完成後</span>
-          <input type="number" id="newTaskInterval" min="1" max="365" value="7" style="width:64px;padding:6px 10px;margin-bottom:0;font-size:13px;text-align:center">
-          <span style="font-size:12px;color:var(--text-dim)">天後，自動新增一次相同任務</span>
-        </div>
-      </div>
-    </div>
-    <div class="modal-actions">
+
+    <div class="modal-actions" style="margin-top:4px">
       <button class="btn-cancel" onclick="closeModal('addModal')">取消</button>
       <button class="btn-confirm" onclick="addTask()">種下這顆種子 🌱</button>
     </div>
@@ -2067,23 +2071,17 @@
       <div>
         <label>掛載目標</label>
         <select id="editTaskGoal">
-          <option value="成長">🌟 持續成長</option>
-          <option value="創作">🎨 創作表達</option>
-          <option value="關係">🤝 深度連結</option>
-          <option value="技能">💡 技能精進</option>
-          <option value="健康">🌿 身心健康</option>
-          <option value="探索">🔭 好奇探索</option>
-          <option value="貢獻">✨ 為世界貢獻</option>
+          <option value="技能">🌟 技能修練</option>
+          <option value="自我">🌿 自我實現</option>
           <option value="日常">🏠 日常維運</option>
         </select>
       </div>
       <div>
         <label>能量類型</label>
         <select id="editTaskEnergy">
-          <option value="deep">🌊 深度思考</option>
-          <option value="flow">⚡ 靈感爆發</option>
-          <option value="light">🍃 輕鬆雜事</option>
-          <option value="rest">🌙 低耗能</option>
+          <option value="charge">⚡ 充電</option>
+          <option value="easy">🍃 輕鬆</option>
+          <option value="focus">𖦏 專注</option>
         </select>
       </div>
     </div>
@@ -2092,25 +2090,23 @@
       <input type="date" id="editTaskDate" style="margin-bottom:16px">
     </div>
     <div style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <input type="checkbox" id="editTaskRecurring" style="width:15px;height:15px;accent-color:var(--green);cursor:pointer" onchange="toggleRecurringOptions('edit')">
-        <label for="editTaskRecurring" style="font-size:12px;color:var(--text-dim);cursor:pointer;text-transform:none;letter-spacing:0;margin-bottom:0">🔁 重複任務</label>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button type="button" id="editRecurToggle" onclick="toggleRecurSimple('edit')"
+          style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.15s">
+          🔁 <span id="editRecurLabel">不重複</span>
+        </button>
+        <div id="editIntervalWrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--text-dim)">
+          每 <input type="number" id="editTaskInterval" min="1" max="365" value="1"
+            style="width:48px;padding:4px 6px;margin-bottom:0;font-size:12px;text-align:center;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text)"> 天
+        </div>
       </div>
-      <div id="editRecurringOptions" style="display:none;margin-left:23px;padding:12px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)">
-        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.05em">重複模式</div>
-        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-bottom:0">
-            <input type="radio" name="editRecurMode" value="daily" checked style="accent-color:var(--green)" onchange="toggleIntervalInput('edit')"> 每天自動重置
-          </label>
-          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--text-dim);text-transform:none;letter-spacing:0;margin-bottom:0">
-            <input type="radio" name="editRecurMode" value="interval" style="accent-color:var(--green)" onchange="toggleIntervalInput('edit')"> 完成後幾天再出現
-          </label>
-        </div>
-        <div id="editIntervalInput" style="display:none;align-items:center;gap:8px">
-          <span style="font-size:12px;color:var(--text-dim)">完成後</span>
-          <input type="number" id="editTaskInterval" min="1" max="365" value="7" style="width:64px;padding:6px 10px;margin-bottom:0;font-size:13px;text-align:center">
-          <span style="font-size:12px;color:var(--text-dim)">天後，自動新增一次相同任務</span>
-        </div>
+      <input type="hidden" id="editTaskRecurring" value="false">
+      <input type="hidden" id="editRecurModeHidden" name="editRecurMode" value="daily">
+    </div>
+    <div style="margin-bottom:16px">
+      <label>⚡ 完成後可以… <span style="font-size:10px;color:var(--text-faint);text-transform:none;letter-spacing:0;font-weight:400">（選填 — 即時滿足）</span></label>
+      <div style="display:flex;gap:8px">
+        <input id="editTaskReward" placeholder="例如：吃一口麵包、看五分鐘影片…" style="flex:1;margin-bottom:0">
       </div>
     </div>
     <div class="modal-actions">
@@ -2214,13 +2210,9 @@
       <div>
         <select id="newRewardGoal">
           <option value="任意">🌈 任意分類</option>
-          <option value="成長">🌟 持續成長</option>
-          <option value="創作">🎨 創作表達</option>
-          <option value="關係">🤝 深度連結</option>
-          <option value="技能">💡 技能精進</option>
-          <option value="健康">🌿 身心健康</option>
-          <option value="探索">🔭 好奇探索</option>
-          <option value="貢獻">✨ 為世界貢獻</option>
+          <option value="技能">🌟 技能修練</option>
+          <option value="自我">🌿 自我實現</option>
+          <option value="日常">🏠 日常維運</option>
         </select>
       </div>
       <div>
@@ -2258,13 +2250,9 @@
       <div>
         <select id="editWishGoal">
           <option value="任意">🌈 任意分類</option>
-          <option value="成長">🌟 持續成長</option>
-          <option value="創作">🎨 創作表達</option>
-          <option value="關係">🤝 深度連結</option>
-          <option value="技能">💡 技能精進</option>
-          <option value="健康">🌿 身心健康</option>
-          <option value="探索">🔭 好奇探索</option>
-          <option value="貢獻">✨ 為世界貢獻</option>
+          <option value="技能">🌟 技能修練</option>
+          <option value="自我">🌿 自我實現</option>
+          <option value="日常">🏠 日常維運</option>
         </select>
       </div>
       <div>
@@ -2367,6 +2355,16 @@ async function saveApiUrl(fragment) {
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
       state.wishPoints  = typeof data.wishPoints === 'number' ? data.wishPoints : (state.wishPoints || 0);
+      // ── Goal/Energy migration ──
+      const _gm = { '成長':'技能','技能':'技能','探索':'技能','創作':'自我','關係':'自我','貢獻':'自我','健康':'自我','日常':'日常' };
+      const _em = { deep:'focus', flow:'charge', light:'easy', rest:'charge', low:'charge', mid:'easy', high:'focus' };
+      state.tasks.forEach(t => { if (t.goal && _gm[t.goal]) t.goal = _gm[t.goal]; if (t.energy && _em[t.energy]) t.energy = _em[t.energy]; });
+      if (state.doneHistory) state.doneHistory.forEach(h => { if (h.goal && _gm[h.goal]) h.goal = _gm[h.goal]; });
+      // ── Restore lotteryState from cloud ──
+      if (data.lotteryState && typeof data.lotteryState === 'object') {
+        lotteryState = { ...lotteryState, ...data.lotteryState };
+        localStorage.setItem('innerflow_lottery', JSON.stringify(lotteryState));
+      }
       // ── Restore notes from cloud on first login (new device) ──
       if (data.notes && data.notes.tabs) {
         try {
@@ -2388,6 +2386,7 @@ async function saveApiUrl(fragment) {
       }
       renderTasks(); renderSandbox(); renderStats(); renderRewards(); renderTree(); renderEnergyDots(); renderLottery();
       if (typeof notesReloadFromStorage === 'function') notesReloadFromStorage();
+      checkMissedReset();
     }
     return true;
   } catch (e) {
@@ -2451,6 +2450,17 @@ async function loadFromCloud() {
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
       state.wishPoints  = typeof data.wishPoints === 'number' ? data.wishPoints : (state.wishPoints || 0);
+      // ── Goal migration: map old 8-goal system to new 3-goal system ──
+      const _goalMigMap = {
+        '成長':'技能','技能':'技能','探索':'技能',
+        '創作':'自我','關係':'自我','貢獻':'自我',
+        '健康':'自我','日常':'日常'
+      };
+      state.tasks.forEach(t => { if (t.goal && _goalMigMap[t.goal]) t.goal = _goalMigMap[t.goal]; });
+      if (state.doneHistory) state.doneHistory.forEach(h => { if (h.goal && _goalMigMap[h.goal]) h.goal = _goalMigMap[h.goal]; });
+      // ── Energy migration: map old 4-type to new 3-type ──
+      const _energyMigMap = { deep:'focus', flow:'charge', light:'easy', rest:'charge', low:'charge', mid:'easy', high:'focus' };
+      state.tasks.forEach(t => { if (t.energy && _energyMigMap[t.energy]) t.energy = _energyMigMap[t.energy]; });
       // Restore notes from cloud — use whichever version is newer (by updatedAt timestamp)
       if (data.notes && data.notes.tabs) {
         try {
@@ -2519,6 +2529,153 @@ async function syncToCloud() {
   }
 }
 
+// ── 目標 / 能量循環切換 ────────────────────────────────────
+const _goalCycle  = [
+  { key:'技能', label:'🌟 技能修練' },
+  { key:'自我', label:'🌿 自我實現' },
+  { key:'日常', label:'🏠 日常維運' },
+];
+const _energyCycle = [
+  { key:'easy',   label:'🍃 輕鬆' },
+  { key:'focus',  label:'𖦏 專注' },
+  { key:'charge', label:'⚡ 充電' },
+];
+
+function cycleGoal() {
+  const cur = document.getElementById('newTaskGoal').value;
+  const idx = _goalCycle.findIndex(g => g.key === cur);
+  const next = _goalCycle[(idx + 1) % _goalCycle.length];
+  document.getElementById('newTaskGoal').value = next.key;
+  document.getElementById('newGoalBtn').textContent = next.label;
+}
+
+function cycleEnergy() {
+  const cur = document.getElementById('newTaskEnergy').value;
+  const idx = _energyCycle.findIndex(e => e.key === cur);
+  const next = _energyCycle[(idx + 1) % _energyCycle.length];
+  document.getElementById('newTaskEnergy').value = next.key;
+  document.getElementById('newEnergyBtn').textContent = next.label;
+  // Show/hide reward field
+  const wrap = document.getElementById('newRewardWrap');
+  if (wrap) wrap.style.display = next.key === 'charge' ? 'block' : 'none';
+}
+
+function _setGoalBtn(key) {
+  const g = _goalCycle.find(x => x.key === key) || _goalCycle[0];
+  const btn = document.getElementById('newTaskGoal');
+  const lbl = document.getElementById('newGoalBtn');
+  if (btn) btn.value = g.key;
+  if (lbl) lbl.textContent = g.label;
+}
+
+function _setEnergyBtn(key) {
+  const e = _energyCycle.find(x => x.key === key) || _energyCycle[0];
+  const btn = document.getElementById('newTaskEnergy');
+  const lbl = document.getElementById('newEnergyBtn');
+  if (btn) btn.value = e.key;
+  if (lbl) lbl.textContent = e.label;
+  const wrap = document.getElementById('newRewardWrap');
+  if (wrap) wrap.style.display = e.key === 'charge' ? 'block' : 'none';
+}
+// ── 目標 / 能量循環切換結束 ─────────────────────────────────
+
+// ── 即時滿足 (Instant Reward) ─────────────────────────────
+
+function pickSandboxForName(prefix) {
+  if (!state.sandbox || state.sandbox.length === 0) {
+    showToast('沙盒裡還沒有項目，先去新增吧！');
+    return;
+  }
+  const items = state.sandbox;
+  const menu = document.createElement('div');
+  menu.style.cssText = 'position:fixed;z-index:10020;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:6px 0;box-shadow:0 8px 28px rgba(58,110,165,0.18);min-width:200px;max-width:300px;max-height:260px;overflow-y:auto;animation:modalIn 0.15s ease';
+  menu.innerHTML = items.map((s,i) =>
+    `<div onclick="selectSandboxForName(${i},'${prefix}',this.closest('div[style*=z-index]'))" style="padding:9px 16px;font-size:13px;color:var(--text);cursor:pointer;transition:background 0.12s" onmouseover="this.style.background='rgba(201,162,39,0.08)'" onmouseout="this.style.background=''">${typeof s === 'string' ? s : s.text}</div>`
+  ).join('');
+  document.body.appendChild(menu);
+  const btn = document.getElementById(prefix + 'TaskName');
+  if (btn) {
+    const r = btn.getBoundingClientRect();
+    let top = r.bottom + 6, left = r.left;
+    if (left + 300 > window.innerWidth - 8) left = window.innerWidth - 308;
+    menu.style.top = top + 'px';
+    menu.style.left = left + 'px';
+  }
+  setTimeout(() => {
+    document.addEventListener('click', function close(e) {
+      if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', close); }
+    });
+  }, 50);
+}
+window.pickSandboxForName = pickSandboxForName;
+
+function selectSandboxForName(idx, prefix, menuEl) {
+  const s = state.sandbox[idx];
+  const text = typeof s === 'string' ? s : s.text;
+  const input = document.getElementById(prefix + 'TaskName');
+  if (input) input.value = text;
+  window._pendingSandboxRemoveName = window._pendingSandboxRemoveName || {};
+  window._pendingSandboxRemoveName[prefix] = idx;
+  if (menuEl) menuEl.remove();
+}
+window.selectSandboxForName = selectSandboxForName;
+
+function selectSandboxItem(idx, prefix, menuEl) {
+  const s = state.sandbox[idx];
+  const text = typeof s === 'string' ? s : s.text;
+  const input = document.getElementById(prefix + 'TaskReward');
+  if (input) input.value = text;
+  // Mark sandbox item to be removed when task is saved
+  window._pendingSandboxRemove = window._pendingSandboxRemove || {};
+  window._pendingSandboxRemove[prefix] = idx;
+  if (menuEl) menuEl.remove();
+}
+
+function showInstantWants() {
+  const rewards = state.tasks
+    .filter(t => !t.done && t.reward && t.reward.trim())
+    .map(t => ({ id: t.id, name: t.name, reward: t.reward }));
+  if (rewards.length === 0) {
+    showToast('還沒有設定即時滿足的任務～先完成任務再來看吧');
+    return;
+  }
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(224,234,244,0.78);backdrop-filter:blur(6px);z-index:200;display:flex;align-items:center;justify-content:center;animation:modalIn 0.2s ease';
+  overlay.innerHTML = `<div style="background:var(--bg2);border:1px solid rgba(74,130,196,0.25);border-radius:16px;padding:24px;width:340px;max-width:92vw;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(74,130,196,0.15)">
+    <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:16px;color:var(--text)">妳現在想要…？</div>
+    ${rewards.map(r => `<div onclick="overlay_navigateToTask(${r.id}, this)" style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:rgba(74,130,196,0.03);cursor:pointer;transition:all 0.18s" onmouseover="this.style.borderColor='rgba(74,130,196,0.35)';this.style.background='rgba(74,130,196,0.06)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='rgba(74,130,196,0.03)'">
+      <div style="font-size:11px;color:var(--text-faint);margin-bottom:3px">${r.name} <span style="font-size:10px;opacity:0.6">→ 點擊跳轉</span></div>
+      <div style="font-size:14px;color:var(--text);font-weight:500">⚡ ${r.reward}</div>
+    </div>`).join('')}
+    <button onclick="this.closest('[style*=inset]').remove()" style="margin-top:8px;width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-dim);cursor:pointer;font-family:inherit;font-size:13px">關閉</button>
+  </div>`;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+function overlay_navigateToTask(id, el) {
+  const overlay = el.closest('[style*=inset]');
+  if (overlay) overlay.remove();
+  navigateToTask(id);
+}
+window.overlay_navigateToTask = overlay_navigateToTask;
+
+function showInstantRewardPopup(reward) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(224,234,244,0.6);backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;animation:modalIn 0.2s ease';
+  overlay.innerHTML = `<div style="background:var(--bg2);border:2px solid rgba(201,162,39,0.5);border-radius:16px;padding:28px 24px;width:320px;max-width:90vw;text-align:center;box-shadow:0 20px 60px rgba(201,162,39,0.18)">
+    <div style="font-size:28px;margin-bottom:10px">⚡</div>
+    <div style="font-family:'DM Serif Display',serif;font-size:16px;color:var(--text);margin-bottom:6px">任務完成！</div>
+    <div style="font-size:18px;font-weight:600;color:#C9A227;margin-bottom:16px">${reward}</div>
+    <button onclick="this.closest('[style*=inset]').remove()" style="padding:9px 28px;border:none;background:var(--green);color:#fff;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px">好的！</button>
+  </div>`;
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 8000);
+}
+
+// ── 即時滿足結束 ──────────────────────────────────────────
+
 // ── Manual sync on syncDot click ──
 function syncDotClicked() {
   const url = getApiUrl();
@@ -2544,6 +2701,7 @@ let state = {
   energy: 0,
   energyFilter: 'all',
   taskTypeFilter: 'all',
+  timeFilter: 'all',
   goalFilter: null,
   postponeTarget: null,
   done: 0,
@@ -2551,7 +2709,7 @@ let state = {
   pendingClaimId: null,
   doneHistory: [], // archive of completed tasks after reset
   todayOrder: [], // ordered task ids for the today panel
-  wishPoints: 0,  // 願力點數：每完成一個任務 +1，撤銷 -1，可自由分配給許願池
+  wishPoints: 0,  // 願望碎片：完成核心任務或日常任務可獲得，可分配給許願池
 };
 
 // ── Local-timezone date helper ──
@@ -2565,43 +2723,50 @@ function localDateStr(date) {
   return `${y}-${m}-${dd}`;
 }
 
-const energyLabels = { deep: '深度思考', flow: '靈感爆發', light: '輕鬆雜事', rest: '低耗能' };
-const energyIcons  = { deep: '🌊', flow: '⚡', light: '🍃', rest: '🌙' };
+const energyLabels = { charge: '充電', easy: '輕鬆', focus: '專注' };
+const energyIcons  = { charge: '⚡', easy: '🍃', focus: '𖦏' };
 
 
 
 // ── Life Tree (responsive SVG) ──
 const treeNodes = [
-  { key: '成長', icon: '🌟', label: '持續成長', cx: 0.5, cy: 0.08, r: 26, color: 'rgba(120,200,150,0.6)', bg: 'rgba(120,200,150,0.1)', glow: true },
-  { key: '創作', icon: '🎨', label: '創作表達', cx: 0.18, cy: 0.28, r: 24, color: 'rgba(200,169,110,0.5)', bg: 'rgba(200,169,110,0.08)' },
-  { key: '關係', icon: '🤝', label: '深度連結', cx: 0.82, cy: 0.28, r: 24, color: 'rgba(200,120,120,0.5)', bg: 'rgba(200,120,120,0.08)' },
-  { key: '技能', icon: '💡', label: '技能精進', cx: 0.06, cy: 0.12, r: 20, color: 'rgba(120,180,200,0.5)', bg: 'rgba(120,180,200,0.08)' },
-  { key: '健康', icon: '🌿', label: '身心健康', cx: 0.33, cy: 0.10, r: 20, color: 'rgba(150,200,120,0.5)', bg: 'rgba(150,200,120,0.08)' },
-  { key: '探索', icon: '🔭', label: '好奇探索', cx: 0.60, cy: 0.10, r: 20, color: 'rgba(200,170,200,0.5)', bg: 'rgba(200,170,200,0.08)' },
-  { key: '貢獻', icon: '✨', label: '為世界貢獻', cx: 0.92, cy: 0.12, r: 20, color: 'rgba(200,200,120,0.5)', bg: 'rgba(200,200,120,0.08)' },
-  { key: '日常', icon: '🏠', label: '日常維運', cx: 0.75, cy: 0.10, r: 20, color: 'rgba(160,160,160,0.5)', bg: 'rgba(160,160,160,0.08)' },
+  { key: '技能', icon: '🌟', label: '技能修練', ringColor: '#C9A227', ringBg: 'rgba(201,162,39,0.12)', accent: '#C9A227' },
+  { key: '自我', icon: '🌿', label: '自我實現', ringColor: '#D4608A', ringBg: 'rgba(212,96,138,0.10)', accent: '#D4608A' },
+  { key: '日常', icon: '🏠', label: '日常維運', ringColor: '#3A6EA5', ringBg: 'rgba(58,110,165,0.12)', accent: '#3A6EA5' },
 ];
 
 function renderTree() {
   const grid = document.getElementById('treeGrid');
   if (!grid) return;
   const todayStr = localDateStr();
+  const r = 28, circ = 2 * Math.PI * r;
   grid.innerHTML = treeNodes.map(n => {
-    const todayDoneCnt = state.tasks.filter(t => t.done && t.goal === n.key && t.completedAt === todayStr).length;
-    const pct = Math.min(100, Math.round(todayDoneCnt / 3 * 100)); // 3 = full
+    const todayScheduled = state.tasks.filter(t => (t.scheduledFor === todayStr || t.taskDate === todayStr) && t.goal === n.key).length;
+    const doneCnt = state.tasks.filter(t => t.done && t.goal === n.key && t.completedAt === todayStr).length;
+    const total = state.tasks.filter(t => !t.done && t.goal === n.key).length;
+    const pct = todayScheduled > 0 ? Math.min(1, doneCnt / todayScheduled) : 0;
+    const offset = circ - pct * circ;
     const isActive = state.goalFilter === n.key;
-    return `<div class="goal-card${isActive ? ' active-filter' : ''}" onclick="filterByGoal('${n.key}')">
-      ${todayDoneCnt > 0 ? `<div class="goal-card-badge">${todayDoneCnt}</div>` : ''}
-      <div class="goal-card-icon">${n.icon}</div>
-      <div class="goal-card-label">${n.label}</div>
-      <div class="goal-card-bar"><div class="goal-card-bar-fill" style="width:${pct}%"></div></div>
+    const activeStyle = isActive ? `box-shadow:0 0 0 2px ${n.ringColor};` : '';
+    return `<div class="goal-ring-card${isActive ? ' active-filter' : ''}" onclick="filterByGoal('${n.key}')" style="cursor:pointer;${activeStyle}">
+      <div class="ring-wrap" style="position:relative;width:72px;height:72px;flex-shrink:0">
+        <svg width="72" height="72" viewBox="0 0 72 72" style="position:absolute;top:0;left:0">
+          <circle cx="36" cy="36" r="${r}" fill="none" stroke="${n.ringBg}" stroke-width="5"/>
+          <circle cx="36" cy="36" r="${r}" fill="none" stroke="${n.ringColor}" stroke-width="5"
+            stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"
+            stroke-linecap="round" transform="rotate(-90 36 36)" style="transition:stroke-dashoffset 0.4s ease"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px">${n.icon}</div>
+      </div>
+      <div style="font-size:13px;font-weight:500;color:var(--text);text-align:center;line-height:1.3">${n.label}</div>
+      <div style="font-size:11px;color:var(--text-dim)">${doneCnt}/${todayScheduled} 今日</div>
     </div>`;
   }).join('');
   renderTodayPanel();
 }
 
 // ── Wish Pool (許願池) ──
-const goalIcons = { 成長:'🌟', 創作:'🎨', 關係:'🤝', 技能:'💡', 健康:'🌿', 探索:'🔭', 貢獻:'✨', 任意:'🌈', 日常:'🏠' };
+const goalIcons = { 技能:'🌟', 自我:'🌿', 日常:'🏠', 任意:'🌈' };
 
 
 
@@ -2752,11 +2917,12 @@ function renderRewards() {
           </div>
           <!-- Allocate point button -->
           <button title="${canAdd ? `配入一點（剩餘 ${available} 點）` : available <= 0 ? '完成任務獲得點數' : '已解鎖'}"
-            onclick="${canAdd ? `allocateWishPoint(${r.id})` : ''}"
+            id="wishAllocBtn-${r.id}"
             style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
                    width:48px;height:48px;border-radius:10px;border:1.5px solid ${canAdd ? 'var(--green)' : 'var(--border)'};
                    background:${canAdd ? 'rgba(58,110,165,0.08)' : 'transparent'};
                    cursor:${canAdd ? 'pointer' : 'default'};transition:all 0.2s;font-family:inherit;
+                   -webkit-tap-highlight-color:transparent;touch-action:manipulation;
                    ${!canAdd ? 'opacity:0.35' : ''}"
             ${canAdd ? `onmouseover="this.style.background='rgba(58,110,165,0.18)';this.style.transform='scale(1.08)'" onmouseout="this.style.background='rgba(58,110,165,0.08)';this.style.transform='scale(1)'"` : ''}>
             <span style="font-size:18px;line-height:1">${unlocked ? '🔓' : canAdd ? '🗝️' : '🔒'}</span>
@@ -2777,6 +2943,13 @@ function renderRewards() {
         const rect = el.getBoundingClientRect();
         showWishCtxMenu(r.id, unlocked, rect.left + rect.width/2, rect.top);
       });
+      // Wire allocate button for both click and touchend (mobile fix)
+      const allocBtn = document.getElementById('wishAllocBtn-' + r.id);
+      if (allocBtn && !unlocked && getAvailableWishPoints() > 0) {
+        const doAlloc = (e) => { e.preventDefault(); e.stopPropagation(); allocateWishPoint(r.id); };
+        allocBtn.addEventListener('click', doAlloc);
+        allocBtn.addEventListener('touchend', doAlloc, { passive: false });
+      }
     });
   }
   renderQuotes();
@@ -3210,6 +3383,10 @@ document.addEventListener('click', (e) => {
 
 // ── Init ──
 async function init() {
+  // 立即渲染生命樹骨架（雲端載入前先顯示三個目標圓形卡，數字後來再更新）
+  renderTree();
+  renderSandbox();
+
   if (getApiUrl()) {
     const btn = document.getElementById('settingsBtn');
     if (btn) { btn.classList.add('connected'); btn.textContent = '☁ Connected'; }
@@ -3324,57 +3501,273 @@ async function init() {
 }
 
 // ── Mood Buttons ──
+// Energy level cycle: low=⚡充電 mid=🍃輕鬆 high=𖦏專注
+const _energyLevelCycle = [
+  { level:'low',  label:'⚡ 充電', filter:'charge' },
+  { level:'mid',  label:'🍃 輕鬆', filter:'easy'   },
+  { level:'high', label:'𖦏 專注', filter:'focus'  },
+];
+let _currentEnergyIdx = 1; // default: mid
+
+function cycleEnergyLevel() {
+  _currentEnergyIdx = (_currentEnergyIdx + 1) % _energyLevelCycle.length;
+  const e = _energyLevelCycle[_currentEnergyIdx];
+  _applyEnergyLevel(e);
+  const toastMap = { charge:'⚡ 充電模式', easy:'🍃 輕鬆模式', focus:'𖦏 專注模式' };
+  showToast(toastMap[e.filter] || '');
+}
+
+function _applyEnergyLevel(e) {
+  const label = document.getElementById('energySliderLabel');
+  const btn   = document.getElementById('energyCycleBtn');
+  const slider = document.getElementById('energySlider');
+  const idxMap = { low:0, mid:1, high:2 };
+  if (label) label.textContent = e.label;
+  if (slider) slider.value = idxMap[e.level] ?? 1;
+  if (btn) {
+    btn.style.borderColor = e.level === 'high' ? 'var(--green)' : e.level === 'low' ? 'var(--gold)' : 'var(--border)';
+    btn.style.color = e.level === 'high' ? 'var(--green)' : e.level === 'low' ? 'var(--gold)' : 'var(--text-dim)';
+  }
+  // Apply energy filter
+  state.energyFilter = e.filter;
+  setMoodLevel(e.level);
+  _syncStripToState();
+  renderTasks();
+}
+
 function renderEnergyDots() {
   const v = state.energy || 0;
   let level = 'mid';
   if (v > 0 && v <= 3)  level = 'low';
   else if (v <= 6)       level = 'mid';
   else if (v <= 10)      level = 'high';
-
-  // Update slider position & label
+  _currentEnergyIdx = _energyLevelCycle.findIndex(e => e.level === level);
+  if (_currentEnergyIdx < 0) _currentEnergyIdx = 1;
+  // 只更新 UI 外觀，不改 state.energyFilter 也不 renderTasks
+  // （避免初始化/雲端載入時把使用者的篩選狀態覆蓋成能量篩選）
+  const e = _energyLevelCycle[_currentEnergyIdx];
+  const label = document.getElementById('energySliderLabel');
+  const btn   = document.getElementById('energyCycleBtn');
   const slider = document.getElementById('energySlider');
-  const label  = document.getElementById('energySliderLabel');
-  const sliderMap = { low: 0, mid: 1, high: 2 };
-  const labelMap  = { low: '低', mid: '中', high: '高' };
-  if (slider) {
-    slider.value = sliderMap[level];
-    slider.className = 'energy-slider level-' + level;
+  const idxMap = { low:0, mid:1, high:2 };
+  if (label) label.textContent = e.label;
+  if (slider) slider.value = idxMap[e.level] ?? 1;
+  if (btn) {
+    btn.style.borderColor = e.level === 'high' ? 'var(--green)' : e.level === 'low' ? 'var(--gold)' : 'var(--border)';
+    btn.style.color = e.level === 'high' ? 'var(--green)' : e.level === 'low' ? 'var(--gold)' : 'var(--text-dim)';
   }
-  if (label) {
-    label.textContent = labelMap[level];
-    label.className = 'energy-slider-label ' + level;
-  }
-
-  // Keep legacy mood buttons in sync (if they exist)
-  ['low','mid','high'].forEach(l => {
-    const btn = document.getElementById('moodBtn' + l.charAt(0).toUpperCase() + l.slice(1));
-    if (btn) btn.className = 'mood-btn' + (level === l ? ' active-' + l : '');
-  });
-  // Auto-filter based on energy level (stored in state, not slider directly)
 }
 
 function applyEnergyFilter(level) {
   if (level === 'low') {
-    state.energyFilter = 'rest';
+    state.energyFilter = 'charge';
   } else if (level === 'mid') {
-    state.energyFilter = 'mid';
+    state.energyFilter = 'easy';
   } else if (level === 'high') {
-    state.energyFilter = 'deep';
+    state.energyFilter = 'focus';
   }
+  _syncStripToState();
   renderTasks();
 }
 
 function updateFilterChips(active) {
-  const types = ['all','once','recurring','scheduled'];
-  document.querySelectorAll('.filter-chip').forEach((c, i) => {
-    c.classList.toggle('active', types[i] === active);
-  });
+  // legacy no-op kept for filterByGoal compatibility
 }
 
 function filterTaskType(type) {
   state.taskTypeFilter = type;
-  updateFilterChips(type);
+  _syncStripToState();
   renderTasks();
+}
+
+// ── 三格篩選條 ──────────────────────────────────────────
+const _filterDims = {
+  freq: {
+    options: [
+      { key: 'all',       label: '全部',     color: null },
+      { key: 'recurring', label: '🔁 重複',  color: null },
+      { key: 'once',      label: '單次',     color: null },
+    ],
+    getState: () => state.taskTypeFilter || 'all',
+    setState: v => { state.taskTypeFilter = v; },
+    count: (tasks, key) => {
+      if (key === 'all')       return tasks.length;
+      if (key === 'recurring') return tasks.filter(t => t.recurring).length;
+      if (key === 'once')      return tasks.filter(t => !t.recurring && !t.taskDate).length;
+      return 0;
+    },
+  },
+  time: {
+    options: [
+      { key: 'all',       label: '全部',      color: null },
+      { key: 'today',     label: '☀ 今日',   color: 'var(--gold)' },
+      { key: 'overdue',   label: '⚠ 逾期',   color: 'var(--rose)' },
+      { key: 'neglected', label: '💤 久未做', color: null },
+      { key: 'scheduled', label: '📅 預期',   color: null },
+    ],
+    getState: () => state.timeFilter || 'all',
+    setState: v => { state.timeFilter = v; },
+    count: (tasks, key) => {
+      const today = localDateStr();
+      if (key === 'all')       return tasks.length;
+      if (key === 'today')     return tasks.filter(t => t.scheduledFor === today || t.taskDate === today).length;
+      if (key === 'overdue')   return tasks.filter(t => t.scheduledFor && t.scheduledFor < today).length;
+      if (key === 'neglected') return tasks.filter(t => isNeglected(t)).length;
+      if (key === 'scheduled') return tasks.filter(t => t.taskDate && t.taskDate > today).length;
+      return 0;
+    },
+  },
+  energy: {
+    options: [
+      { key: 'all',    label: '全部',    color: null },
+      { key: 'charge', label: '⚡ 充電', color: null },
+      { key: 'easy',   label: '🍃 輕鬆', color: null },
+      { key: 'focus',  label: '𖦏 專注', color: null },
+    ],
+    getState: () => state.energyFilter || 'all',
+    setState: v => { state.energyFilter = v; },
+    count: (tasks, key) => {
+      if (key === 'all') return tasks.length;
+      return tasks.filter(t => t.energy === key).length;
+    },
+  },
+  goal: {
+    get options() {
+      const goals = (state.goals && state.goals.length) ? state.goals : [
+        {name:'技能',icon:'🌟'},{name:'自我',icon:'🌿'},{name:'日常',icon:'🏠'}
+      ];
+      return [{ key: 'all', label: '全部', color: null },
+        ...goals.map(g => ({ key: g.name, label: (g.icon ? g.icon + ' ' : '') + g.name, color: null }))];
+    },
+    getState: () => state.goalFilter || 'all',
+    setState: v => {
+      state.goalFilter = v === 'all' ? null : v;
+      const label = document.getElementById('filtered-label');
+      const clearBtn = document.getElementById('clear-filter-btn');
+      if (label) label.textContent = '';
+      if (clearBtn) clearBtn.style.display = 'none';
+    },
+    count: (tasks, key) => {
+      if (key === 'all') return tasks.length;
+      return tasks.filter(t => t.goal === key).length;
+    },
+  },
+};
+
+let _activeDim = null; // which dim is currently expanded
+
+function _baseActiveTasks() {
+  const todayStr = localDateStr();
+  let tasks = state.tasks.filter(t => !t.done && !(_isFutureIntervalTask(t, todayStr)));
+  if (state.goalFilter) tasks = tasks.filter(t => t.goal === state.goalFilter);
+  return tasks;
+}
+
+function _countForDim(dim) {
+  const def = _filterDims[dim];
+  const curKey = def.getState();
+  let tasks = _baseActiveTasks();
+  // apply the OTHER two dims first
+  Object.keys(_filterDims).forEach(d => {
+    if (d === dim) return;
+    tasks = _applyOneDimFilter(tasks, d, _filterDims[d].getState());
+  });
+  return def.count(tasks, curKey);
+}
+
+function _applyOneDimFilter(tasks, dim, key) {
+  const today = localDateStr();
+  if (dim === 'freq') {
+    if (key === 'recurring') return tasks.filter(t => t.recurring);
+    if (key === 'once')      return tasks.filter(t => !t.recurring && !t.taskDate);
+  }
+  if (dim === 'time') {
+    if (key === 'today')     return tasks.filter(t => t.scheduledFor === today || t.taskDate === today);
+    if (key === 'overdue')   return tasks.filter(t => t.scheduledFor && t.scheduledFor < today);
+    if (key === 'neglected') return tasks.filter(t => isNeglected(t));
+    if (key === 'scheduled') return tasks.filter(t => t.taskDate && t.taskDate > today);
+  }
+  if (dim === 'energy') {
+    if (key !== 'all') return tasks.filter(t => t.energy === key);
+  }
+  if (dim === 'goal') {
+    if (key !== 'all') return tasks.filter(t => t.goal === key);
+  }
+  return tasks;
+}
+
+function toggleFilterDim(dim) {
+  const expand = document.getElementById('filterExpand');
+  if (_activeDim === dim) {
+    // collapse
+    _activeDim = null;
+    expand.style.maxHeight = '0';
+    expand.style.opacity = '0';
+    _highlightStrip(null);
+    return;
+  }
+  _activeDim = dim;
+  _renderSubChips(dim);
+  expand.style.maxHeight = '200px';
+  expand.style.opacity = '1';
+  _highlightStrip(dim);
+}
+
+function _highlightStrip(activeDim) {
+  ['freq','time','energy','goal'].forEach(d => {
+    const cell = document.getElementById('fstrip-' + d);
+    if (!cell) return;
+    cell.style.background = (d === activeDim) ? 'rgba(74,130,196,0.07)' : '';
+  });
+}
+
+function _renderSubChips(dim) {
+  const def = _filterDims[dim];
+  const curKey = def.getState();
+  let baseTasks = _baseActiveTasks();
+  // apply other dims
+  Object.keys(_filterDims).forEach(d => {
+    if (d === dim) return;
+    baseTasks = _applyOneDimFilter(baseTasks, d, _filterDims[d].getState());
+  });
+
+  const chips = def.options.map(opt => {
+    const cnt = def.count(baseTasks, opt.key);
+    const isActive = curKey === opt.key;
+    const colorStyle = opt.color ? `color:${opt.color};border-color:${opt.color};` : '';
+    const activeStyle = isActive
+      ? `background:rgba(74,130,196,0.09);border-color:var(--green);color:var(--green);`
+      : colorStyle;
+    return `<div class="filter-chip${isActive ? ' active' : ''}" style="${activeStyle}" onclick="_selectSubChip('${dim}','${opt.key}')">${opt.label} <span style="font-size:10px;opacity:0.65">${cnt}</span></div>`;
+  }).join('');
+  document.getElementById('filterSubChips').innerHTML = chips;
+}
+
+function _selectSubChip(dim, key) {
+  _filterDims[dim].setState(key);
+  _syncStripToState();
+  renderTasks();
+  // re-render sub chips so counts update
+  _renderSubChips(dim);
+}
+
+function _syncStripToState() {
+  ['freq','time','energy','goal'].forEach(dim => {
+    const def = _filterDims[dim];
+    const curKey = def.getState();
+    const opt = def.options.find(o => o.key === curKey) || def.options[0];
+    const cnt = _countForDim(dim);
+    const numEl = document.getElementById('fstrip-' + dim + '-num');
+    const valEl = document.getElementById('fstrip-' + dim + '-val');
+    if (!numEl || !valEl) return;
+    // val label color reflects active filter state
+    valEl.style.color = curKey !== 'all'
+      ? ((opt && opt.color) ? opt.color : 'var(--green)')
+      : 'var(--text-dim)';
+    valEl.style.fontWeight = curKey !== 'all' ? '600' : '';
+  });
+  // re-render sub chips if a dim is open
+  if (_activeDim) _renderSubChips(_activeDim);
 }
 
 // Override filterEnergy to update chip state correctly (kept for energy dot compatibility)
@@ -3384,16 +3777,12 @@ function filterEnergy(type) {
 }
 
 function onEnergySliderChange(val) {
-  const levels = ['low', 'mid', 'high'];
-  const level = levels[parseInt(val)];
-  setMoodLevel(level);
-  applyEnergyFilter(level);
-  const toastMap = {
-    low: '精力偏低，已篩選低耗能任務 🌙',
-    mid: '精力適中，已顯示輕鬆雜事與靈感爆發 ⚡',
-    high: '精力充沛，已篩選深度思考任務 🌊',
-  };
-  showToast(toastMap[level]);
+  // Legacy: now handled by cycleEnergyLevel
+  const levels = ['low','mid','high'];
+  const level = levels[parseInt(val)] || 'mid';
+  const e = _energyLevelCycle.find(x => x.level === level) || _energyLevelCycle[1];
+  _currentEnergyIdx = _energyLevelCycle.indexOf(e);
+  _applyEnergyLevel(e);
 }
 
 function setMoodLevel(level) {
@@ -3419,7 +3808,9 @@ function showPage(id, skipRender) {
   if (sideNav) sideNav.classList.add('active');
   if (mobNav)  mobNav.classList.add('active');
   if (!skipRender) {
-    if (id === 'tasks') renderTasks();
+    if (id === 'tree')   { renderTree(); }
+    if (id === 'tasks')  { renderTasks(); }
+    if (id === 'sandbox') { renderSandbox(); }
     if (id === 'stats') {
       // Reset showAll when navigating to stats so it defaults to today-only view
       const doneList = document.getElementById('doneList');
@@ -3438,6 +3829,7 @@ function filterByGoal(goal) {
   state.goalFilter = goal;
   state.energyFilter = 'all';
   state.taskTypeFilter = 'all';
+  state.timeFilter = 'all';
   // Navigate without triggering a render yet
   showPage('tasks', true);
   // Update label
@@ -3453,13 +3845,17 @@ function filterByGoal(goal) {
 }
 
 function openAddTask() {
+  // Pre-fill goal from active filter or pending goal
+  const activeGoal = state.pendingGoalForAdd || state.goalFilter || null;
+  const activeEnergy = (state.energyFilter && state.energyFilter !== 'all') ? state.energyFilter : 'easy';
+  _setGoalBtn(activeGoal || '技能');
+  _setEnergyBtn(activeEnergy);
+  if (state.pendingGoalForAdd) state.pendingGoalForAdd = null;
+  // Reset recurring
+  _recurState['new'] = 'off';
+  _applyRecurUI('new', 'off');
   document.getElementById('addModal').classList.add('open');
-  // If navigated from tree node, pre-select that goal
-  if (state.pendingGoalForAdd) {
-    document.getElementById('newTaskGoal').value = state.pendingGoalForAdd;
-    state.pendingGoalForAdd = null;
-  }
-  document.getElementById('newTaskName').focus();
+  setTimeout(() => document.getElementById('newTaskName').focus(), 50);
 }
 
 function openAddTaskForToday() {
@@ -3503,21 +3899,13 @@ function renderTasks() {
   let activeTasks = state.tasks.filter(t => !t.done && !(_isFutureIntervalTask(t, todayStrFilter)));
   let doneTasks   = state.tasks.filter(t =>  t.done);
   // Energy filter: 'mid' shows flow AND light
-  if (state.energyFilter === 'mid') {
-    activeTasks = activeTasks.filter(t => t.energy === 'flow' || t.energy === 'light');
-  } else if (state.energyFilter && state.energyFilter !== 'all') {
+  if (state.energyFilter && state.energyFilter !== 'all') {
     activeTasks = activeTasks.filter(t => t.energy === state.energyFilter);
   }
-  // Task type filter
-  if (state.taskTypeFilter && state.taskTypeFilter !== 'all') {
-    if (state.taskTypeFilter === 'once') {
-      activeTasks = activeTasks.filter(t => !t.recurring && !t.taskDate);
-    } else if (state.taskTypeFilter === 'recurring') {
-      activeTasks = activeTasks.filter(t => t.recurring);
-    } else if (state.taskTypeFilter === 'scheduled') {
-      activeTasks = activeTasks.filter(t => t.taskDate);
-    }
-  }
+  // Task type filter (freq dim)
+  activeTasks = _applyOneDimFilter(activeTasks, 'freq', state.taskTypeFilter || 'all');
+  // Time filter (time dim)
+  activeTasks = _applyOneDimFilter(activeTasks, 'time', state.timeFilter || 'all');
   if (state.goalFilter) {
     activeTasks = activeTasks.filter(t => t.goal === state.goalFilter);
     doneTasks   = doneTasks.filter(t => t.goal === state.goalFilter);
@@ -3553,6 +3941,8 @@ function renderTasks() {
   }
 
   list.innerHTML = html;
+  // update strip counts
+  if (typeof _syncStripToState === 'function') _syncStripToState();
 }
 
 function taskHTML(t) {
@@ -3561,6 +3951,10 @@ function taskHTML(t) {
   const steps = t.steps || [];
   const hasSteps = steps.length > 0;
   const isOpen = t._breakdownOpen || false;
+
+  // Goal color map
+  const goalColorMap = { '技能': '#C9A227', '自我': '#D4608A', '日常': '#3A6EA5' };
+  const taskNameColor = goalColorMap[t.goal] || 'var(--text)';
 
   // Due date / status logic
   const todayStr = localDateStr();
@@ -3636,7 +4030,7 @@ function taskHTML(t) {
       <div class="task-stripe" style="background:${stripeColor}" title="${stripeTitle}" ${stripeOnClick}></div>
       <div class="task-check${t.done ? ' checked' : ''}" onclick="toggleTask(${t.id})" style="margin-top:1px;flex-shrink:0">${t.done ? '✓' : ''}</div>
       <div class="task-body" style="flex:1;min-width:0">
-        <div class="task-name${hasSteps ? ' collapsible' : ''}" onclick="${hasSteps ? `toggleBreakdown(${t.id})` : ''}">
+        <div class="task-name${hasSteps ? ' collapsible' : ''}" onclick="${hasSteps ? `toggleBreakdown(${t.id})` : ''}" style="color:${t.done ? 'var(--text-dim)' : taskNameColor}">
           ${t.name}
           ${hasSteps ? `<span class="task-collapse-arrow${isOpen ? ' open' : ''}">▶</span>` : ''}
         </div>
@@ -3644,7 +4038,6 @@ function taskHTML(t) {
         ${t.note ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;padding:4px 8px;background:rgba(200,169,110,0.08);border-radius:6px;border-left:2px solid var(--gold);line-height:1.5">📝 ${t.note}</div>` : ''}
         <div class="task-meta">
           <span class="tag tag-energy">${eIcon} ${eLabel}</span>
-          <span class="tag tag-goal">${t.goal}</span>
           ${t.postponed >= 3 ? '<span class="tag" style="border-color:rgba(200,120,120,0.4);color:var(--rose);background:rgba(200,120,120,0.06)">⚠ 已多次延期</span>' : ''}
           ${neglected ? `<span class="neglect-badge">⏳ 久未完成</span>` : ''}
           ${t.recurring && t.recurMode === 'interval' ? `<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 每${t.recurInterval || '?'}天</span>` : t.recurring ? '<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 重複</span>' : ''}
@@ -3752,7 +4145,7 @@ function renderTodayPanel() {
     list.innerHTML = '<div class="today-panel-empty">今天還沒有標記任何任務。在任務旁點側邊藍線來安排今日。</div>';
     return;
   }
-  const goalIconMap = { 成長:'🌟', 創作:'🎨', 關係:'🤝', 技能:'💡', 健康:'🌿', 探索:'🔭', 貢獻:'✨', 日常:'🏠', 任意:'🌈' };
+  const goalIconMap = { 技能:'🌟', 自我:'🌿', 日常:'🏠', 任意:'🌈' };
   list.innerHTML = allToday.map((t, idx) => {
     const gIcon = goalIconMap[t.goal] || '●';
     const isOverdue = t.scheduledFor < todayStr;
@@ -3850,6 +4243,7 @@ function navigateToTask(id) {
   state.goalFilter = null;
   state.energyFilter = 'all';
   state.taskTypeFilter = 'all';
+  state.timeFilter = 'all';
   const label = document.getElementById('filtered-label');
   if (label) label.textContent = '';
   const clearBtn = document.getElementById('clear-filter-btn');
@@ -3875,13 +4269,11 @@ function toggleTask(id) {
   t.done = !t.done;
   if (!wasDone) {
     t.completedAt = localDateStr();
-    state.done = state.tasks.filter(x => x.done).length; // recalculate
-    if (state.wishPoints === undefined) state.wishPoints = 0;
-    state.wishPoints++;
+    state.done = state.tasks.filter(x => x.done).length;
     showCelebration(t);
     checkRewardUnlocks();
-    renderRewards();
-    onTaskCompleted();
+    onTaskCompleted(t);
+    if (t.reward) { setTimeout(() => showInstantRewardPopup(t.reward), 2900); }
     // If interval-recurring, schedule next occurrence then remove the completed original
     if (t.recurring && t.recurMode === 'interval') {
       // Archive to doneHistory BEFORE removing so it appears in completed records
@@ -3897,12 +4289,9 @@ function toggleTask(id) {
     }
   } else {
     t.completedAt = null; // clear completion date when unchecking
-    state.done = state.tasks.filter(x => x.done).length; // recalculate
-    if (state.wishPoints === undefined) state.wishPoints = 0;
-    state.wishPoints = Math.max(0, state.wishPoints - 1);
+    state.done = state.tasks.filter(x => x.done).length;
     state.doneOpen = true;
-    renderRewards();
-    onTaskUncompleted();
+    onTaskUncompleted(t);
   }
   renderTasks();
   renderStats();
@@ -3974,20 +4363,45 @@ function closeNoteModal() {
 }
 
 // ── Recurring UI helpers ──
-function toggleRecurringOptions(prefix) {
-  const isChecked = document.getElementById(prefix + 'TaskRecurring').checked;
-  const optionsEl = document.getElementById(prefix + 'RecurringOptions');
-  if (optionsEl) optionsEl.style.display = isChecked ? 'block' : 'none';
-  if (!isChecked) {
-    const intervalEl = document.getElementById(prefix + 'IntervalInput');
-    if (intervalEl) intervalEl.style.display = 'none';
-  }
-}
+function toggleRecurringOptions(prefix) {} // legacy no-op
+function toggleIntervalInput(prefix) {} // legacy no-op
 
-function toggleIntervalInput(prefix) {
-  const modeEl = document.querySelector(`input[name="${prefix}RecurMode"]:checked`);
-  const intervalEl = document.getElementById(prefix + 'IntervalInput');
-  if (intervalEl) intervalEl.style.display = (modeEl && modeEl.value === 'interval') ? 'flex' : 'none';
+// 新版重複 toggle：第一次點亮 = 每天；第二次點 = 顯示天數輸入；第三次 = 關閉
+const _recurState = {}; // 'off' | 'daily' | 'interval'
+function toggleRecurSimple(prefix) {
+  const cur = _recurState[prefix] || 'off';
+  let next;
+  if (cur === 'off') next = 'daily';
+  else if (cur === 'daily') next = 'interval';
+  else next = 'off';
+  _recurState[prefix] = next;
+  _applyRecurUI(prefix, next);
+}
+function _applyRecurUI(prefix, state) {
+  const btn = document.getElementById(prefix + 'RecurToggle');
+  const label = document.getElementById(prefix + 'RecurLabel');
+  const wrap = document.getElementById(prefix + 'IntervalWrap');
+  const hiddenRecur = document.getElementById(prefix + 'TaskRecurring');
+  const hiddenMode = document.getElementById(prefix + 'RecurModeHidden');
+  if (state === 'off') {
+    if (btn) { btn.style.borderColor = ''; btn.style.color = ''; }
+    if (label) label.textContent = '不重複';
+    if (wrap) wrap.style.display = 'none';
+    if (hiddenRecur) hiddenRecur.value = 'false';
+    if (hiddenMode) hiddenMode.value = 'daily';
+  } else if (state === 'daily') {
+    if (btn) { btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; }
+    if (label) label.textContent = '每天';
+    if (wrap) wrap.style.display = 'none';
+    if (hiddenRecur) hiddenRecur.value = 'true';
+    if (hiddenMode) hiddenMode.value = 'daily';
+  } else {
+    if (btn) { btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; }
+    if (label) label.textContent = '間隔';
+    if (wrap) wrap.style.display = 'flex';
+    if (hiddenRecur) hiddenRecur.value = 'true';
+    if (hiddenMode) hiddenMode.value = 'interval';
+  }
 }
 
 // Schedule a future cloned task for interval-recurring tasks
@@ -4046,21 +4460,38 @@ function addTask() {
   const name = document.getElementById('newTaskName').value.trim();
   if (!name) return;
   const meaning = document.getElementById('newTaskMeaning').value.trim();
-  const goal = document.getElementById('newTaskGoal').value;
-  const energy = document.getElementById('newTaskEnergy').value;
-  const recurring = document.getElementById('newTaskRecurring').checked;
+  const goal = document.getElementById('newTaskGoal').value || '技能';
+  const energy = document.getElementById('newTaskEnergy').value || 'easy';
+  const recurring = document.getElementById('newTaskRecurring').value === 'true';
   let recurMode = 'daily';
   let recurInterval = 0;
   if (recurring) {
-    const modeEl = document.querySelector('input[name="newRecurMode"]:checked');
-    recurMode = modeEl ? modeEl.value : 'daily';
+    const modeHidden = document.getElementById('newRecurModeHidden');
+    recurMode = modeHidden ? modeHidden.value : 'daily';
     if (recurMode === 'interval') {
-      recurInterval = parseInt(document.getElementById('newTaskInterval').value) || 7;
+      recurInterval = parseInt(document.getElementById('newTaskInterval').value) || 1;
     }
   }
   const taskDate = document.getElementById('newTaskDate').value || null;
+  const rewardInput = document.getElementById('newTaskReward');
+  const reward = rewardInput ? rewardInput.value.trim() : '';
+  // Remove sandbox item if it was picked for reward
+  if (reward && window._pendingSandboxRemove && window._pendingSandboxRemove['new'] !== undefined) {
+    state.sandbox.splice(window._pendingSandboxRemove['new'], 1);
+    delete window._pendingSandboxRemove['new'];
+    renderSandbox();
+  }
+  // Remove sandbox item if task name was picked from sandbox
+  if (window._pendingSandboxRemoveName && window._pendingSandboxRemoveName['new'] !== undefined) {
+    const idx = window._pendingSandboxRemoveName['new'];
+    if (state.sandbox[idx] !== undefined) {
+      state.sandbox.splice(idx, 1);
+      renderSandbox();
+    }
+    delete window._pendingSandboxRemoveName['new'];
+  }
   const todayStr = localDateStr();
-  const newTask = { id: Date.now(), name, meaning, goal, energy, done: false, postponed: 0,
+  const newTask = { id: Date.now(), name, meaning, goal, energy, reward: reward || null, done: false, postponed: 0,
     recurring: recurring || false,
     recurMode: recurring ? recurMode : null,
     recurInterval: recurring && recurMode === 'interval' ? recurInterval : 0,
@@ -4081,10 +4512,12 @@ function addTask() {
   document.getElementById('newTaskName').value = '';
   document.getElementById('newTaskMeaning').value = '';
   document.getElementById('newTaskDate').value = '';
-  document.getElementById('newTaskRecurring').checked = false;
-  document.getElementById('newRecurringOptions').style.display = 'none';
-  document.getElementById('newIntervalInput').style.display = 'none';
-  document.querySelectorAll('input[name="newRecurMode"]')[0].checked = true;
+  _recurState['new'] = 'off';
+  _applyRecurUI('new', 'off');
+  const rewardField = document.getElementById('newTaskReward');
+  if (rewardField) rewardField.value = '';
+  _setGoalBtn('技能');
+  _setEnergyBtn('easy');
   closeModal('addModal');
   // If added from the tree today panel, stay on tree page
   if (newTask.scheduledFor === todayStr && document.getElementById('page-tree').classList.contains('active')) {
@@ -4210,28 +4643,82 @@ function checkRandomMissionProgress() {
   saveLottery();
 }
 
-function onTaskCompleted() {
+function onTaskCompleted(task) {
   const today = getTodayKey();
   if (lotteryState.todayDate !== today) {
     lotteryState.todayDate = today;
     lotteryState.todayDone = 0;
     lotteryState.todayFlipped = 0;
   }
-  lotteryState.todayDone++;
-  // Available flips = floor(todayDone/3) - todayFlipped
-  const available = Math.floor(lotteryState.todayDone / 3) - lotteryState.todayFlipped;
-  if (available > 0 && lotteryState.todayDone % 3 === 0) {
-    showToast('🎫 獲得翻牌機會！去抽獎區翻牌吧');
+  const energy = task ? task.energy : null;
+  const goal   = task ? task.goal   : null;
+  const isCharge  = energy === 'charge'; // ⚡充電任務 — 不給任何獎勵
+  const isDaily   = goal === '日常';     // 日常維運 — 只給碎片
+  const isFocus   = energy === 'focus';  // 𖦏專注 — 20% 機率多一張券
+
+  if (!isCharge) {
+    // 碎片 (wishPoints) 一律+1（充電任務除外）
+    if (state.wishPoints === undefined) state.wishPoints = 0;
+    state.wishPoints++;
+    renderRewards();
+
+    if (!isDaily) {
+      // 核心任務：給抽卡機會
+      lotteryState.todayDone++;
+      const available = lotteryState.todayDone - (lotteryState.todayFlipped || 0);
+      if (available > 0 && available === lotteryState.todayDone) {
+        // 有獎池才提示抽卡
+        const hasWishes = (state.rewards || []).some(r => !r.claimed && (r.allocatedPoints||0) >= r.count && r.count > 0);
+        showToast(hasWishes ? '🎫 獲得抽卡機會！去抽獎區翻牌吧' : '💎 獲得願望碎片！');
+      }
+      // 𖦏專注任務 20% 機率額外多一張
+      if (isFocus && Math.random() < 0.2) {
+        lotteryState.todayDone++;
+        _showFocusBonus();
+      }
+    } else {
+      showToast('💎 +1 願望碎片');
+    }
   }
+
   checkRandomMissionProgress();
   saveLottery();
   renderLottery();
 }
 
-function onTaskUncompleted() {
-  // Can't drop below the tasks already "spent" on flips
-  const minDone = (lotteryState.todayFlipped || 0) * 3;
-  if (lotteryState.todayDone > minDone) lotteryState.todayDone--;
+function _showFocusBonus() {
+  // 金黃色灑花特效
+  const cel = document.createElement('div');
+  cel.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+  cel.innerHTML = '<div style="font-size:28px;animation:celebFade 2s ease forwards">🎊 專注加成！+1 券</div>';
+  document.body.appendChild(cel);
+  // Scatter gold particles
+  for (let i = 0; i < 18; i++) {
+    const p = document.createElement('div');
+    const x = Math.random() * 100, y = Math.random() * 100;
+    const size = 6 + Math.random() * 8;
+    p.style.cssText = `position:fixed;left:${x}%;top:${y}%;width:${size}px;height:${size}px;border-radius:50%;background:#C9A227;pointer-events:none;z-index:9999;animation:celebFade 1.8s ease ${Math.random()*0.4}s forwards;`;
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 2200);
+  }
+  setTimeout(() => cel.remove(), 2200);
+}
+
+function onTaskUncompleted(task) {
+  const energy = task ? task.energy : null;
+  const goal   = task ? task.goal   : null;
+  const isCharge = energy === 'charge';
+  const isDaily  = goal === '日常';
+
+  if (!isCharge) {
+    if (state.wishPoints === undefined) state.wishPoints = 0;
+    state.wishPoints = Math.max(0, state.wishPoints - 1);
+    renderRewards();
+    if (!isDaily) {
+      const minDone = (lotteryState.todayFlipped || 0);
+      if (lotteryState.todayDone > minDone) lotteryState.todayDone--;
+    }
+  }
   checkRandomMissionProgress();
   saveLottery();
   renderLottery();
@@ -4316,7 +4803,7 @@ function drawLottery() {
 function flipCard(i) {
   if (!lotteryState.cards[i] || lotteryState.cards[i].revealed) return;
   // Available flips = floor(todayDone/3) - todayFlipped
-  const available = Math.floor(lotteryState.todayDone / 3) - (lotteryState.todayFlipped || 0);
+  const available = lotteryState.todayDone - (lotteryState.todayFlipped || 0);
   if (available <= 0) {
     showToast('🎫 還沒有翻牌機會，完成任務來獲得！');
     return;
@@ -4408,18 +4895,23 @@ function renderLottery() {
   const rm = lotteryState.randomMission;
   if (!ticketEl) return;
   // available flips today
-  const availableFlips = Math.floor(lotteryState.todayDone / 3) - (lotteryState.todayFlipped || 0);
-  ticketEl.textContent = availableFlips;
+  const availableFlips = lotteryState.todayDone - (lotteryState.todayFlipped || 0);
+  ticketEl.textContent = Math.max(0, availableFlips);
   if (drawBtn) {
-    drawBtn.disabled = false; // 洗牌永遠可用
+    drawBtn.disabled = false;
     drawBtn.title = '重新洗牌（不消耗券）';
+    // Re-wire each render to fix mobile onclick issues
+    const newBtn = drawBtn.cloneNode(true);
+    drawBtn.parentNode.replaceChild(newBtn, drawBtn);
+    newBtn.addEventListener('click', drawLottery);
+    newBtn.addEventListener('touchend', function(e){ e.preventDefault(); drawLottery(); });
   }
 
   // Update progress text: show remainder toward next ticket (resets to 0 after every 3)
   const lotteryProgress = document.getElementById('lotteryProgress');
   if (lotteryProgress) {
-    const progressToNext = lotteryState.todayDone % 3;
-    lotteryProgress.innerHTML = `獲得券 <span id="todayDone">${progressToNext}</span>/3`;
+    const frags = state.wishPoints || 0;
+    lotteryProgress.innerHTML = `💎 碎片 <span id="todayDone">${frags}</span>`;
   }
 
   const grid = document.getElementById('lotteryGrid');
@@ -4956,15 +5448,16 @@ function openEditTask(t) {
   // Recurring
   const isRecurring = !!t.recurring;
   document.getElementById('editTaskDate').value = t.taskDate || '';
-  document.getElementById('editTaskRecurring').checked = isRecurring;
-  const optionsEl = document.getElementById('editRecurringOptions');
-  optionsEl.style.display = isRecurring ? 'block' : 'none';
   const mode = t.recurMode || 'daily';
-  const radios = document.querySelectorAll('input[name="editRecurMode"]');
-  radios.forEach(r => r.checked = (r.value === mode));
-  const intervalEl = document.getElementById('editIntervalInput');
-  intervalEl.style.display = mode === 'interval' ? 'flex' : 'none';
-  document.getElementById('editTaskInterval').value = t.recurInterval || 7;
+  let recurUIState = 'off';
+  if (isRecurring) recurUIState = mode === 'interval' ? 'interval' : 'daily';
+  _recurState['edit'] = recurUIState;
+  _applyRecurUI('edit', recurUIState);
+  if (isRecurring && mode === 'interval') {
+    document.getElementById('editTaskInterval').value = t.recurInterval || 1;
+  }
+  const editRewardField = document.getElementById('editTaskReward');
+  if (editRewardField) editRewardField.value = t.reward || '';
   document.getElementById('editModal').classList.add('open');
   setTimeout(() => document.getElementById('editTaskName').focus(), 50);
 }
@@ -4978,6 +5471,14 @@ function saveEdit() {
   t.meaning = document.getElementById('editTaskMeaning').value.trim();
   t.goal = document.getElementById('editTaskGoal').value;
   t.energy = document.getElementById('editTaskEnergy').value;
+  const editRewardEl = document.getElementById('editTaskReward');
+  const editReward = editRewardEl ? editRewardEl.value.trim() : '';
+  t.reward = editReward || null;
+  if (editReward && window._pendingSandboxRemove && window._pendingSandboxRemove['edit'] !== undefined) {
+    state.sandbox.splice(window._pendingSandboxRemove['edit'], 1);
+    delete window._pendingSandboxRemove['edit'];
+    renderSandbox();
+  }
   // Task date
   const newTaskDate = document.getElementById('editTaskDate').value || null;
   t.taskDate = newTaskDate || null;
@@ -4993,13 +5494,13 @@ function saveEdit() {
     t.status = null;
     t._scheduledByDate = false;
   }
-  const isRecurring = document.getElementById('editTaskRecurring').checked;
+  const isRecurring = document.getElementById('editTaskRecurring').value === 'true';
   t.recurring = isRecurring;
   if (isRecurring) {
-    const modeEl = document.querySelector('input[name="editRecurMode"]:checked');
-    const mode = modeEl ? modeEl.value : 'daily';
+    const modeHidden = document.getElementById('editRecurModeHidden');
+    const mode = modeHidden ? modeHidden.value : 'daily';
     t.recurMode = mode;
-    t.recurInterval = mode === 'interval' ? (parseInt(document.getElementById('editTaskInterval').value) || 7) : 0;
+    t.recurInterval = mode === 'interval' ? (parseInt(document.getElementById('editTaskInterval').value) || 1) : 0;
   } else {
     t.recurMode = null;
     t.recurInterval = 0;
@@ -5975,8 +6476,8 @@ function notesRewireLogo() {
       showPage(prevPage);
     } else {
       const activePage = document.querySelector('.page.active');
-      if (activePage) window._notesPrevPage = activePage.id.replace('page-', '');
-      showPage('notes');
+      const curId = activePage ? activePage.id.replace('page-', '') : 'tree';
+      showPage(curId);
     }
   });
 
@@ -6012,8 +6513,8 @@ function notesRewireLogo() {
       showPage(prevPage);
     } else {
       const activePage = document.querySelector('.page.active');
-      if (activePage) window._notesPrevPage = activePage.id.replace('page-', '');
-      showPage('notes');
+      const curId = activePage ? activePage.id.replace('page-', '') : 'tree';
+      showPage(curId);
     }
   });
   newLogo.addEventListener('touchmove', () => clearTimeout(_touchLp), { passive: true });
