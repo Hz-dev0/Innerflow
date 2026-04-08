@@ -1693,11 +1693,14 @@
           <path d="M5 6l3-3 3 3"/>
         </svg>
       </button>
-      <button id="energyCycleBtn" onclick="cycleEnergyLevel()" title="點擊切換精力模式"
-        style="display:flex;align-items:center;padding:4px 12px;border:1px solid var(--border);border-radius:20px;background:transparent;color:var(--text-dim);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.2s;white-space:nowrap">
-        <span id="energySliderLabel">🍃 輕鬆</span>
-        <input type="hidden" id="energySlider" value="1">
-      </button>
+      <div id="energySegmented" style="display:flex;align-items:center;border:1px solid var(--border);border-radius:20px;overflow:hidden;background:transparent;gap:0">
+        <button onclick="setEnergySegment('all')"   id="eseg-all"    title="顯示全部任務"  style="padding:4px 9px;border:none;background:transparent;color:var(--text-dim);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.18s;border-radius:0;white-space:nowrap">全</button>
+        <button onclick="setEnergySegment('charge')" id="eseg-charge" title="充電模式"      style="padding:4px 8px;border:none;background:transparent;color:var(--text-dim);font-size:13px;cursor:pointer;font-family:inherit;transition:all 0.18s;border-radius:0">⚡</button>
+        <button onclick="setEnergySegment('easy')"  id="eseg-easy"   title="輕鬆模式"      style="padding:4px 8px;border:none;background:transparent;color:var(--text-dim);font-size:13px;cursor:pointer;font-family:inherit;transition:all 0.18s;border-radius:0">🍃</button>
+        <button onclick="setEnergySegment('focus')" id="eseg-focus"  title="專注模式"      style="padding:4px 8px;border:none;background:transparent;color:var(--text-dim);font-size:13px;cursor:pointer;font-family:inherit;transition:all 0.18s;border-radius:0">𖦏</button>
+      </div>
+      <input type="hidden" id="energySlider" value="1">
+      <span id="energySliderLabel" style="display:none">🍃 輕鬆</span>
       <div id="syncDot" class="sync-dot" style="cursor:pointer" title="點擊立即同步 / 長按 Logo 設定" onclick="syncDotClicked()"></div>
     </div>
   </header>
@@ -1835,6 +1838,10 @@
 
         <!-- Wish Pool pane -->
         <div id="wishPoolPane" style="display:none">
+          <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;padding:6px 4px;display:flex;align-items:center;gap:6px">
+            💎 可用碎片：<strong id="wishFragmentCount" style="color:var(--green)">0</strong>
+            <span style="color:var(--text-faint);font-size:11px;margin-left:2px">（完成任務後可分配給願望）</span>
+          </div>
           <div id="wishList" style="display:flex;flex-direction:column;gap:8px"></div>
           <div id="wishEmpty" style="color:var(--text-faint);font-size:13px;font-style:italic;padding:8px;display:none">池子是空的。許個願吧，它也許會出現在抽獎牌裡。</div>
         </div>
@@ -1843,7 +1850,7 @@
         <div id="lotteryPane">
           <div class="lottery-info">
             <div class="lottery-ticket">🎫 抽卡券 <strong id="lotteryTickets">0</strong> 張</div>
-            <div class="lottery-progress" id="lotteryProgress">💎 碎片 <span id="todayDone">0</span></div>
+            <div class="lottery-progress" id="lotteryProgress">💎 可用碎片 <span id="todayDone">0</span></div>
             <button class="lottery-draw-btn" id="lotteryDrawBtn">✦ 洗牌</button>
           </div>
           <div class="lottery-grid" id="lotteryGrid"></div>
@@ -2730,9 +2737,9 @@ const energyIcons  = { charge: '⚡', easy: '🍃', focus: '𖦏' };
 
 // ── Life Tree (responsive SVG) ──
 const treeNodes = [
-  { key: '技能', icon: '🌟', label: '技能修練', ringColor: '#C9A227', ringBg: 'rgba(201,162,39,0.12)', accent: '#C9A227' },
-  { key: '自我', icon: '🌿', label: '自我實現', ringColor: '#D4608A', ringBg: 'rgba(212,96,138,0.10)', accent: '#D4608A' },
-  { key: '日常', icon: '🏠', label: '日常維運', ringColor: '#3A6EA5', ringBg: 'rgba(58,110,165,0.12)', accent: '#3A6EA5' },
+  { key: '技能', icon: '🌟', label: '技能修練', ringColor: '#C9A227', ringBg: 'rgba(201,162,39,0.12)', accent: '#C9A227', dailyGoal: 2 },
+  { key: '自我', icon: '🌿', label: '自我實現', ringColor: '#D4608A', ringBg: 'rgba(212,96,138,0.10)', accent: '#D4608A', dailyGoal: 1 },
+  { key: '日常', icon: '🏠', label: '日常維運', ringColor: '#3A6EA5', ringBg: 'rgba(58,110,165,0.12)', accent: '#3A6EA5', dailyGoal: 3 },
 ];
 
 function renderTree() {
@@ -2740,15 +2747,23 @@ function renderTree() {
   if (!grid) return;
   const todayStr = localDateStr();
   const r = 28, circ = 2 * Math.PI * r;
+  // Load persisted dailyGoals if available
+  const savedGoals = JSON.parse(localStorage.getItem('innerflow_dailyGoals') || '{}');
+  treeNodes.forEach(n => { if (savedGoals[n.key] !== undefined) n.dailyGoal = savedGoals[n.key]; });
+
   grid.innerHTML = treeNodes.map(n => {
-    const todayScheduled = state.tasks.filter(t => (t.scheduledFor === todayStr || t.taskDate === todayStr) && t.goal === n.key).length;
     const doneCnt = state.tasks.filter(t => t.done && t.goal === n.key && t.completedAt === todayStr).length;
-    const total = state.tasks.filter(t => !t.done && t.goal === n.key).length;
-    const pct = todayScheduled > 0 ? Math.min(1, doneCnt / todayScheduled) : 0;
+    const goal = Math.max(1, n.dailyGoal || 1);
+    const pct = Math.min(1, doneCnt / goal);
     const offset = circ - pct * circ;
     const isActive = state.goalFilter === n.key;
     const activeStyle = isActive ? `box-shadow:0 0 0 2px ${n.ringColor};` : '';
-    return `<div class="goal-ring-card${isActive ? ' active-filter' : ''}" onclick="filterByGoal('${n.key}')" style="cursor:pointer;${activeStyle}">
+    const overDone = doneCnt > goal;
+    const labelColor = overDone ? n.ringColor : 'var(--text-dim)';
+    return `<div class="goal-ring-card${isActive ? ' active-filter' : ''}"
+      onclick="filterByGoal('${n.key}')"
+      oncontextmenu="openDailyGoalCtx(event,'${n.key}')"
+      style="cursor:pointer;${activeStyle}">
       <div class="ring-wrap" style="position:relative;width:72px;height:72px;flex-shrink:0">
         <svg width="72" height="72" viewBox="0 0 72 72" style="position:absolute;top:0;left:0">
           <circle cx="36" cy="36" r="${r}" fill="none" stroke="${n.ringBg}" stroke-width="5"/>
@@ -2759,9 +2774,20 @@ function renderTree() {
         <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px">${n.icon}</div>
       </div>
       <div style="font-size:13px;font-weight:500;color:var(--text);text-align:center;line-height:1.3">${n.label}</div>
-      <div style="font-size:11px;color:var(--text-dim)">${doneCnt}/${todayScheduled} 今日</div>
+      <div style="font-size:11px;color:${labelColor}">${doneCnt}/${goal} 今日</div>
     </div>`;
   }).join('');
+
+  // Wire long-press for mobile (right-click doesn't exist on touch)
+  treeNodes.forEach(n => {
+    const el = grid.querySelector(`[oncontextmenu*="${n.key}"]`);
+    if (!el) return;
+    attachLongPress(el, () => {
+      if (navigator.vibrate) navigator.vibrate(30);
+      openDailyGoalCtx(null, n.key, el);
+    });
+  });
+
   renderTodayPanel();
 }
 
@@ -2861,6 +2887,10 @@ function renderRewards() {
   const wishList = document.getElementById('wishList');
   const wishEmpty = document.getElementById('wishEmpty');
   if (!wishList) return;
+
+  // 更新許願池可用碎片數
+  const fragCountEl = document.getElementById('wishFragmentCount');
+  if (fragCountEl) fragCountEl.textContent = getAvailableWishPoints();
 
   // 清掉舊的願力點數框（如果存在）
   const oldBar = document.getElementById('wishPointsBar');
@@ -3509,27 +3539,52 @@ const _energyLevelCycle = [
 ];
 let _currentEnergyIdx = 1; // default: mid
 
-function cycleEnergyLevel() {
-  _currentEnergyIdx = (_currentEnergyIdx + 1) % _energyLevelCycle.length;
-  const e = _energyLevelCycle[_currentEnergyIdx];
-  _applyEnergyLevel(e);
-  const toastMap = { charge:'⚡ 充電模式', easy:'🍃 輕鬆模式', focus:'𖦏 專注模式' };
-  showToast(toastMap[e.filter] || '');
+function setEnergySegment(filter) {
+  // 更新 state
+  state.energyFilter = filter;
+  // 同步 _currentEnergyIdx 給 legacy code
+  const mapToLevel = { charge:'low', easy:'mid', focus:'high', all:'mid' };
+  const lvl = mapToLevel[filter] || 'mid';
+  _currentEnergyIdx = _energyLevelCycle.findIndex(e => e.level === lvl);
+  if (_currentEnergyIdx < 0) _currentEnergyIdx = 1;
+  _syncSegmentedUI(filter);
+  _syncStripToState();
+  renderTasks();
+  const toastMap = { all:'✦ 顯示全部', charge:'⚡ 充電模式', easy:'🍃 輕鬆模式', focus:'𖦏 專注模式' };
+  showToast(toastMap[filter] || '');
 }
+window.setEnergySegment = setEnergySegment;
+
+function _syncSegmentedUI(activeFilter) {
+  const ids = ['all','charge','easy','focus'];
+  ids.forEach(k => {
+    const btn = document.getElementById('eseg-' + k);
+    if (!btn) return;
+    const isActive = k === activeFilter;
+    btn.style.background = isActive ? 'var(--green)' : 'transparent';
+    btn.style.color = isActive ? '#fff' : 'var(--text-dim)';
+    btn.style.fontWeight = isActive ? '600' : '400';
+  });
+}
+
+function cycleEnergyLevel() {
+  const order = ['all','charge','easy','focus'];
+  const cur = state.energyFilter || 'all';
+  const next = order[(order.indexOf(cur) + 1) % order.length];
+  setEnergySegment(next);
+}
+
+
 
 function _applyEnergyLevel(e) {
   const label = document.getElementById('energySliderLabel');
-  const btn   = document.getElementById('energyCycleBtn');
   const slider = document.getElementById('energySlider');
   const idxMap = { low:0, mid:1, high:2 };
   if (label) label.textContent = e.label;
   if (slider) slider.value = idxMap[e.level] ?? 1;
-  if (btn) {
-    btn.style.borderColor = e.level === 'high' ? 'var(--green)' : e.level === 'low' ? 'var(--gold)' : 'var(--border)';
-    btn.style.color = e.level === 'high' ? 'var(--green)' : e.level === 'low' ? 'var(--gold)' : 'var(--text-dim)';
-  }
   // Apply energy filter
   state.energyFilter = e.filter;
+  _syncSegmentedUI(e.filter);
   setMoodLevel(e.level);
   _syncStripToState();
   renderTasks();
@@ -3543,19 +3598,14 @@ function renderEnergyDots() {
   else if (v <= 10)      level = 'high';
   _currentEnergyIdx = _energyLevelCycle.findIndex(e => e.level === level);
   if (_currentEnergyIdx < 0) _currentEnergyIdx = 1;
-  // 只更新 UI 外觀，不改 state.energyFilter 也不 renderTasks
-  // （避免初始化/雲端載入時把使用者的篩選狀態覆蓋成能量篩選）
   const e = _energyLevelCycle[_currentEnergyIdx];
   const label = document.getElementById('energySliderLabel');
-  const btn   = document.getElementById('energyCycleBtn');
   const slider = document.getElementById('energySlider');
   const idxMap = { low:0, mid:1, high:2 };
   if (label) label.textContent = e.label;
   if (slider) slider.value = idxMap[e.level] ?? 1;
-  if (btn) {
-    btn.style.borderColor = e.level === 'high' ? 'var(--green)' : e.level === 'low' ? 'var(--gold)' : 'var(--border)';
-    btn.style.color = e.level === 'high' ? 'var(--green)' : e.level === 'low' ? 'var(--gold)' : 'var(--text-dim)';
-  }
+  // Sync segmented UI to current energyFilter
+  _syncSegmentedUI(state.energyFilter || 'all');
 }
 
 function applyEnergyFilter(level) {
@@ -3843,6 +3893,87 @@ function filterByGoal(goal) {
   // Pre-set the goal in add modal for convenience
   state.pendingGoalForAdd = goal;
 }
+
+// ── Daily Goal Context Menu ──────────────────────────────
+function openDailyGoalCtx(e, key, refEl) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  const n = treeNodes.find(x => x.key === key);
+  if (!n) return;
+
+  // Remove any existing ctx
+  const old = document.getElementById('dailyGoalCtx');
+  if (old) old.remove();
+
+  const menu = document.createElement('div');
+  menu.id = 'dailyGoalCtx';
+  menu.style.cssText = `
+    position:fixed;z-index:9999;
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:14px;padding:16px 18px;
+    box-shadow:0 12px 36px rgba(58,110,165,0.18);
+    min-width:200px;animation:modalIn 0.18s ease;
+    display:flex;flex-direction:column;gap:12px;
+  `;
+
+  menu.innerHTML = `
+    <div style="font-size:13px;color:var(--text);font-weight:500">${n.icon} ${n.label} — 每日目標</div>
+    <div style="font-size:11px;color:var(--text-faint);line-height:1.5">今天完成幾件算「完整的一天」？<br>圓環會以此為滿格基準。</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <button onclick="_dailyGoalAdj('${key}',-1)" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">−</button>
+      <div id="dailyGoalVal-${key}" style="font-family:'DM Serif Display',serif;font-size:28px;color:${n.ringColor};min-width:32px;text-align:center">${n.dailyGoal}</div>
+      <button onclick="_dailyGoalAdj('${key}',+1)" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">＋</button>
+    </div>
+    <button onclick="_dailyGoalSave('${key}')" style="padding:8px 0;border-radius:8px;border:none;background:var(--green);color:#fff;font-size:13px;cursor:pointer;font-family:inherit;transition:opacity 0.2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">儲存</button>
+  `;
+
+  document.body.appendChild(menu);
+
+  // Position: near the card or near cursor
+  const rect = refEl ? refEl.getBoundingClientRect() : (e ? { left: e.clientX, top: e.clientY, bottom: e.clientY } : { left: window.innerWidth/2 - 100, top: window.innerHeight/2, bottom: window.innerHeight/2 });
+  let left = rect.left;
+  let top  = rect.bottom + 8;
+  // Keep in viewport
+  setTimeout(() => {
+    const mw = menu.offsetWidth || 220;
+    const mh = menu.offsetHeight || 160;
+    if (left + mw > window.innerWidth - 8)  left = window.innerWidth - mw - 8;
+    if (top  + mh > window.innerHeight - 8) top  = rect.top - mh - 8;
+    if (left < 8) left = 8;
+    menu.style.left = left + 'px';
+    menu.style.top  = top  + 'px';
+  }, 0);
+
+  // Close on outside click
+  setTimeout(() => document.addEventListener('click', _dailyGoalOutside, { once: true }), 0);
+}
+window.openDailyGoalCtx = openDailyGoalCtx;
+
+function _dailyGoalAdj(key, delta) {
+  const n = treeNodes.find(x => x.key === key);
+  if (!n) return;
+  n.dailyGoal = Math.max(1, Math.min(20, (n.dailyGoal || 1) + delta));
+  const el = document.getElementById('dailyGoalVal-' + key);
+  if (el) el.textContent = n.dailyGoal;
+}
+window._dailyGoalAdj = _dailyGoalAdj;
+
+function _dailyGoalSave(key) {
+  const saved = JSON.parse(localStorage.getItem('innerflow_dailyGoals') || '{}');
+  const n = treeNodes.find(x => x.key === key);
+  if (n) saved[key] = n.dailyGoal;
+  localStorage.setItem('innerflow_dailyGoals', JSON.stringify(saved));
+  const old = document.getElementById('dailyGoalCtx');
+  if (old) old.remove();
+  renderTree();
+  showToast(`✓ ${n ? n.label : key} 每日目標設為 ${n ? n.dailyGoal : ''}`);
+}
+window._dailyGoalSave = _dailyGoalSave;
+
+function _dailyGoalOutside(e) {
+  const menu = document.getElementById('dailyGoalCtx');
+  if (menu && !menu.contains(e.target)) menu.remove();
+}
+
 
 function openAddTask() {
   // Pre-fill goal from active filter or pending goal
@@ -4910,8 +5041,8 @@ function renderLottery() {
   // Update progress text: show remainder toward next ticket (resets to 0 after every 3)
   const lotteryProgress = document.getElementById('lotteryProgress');
   if (lotteryProgress) {
-    const frags = state.wishPoints || 0;
-    lotteryProgress.innerHTML = `💎 碎片 <span id="todayDone">${frags}</span>`;
+    const frags = getAvailableWishPoints();
+    lotteryProgress.innerHTML = `💎 可用碎片 <span id="todayDone">${frags}</span>`;
   }
 
   const grid = document.getElementById('lotteryGrid');
