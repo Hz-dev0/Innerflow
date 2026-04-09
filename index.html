@@ -6706,7 +6706,7 @@ function notesInitToolbar() {
     if (!ta) return;
     ta.addEventListener('focus', () => {
       setActiveTA(ta);
-      if (ta.style.display !== 'none') showToolbar();
+      // 不在 focus 時顯示工具列，等使用者選取文字再顯示
     });
     ta.addEventListener('blur', () => {
       setTimeout(() => {
@@ -6722,7 +6722,10 @@ function notesInitToolbar() {
     if (isTouchDevice()) return;
     if (e.target.classList.contains('notes-textarea')) {
       setActiveTA(e.target);
-      if (e.target.style.display !== 'none') showToolbar(e.clientX, e.clientY);
+      // 只在有選取文字時才顯示工具列
+      const hasSelection = e.target.selectionStart !== e.target.selectionEnd;
+      if (e.target.style.display !== 'none' && hasSelection) showToolbar(e.clientX, e.clientY);
+      else if (!hasSelection) hideToolbar();
     } else if (!toolbar.contains(e.target)) {
       hideToolbar();
     }
