@@ -2441,6 +2441,7 @@ function clearApiUrl() {
 
 let isSyncing = false;
 let _pendingSync = false; // Bug 1 fix: don't silently drop concurrent sync requests
+let _syncRetryCount = 0; // auto-retry counter for transient failures
 
 async function loadFromCloud() {
   const url = getApiUrl();
@@ -2594,6 +2595,7 @@ async function syncToCloud() {
   _pendingSync = false;
   const dot = document.getElementById('syncDot');
   if (dot) dot.className = 'sync-dot syncing';
+  let _retrying = false;
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -2604,13 +2606,24 @@ async function syncToCloud() {
       })
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    if (dot) { dot.className = 'sync-dot synced'; setTimeout(() => { if (dot) dot.className = 'sync-dot synced'; }, 2000); }
+    if (dot) dot.className = 'sync-dot synced';
+    _syncRetryCount = 0; // reset retry counter on success
   } catch (e) {
     console.warn('雲端儲存失敗', e);
     if (dot) dot.className = 'sync-dot error';
+    // Auto-retry up to 3 times with exponential backoff (3s, 6s, 9s)
+    if (_syncRetryCount < 3) {
+      _syncRetryCount++;
+      const delay = _syncRetryCount * 3000;
+      _retrying = true;
+      isSyncing = false;
+      setTimeout(() => syncToCloud(), delay);
+    }
   } finally {
-    isSyncing = false;
-    if (_pendingSync) { _pendingSync = false; syncToCloud(); } // retry the queued write
+    if (!_retrying) {
+      isSyncing = false;
+      if (_pendingSync) { _pendingSync = false; syncToCloud(); } // retry the queued write
+    }
   }
 }
 
@@ -2769,9 +2782,10 @@ function syncDotClicked() {
     openApiModal();
     return;
   }
-  // Force sync even if isSyncing (reset flag)
+  // Force sync even if isSyncing (reset flags)
   isSyncing = false;
   _pendingSync = false;
+  _syncRetryCount = 0; // reset retry counter so manual click always tries fresh
   if (typeof showToast === 'function') showToast('☁️ 同步中…');
   syncToCloud();
 }
@@ -3543,6 +3557,36 @@ async function init() {
       }
       renderEnergyDots(); renderTree(); renderTasks();
       renderSandbox(); renderStats(); renderRewards(); renderLottery();
+      // Auto-retry cloud load after 5 seconds (handles transient network issues)
+      setTimeout(async () => {
+        const dot2 = document.getElementById('syncDot');
+        if (dot2 && dot2.className.includes('error')) {
+          if (dot2) dot2.className = 'sync-dot syncing';
+          const ok2 = await loadFromCloud();
+          if (ok2) {
+            if (dot2) dot2.className = 'sync-dot synced';
+            renderEnergyDots(); renderTree(); renderTasks();
+            renderSandbox(); renderStats(); renderRewards(); renderLottery();
+          } else {
+            // Second retry after 15s
+            setTimeout(async () => {
+              const dot3 = document.getElementById('syncDot');
+              if (dot3 && dot3.className.includes('error')) {
+                if (dot3) dot3.className = 'sync-dot syncing';
+                const ok3 = await loadFromCloud();
+                if (ok3) {
+                  if (dot3) dot3.className = 'sync-dot synced';
+                  renderEnergyDots(); renderTree(); renderTasks();
+                  renderSandbox(); renderStats(); renderRewards(); renderLottery();
+                } else {
+                  if (dot3) dot3.className = 'sync-dot error';
+                }
+              }
+            }, 15000);
+            if (dot2) dot2.className = 'sync-dot error';
+          }
+        }
+      }, 5000);
     }
   } else {
     // ── 沒有設定雲端 API：從本地備份讀取 ──
