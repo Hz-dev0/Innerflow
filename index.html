@@ -2449,7 +2449,29 @@ async function loadFromCloud() {
     const res = await fetch(url + '?action=load');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
+    // ── 雲端有回應，不論有無 tasks 都算成功（防止空回應被誤判為失敗）──
+    const hasCloudData = data && Array.isArray(data.tasks) && data.tasks.length > 0;
     if (data && Array.isArray(data.tasks)) {
+      // ── 安全檢查：若雲端是空陣列但本地有資料，保留本地（防止清空）──
+      const localBackup = (function() {
+        try { return JSON.parse(localStorage.getItem('innerflow_state_local') || 'null'); } catch(e) { return null; }
+      })();
+      const localHasTasks = localBackup && Array.isArray(localBackup.tasks) && localBackup.tasks.length > 0;
+      if (!hasCloudData && localHasTasks) {
+        // 雲端是空的但本地有資料 → 用本地，並把本地推上雲端修復
+        console.warn('雲端無資料但本地有，保留本地並重新推送');
+        state.tasks        = localBackup.tasks;
+        state.sandbox      = localBackup.sandbox      || [];
+        state.done         = localBackup.done         || 0;
+        state.rewards      = localBackup.rewards      || [];
+        state.customQuotes = localBackup.customQuotes || [];
+        state.energy       = localBackup.energy       || 0;
+        state.doneHistory  = localBackup.doneHistory  || [];
+        state.todayOrder   = localBackup.todayOrder   || [];
+        state.wishPoints   = typeof localBackup.wishPoints === 'number' ? localBackup.wishPoints : 0;
+        setTimeout(() => syncToCloud(), 1500); // 延遲推送，等 init 完成
+        return true;
+      }
       state.tasks   = data.tasks;
       state.sandbox = data.sandbox || [];
       state.done    = data.done    || 0;
@@ -2499,6 +2521,8 @@ async function loadFromCloud() {
       }
       return true;
     }
+    // 雲端回傳了但格式異常 → 嘗試本地備份
+    return false;
   } catch (e) {
     console.warn('無法讀取雲端資料', e);
   }
@@ -2513,6 +2537,16 @@ function syncNotesToCloud() {
 // ── Local state persistence (always runs, regardless of cloud) ──
 function saveStateLocal() {
   try {
+    // ── 安全檢查：若目前 state 是空的，但本地備份有資料，不覆蓋（防止 init 尚未完成時蓋掉資料）──
+    if (!state.tasks || state.tasks.length === 0) {
+      const existing = localStorage.getItem('innerflow_state_local');
+      if (existing) {
+        const parsed = JSON.parse(existing);
+        if (parsed && Array.isArray(parsed.tasks) && parsed.tasks.length > 0) {
+          return; // 本地有資料，不用空 state 覆蓋
+        }
+      }
+    }
     const snapshot = {
       tasks: state.tasks,
       sandbox: state.sandbox,
