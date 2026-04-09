@@ -266,7 +266,7 @@
   .task-body { flex: 1; }
   .task-name { font-size: 15px; line-height: 1.5; font-weight: 500; letter-spacing: 0.01em; }
   .task-item.done .task-name { text-decoration: line-through; color: var(--text-dim) !important; }
-  .task-meta { display: flex; align-items: center; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
+  .task-meta { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
   .tag {
     font-size: 11px; padding: 2px 9px; border-radius: 20px;
     border: 1px solid; display: inline-flex; align-items: center; gap: 4px;
@@ -4173,7 +4173,7 @@ function taskHTML(t) {
           ${neglected ? `<span class="neglect-badge">⏳ 久未完成</span>` : ''}
           ${t.recurring && t.recurMode === 'interval' ? `<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 每${t.recurInterval || '?'}天</span>` : t.recurring ? '<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 重複</span>' : ''}
           ${isOverdue && !t.done ? '<span class="tag" style="border-color:rgba(192,86,90,0.4);color:var(--rose);background:rgba(192,86,90,0.07)">逾期</span>' : ''}
-          ${t.taskDate && !t.done ? `<span class="tag" style="border-color:rgba(130,154,177,0.35);color:var(--sky);background:rgba(130,154,177,0.07)">📅 ${t.taskDate}</span>` : ''}
+          ${t.taskDate && !t.done ? `<span class="tag" style="border-color:rgba(130,154,177,0.35);color:var(--sky);background:rgba(130,154,177,0.07);cursor:pointer;position:relative" title="點擊改期" onclick="event.stopPropagation();openDatePicker(${t.id},this)">📅 ${t.taskDate}<input type="date" style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;top:0;left:0" id="datePicker-${t.id}" onchange="rescheduleTask(${t.id},this.value)"></span>` : ''}
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;align-items:center;flex-shrink:0">
@@ -4214,6 +4214,40 @@ function setTaskStatus(id, status) {
 }
 
 
+
+// ── Reschedule via date tag click ──
+function openDatePicker(taskId, tagEl) {
+  const input = tagEl.querySelector('input[type="date"]');
+  if (!input) return;
+  const t = state.tasks.find(x => x.id === taskId);
+  if (t && t.taskDate) input.value = t.taskDate;
+  input.style.pointerEvents = 'auto';
+  input.showPicker ? input.showPicker() : input.click();
+  input.style.pointerEvents = 'none';
+}
+window.openDatePicker = openDatePicker;
+
+function rescheduleTask(taskId, newDate) {
+  if (!newDate) return;
+  const t = state.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  const todayStr = localDateStr();
+  t.taskDate = newDate;
+  // Sync scheduledFor
+  if (newDate === todayStr) {
+    t.scheduledFor = todayStr;
+    t.status = 'active';
+  } else if (t.scheduledFor === todayStr && t._scheduledByDate) {
+    t.scheduledFor = null;
+    t.status = null;
+  }
+  saveState();
+  renderTasks();
+  renderTodayPanel();
+  syncToCloud();
+  showToast(`📅 已改期至 ${newDate}`);
+}
+window.rescheduleTask = rescheduleTask;
 
 // ── Neglect helpers ──
 function getNeglectDays() {
