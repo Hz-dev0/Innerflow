@@ -2510,7 +2510,49 @@ function syncNotesToCloud() {
   syncToCloud();
 }
 
+// ── Local state persistence (always runs, regardless of cloud) ──
+function saveStateLocal() {
+  try {
+    const snapshot = {
+      tasks: state.tasks,
+      sandbox: state.sandbox,
+      done: state.done,
+      rewards: state.rewards || [],
+      customQuotes: state.customQuotes || [],
+      energy: state.energy || 0,
+      doneHistory: state.doneHistory || [],
+      todayOrder: state.todayOrder || [],
+      wishPoints: state.wishPoints || 0,
+      savedAt: Date.now()
+    };
+    localStorage.setItem('innerflow_state_local', JSON.stringify(snapshot));
+  } catch(e) { console.warn('本地備份失敗', e); }
+}
+
+// ── Load from localStorage fallback (used when cloud unavailable) ──
+function loadStateLocal() {
+  try {
+    const raw = localStorage.getItem('innerflow_state_local');
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.tasks)) return false;
+    state.tasks        = data.tasks;
+    state.sandbox      = data.sandbox      || [];
+    state.done         = data.done         || 0;
+    state.rewards      = data.rewards      || [];
+    state.customQuotes = data.customQuotes || [];
+    state.energy       = data.energy       || 0;
+    state.doneHistory  = data.doneHistory  || [];
+    state.todayOrder   = data.todayOrder   || [];
+    state.wishPoints   = typeof data.wishPoints === 'number' ? data.wishPoints : 0;
+    return true;
+  } catch(e) { return false; }
+}
+
 async function syncToCloud() {
+  // ── 無論雲端是否設定，先把 state 存到 localStorage ──
+  saveStateLocal();
+
   const url = getApiUrl();
   if (!url) return;
   if (isSyncing) { _pendingSync = true; return; } // queue a retry instead of dropping
@@ -3460,10 +3502,19 @@ async function init() {
       checkMissedReset();
     } else {
       if (dot) dot.className = 'sync-dot error';
-      // Fix: 雲端讀取失敗時仍要完整渲染，避免畫面空白、logo 無反應
+      // ── 雲端讀取失敗：嘗試從本地備份還原 ──
+      const localOk = loadStateLocal();
+      if (localOk) {
+        showToast('⚠️ 雲端讀取失敗，已從本地備份還原');
+      }
       renderEnergyDots(); renderTree(); renderTasks();
       renderSandbox(); renderStats(); renderRewards(); renderLottery();
     }
+  } else {
+    // ── 沒有設定雲端 API：從本地備份讀取 ──
+    loadStateLocal();
+    renderEnergyDots(); renderTree(); renderTasks();
+    renderSandbox(); renderStats(); renderRewards(); renderLottery();
   }
 
   // Logo: 長按 → 開設定選單（單擊不動作，由 IIFE notesRewireLogo 接管）
@@ -4176,12 +4227,12 @@ function taskHTML(t) {
           ${t.taskDate && !t.done ? `<span class="tag" style="border-color:rgba(130,154,177,0.35);color:var(--sky);background:rgba(130,154,177,0.07);cursor:pointer" title="點擊修改日期" onclick="event.stopPropagation();openDateTagPicker(event,${t.id})">📅 ${t.taskDate}</span>` : ''}
         </div>
       </div>
-      <div style="display:flex;flex-direction:row;gap:4px;align-items:center;flex-shrink:0">
-        ${neglected ? `<span class="neglect-badge" title="點擊重新計算天數" onclick="event.stopPropagation();resetNeglect(${t.id})">⏳ 久未完成</span>` : ''}
-        <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">
+        <div style="display:flex;flex-direction:row;gap:6px;align-items:center">
+          ${neglected ? `<span class="neglect-badge" title="點擊重新計算天數" onclick="event.stopPropagation();resetNeglect(${t.id})">⏳ 久未完成</span>` : ''}
           <div onclick="openNoteModal(${t.id})" id="noteBtn-${t.id}" style="font-size:15px;cursor:pointer;opacity:${t.note ? 1 : 0.3};transition:opacity 0.2s;padding:2px 4px;color:${t.note ? 'var(--gold)' : 'inherit'}" title="${t.note ? '查看/編輯備忘' : '新增備忘'}" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity='${t.note ? 1 : 0.3}'">📝</div>
-          <div onclick="openCtxMenu(event,${t.id})" style="font-size:16px;cursor:pointer;opacity:0.3;transition:opacity 0.2s;padding:2px 4px;line-height:1;letter-spacing:1px" title="更多" onmouseover="this.style.opacity=0.9" onmouseout="this.style.opacity=0.3">⋯</div>
         </div>
+        <div onclick="openCtxMenu(event,${t.id})" style="font-size:16px;cursor:pointer;opacity:0.3;transition:opacity 0.2s;padding:2px 4px;line-height:1;letter-spacing:1px" title="更多" onmouseover="this.style.opacity=0.9" onmouseout="this.style.opacity=0.3">⋯</div>
       </div>
     </div>
     ${breakdownHTML}
@@ -4246,6 +4297,29 @@ function isNeglected(t) {
   }
   return false;
 }
+
+// ── Reset neglect counter (點擊久未完成 badge 重新計算天數) ──
+function resetNeglect(taskId) {
+  const t = state.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  const todayStr = localDateStr();
+  // Insert a synthetic history entry with today's date so the counter resets from now
+  if (!state.doneHistory) state.doneHistory = [];
+  state.doneHistory.push({
+    id: 'neglect_reset_' + taskId + '_' + Date.now(),
+    taskId: taskId,
+    name: t.name,
+    goal: t.goal,
+    energy: t.energy,
+    completedAt: todayStr,
+    recurring: false,
+    _neglectReset: true
+  });
+  renderTasks();
+  syncToCloud();
+  showToast('⏳ 已重新計算久未完成天數');
+}
+window.resetNeglect = resetNeglect;
 
 // ── Today Panel (under Life Tree) ──
 // Drag state for today panel
