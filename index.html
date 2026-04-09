@@ -2530,9 +2530,11 @@ async function loadFromCloud() {
   return false;
 }
 
-// ── Notes cloud sync helper (called from IIFE notesSave) ──
+// ── Notes cloud sync helper — debounced 5s to avoid pushing on every keystroke ──
+let _notesSyncTimer = null;
 function syncNotesToCloud() {
-  syncToCloud();
+  clearTimeout(_notesSyncTimer);
+  _notesSyncTimer = setTimeout(() => syncToCloud(), 5000);
 }
 
 // ── Local state persistence (always runs, regardless of cloud) ──
@@ -6704,7 +6706,7 @@ function notesInitToolbar() {
     if (!ta) return;
     ta.addEventListener('focus', () => {
       setActiveTA(ta);
-      // 不在 focus 時顯示工具列，等有選取文字再顯示
+      if (ta.style.display !== 'none') showToolbar();
     });
     ta.addEventListener('blur', () => {
       setTimeout(() => {
@@ -6720,29 +6722,10 @@ function notesInitToolbar() {
     if (isTouchDevice()) return;
     if (e.target.classList.contains('notes-textarea')) {
       setActiveTA(e.target);
-      // 只有選取了文字才顯示工具列
-      const sel = e.target.selectionStart !== e.target.selectionEnd;
-      if (sel && e.target.style.display !== 'none') showToolbar(e.clientX, e.clientY);
-      else hideToolbar();
+      if (e.target.style.display !== 'none') showToolbar(e.clientX, e.clientY);
     } else if (!toolbar.contains(e.target)) {
       hideToolbar();
     }
-  });
-
-  // 鍵盤選取（Shift+方向鍵等）也能觸發工具列
-  ['notesTextA','notesTextB'].forEach(id => {
-    const ta = document.getElementById(id);
-    if (!ta) return;
-    ta.addEventListener('keyup', e => {
-      if (isTouchDevice()) return;
-      const hasSel = ta.selectionStart !== ta.selectionEnd;
-      if (hasSel) {
-        setActiveTA(ta);
-        showToolbar();
-      } else {
-        hideToolbar();
-      }
-    });
   });
 
   document.addEventListener('contextmenu', e => {
@@ -7153,6 +7136,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
 window.addEventListener('load', () => {
   setTimeout(notesRewireLogo, 200);
+});
+
+// 頁面隱藏（切分頁、關閉）時，若有待推的筆記變更，立刻觸發同步
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && _notesSyncTimer !== null) {
+    clearTimeout(_notesSyncTimer);
+    _notesSyncTimer = null;
+    if (typeof syncToCloud === 'function') syncToCloud();
+  }
 });
 
 })(); // end IIFE
