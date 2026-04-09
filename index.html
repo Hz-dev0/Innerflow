@@ -2597,9 +2597,12 @@ async function syncToCloud() {
   if (dot) dot.className = 'sync-dot syncing';
   let _retrying = false;
   try {
+    // ── 重要：不使用 Content-Type: application/json ──
+    // application/json 會觸發 CORS preflight (OPTIONS)，Google Apps Script 不支援
+    // 改用 text/plain 作為 Simple Request，不會有 preflight 問題
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         action: 'save',
         data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], todayOrder: state.todayOrder || [], lotteryState: lotteryState, wishPoints: state.wishPoints || 0, notes: (function(){ try { return JSON.parse(localStorage.getItem('innerflow_notes_v1') || 'null'); } catch(e){ return null; } })() }
@@ -2782,10 +2785,10 @@ function syncDotClicked() {
     openApiModal();
     return;
   }
-  // Force sync even if isSyncing (reset flags)
+  // Force sync even if isSyncing (reset all flags)
   isSyncing = false;
   _pendingSync = false;
-  _syncRetryCount = 0; // reset retry counter so manual click always tries fresh
+  _syncRetryCount = 0;
   if (typeof showToast === 'function') showToast('☁️ 同步中…');
   syncToCloud();
 }
@@ -3557,34 +3560,32 @@ async function init() {
       }
       renderEnergyDots(); renderTree(); renderTasks();
       renderSandbox(); renderStats(); renderRewards(); renderLottery();
-      // Auto-retry cloud load after 5 seconds (handles transient network issues)
+      // ── 5秒後自動重試（處理暫時性網路問題）──
       setTimeout(async () => {
         const dot2 = document.getElementById('syncDot');
-        if (dot2 && dot2.className.includes('error')) {
-          if (dot2) dot2.className = 'sync-dot syncing';
-          const ok2 = await loadFromCloud();
-          if (ok2) {
-            if (dot2) dot2.className = 'sync-dot synced';
-            renderEnergyDots(); renderTree(); renderTasks();
-            renderSandbox(); renderStats(); renderRewards(); renderLottery();
-          } else {
-            // Second retry after 15s
-            setTimeout(async () => {
-              const dot3 = document.getElementById('syncDot');
-              if (dot3 && dot3.className.includes('error')) {
-                if (dot3) dot3.className = 'sync-dot syncing';
-                const ok3 = await loadFromCloud();
-                if (ok3) {
-                  if (dot3) dot3.className = 'sync-dot synced';
-                  renderEnergyDots(); renderTree(); renderTasks();
-                  renderSandbox(); renderStats(); renderRewards(); renderLottery();
-                } else {
-                  if (dot3) dot3.className = 'sync-dot error';
-                }
-              }
-            }, 15000);
-            if (dot2) dot2.className = 'sync-dot error';
-          }
+        if (!dot2 || !dot2.className.includes('error')) return;
+        dot2.className = 'sync-dot syncing';
+        const ok2 = await loadFromCloud();
+        if (ok2) {
+          dot2.className = 'sync-dot synced';
+          renderEnergyDots(); renderTree(); renderTasks();
+          renderSandbox(); renderStats(); renderRewards(); renderLottery();
+        } else {
+          dot2.className = 'sync-dot error';
+          // 再 15 秒後第二次重試
+          setTimeout(async () => {
+            const dot3 = document.getElementById('syncDot');
+            if (!dot3 || !dot3.className.includes('error')) return;
+            dot3.className = 'sync-dot syncing';
+            const ok3 = await loadFromCloud();
+            if (ok3) {
+              dot3.className = 'sync-dot synced';
+              renderEnergyDots(); renderTree(); renderTasks();
+              renderSandbox(); renderStats(); renderRewards(); renderLottery();
+            } else {
+              dot3.className = 'sync-dot error';
+            }
+          }, 15000);
         }
       }, 5000);
     }
