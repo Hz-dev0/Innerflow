@@ -1190,11 +1190,17 @@
     box-shadow: 0 0 0 1.5px rgba(180,180,200,0.3), 0 2px 8px rgba(180,180,200,0.08);
   }
   .neglect-badge {
-    font-size: 9px; padding: 1px 6px; border-radius: 10px;
+    font-size: 11px; padding: 2px 9px; border-radius: 20px;
     border: 1px solid rgba(180,180,200,0.45);
     color: rgba(160,160,185,0.9);
     background: rgba(180,180,200,0.1);
     letter-spacing: 0.04em; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 4px;
+    cursor: pointer; transition: background 0.18s, border-color 0.18s;
+  }
+  .neglect-badge:hover {
+    background: rgba(180,180,200,0.22);
+    border-color: rgba(180,180,200,0.7);
   }
 
   /* ── Today panel drag & drop ── */
@@ -4170,7 +4176,7 @@ function taskHTML(t) {
         <div class="task-meta">
           <span class="tag tag-energy">${eIcon} ${eLabel}</span>
           ${t.postponed >= 3 ? '<span class="tag" style="border-color:rgba(200,120,120,0.4);color:var(--rose);background:rgba(200,120,120,0.06)">⚠ 已多次延期</span>' : ''}
-          ${neglected ? `<span class="neglect-badge">⏳ 久未完成</span>` : ''}
+          ${neglected ? `<span class="neglect-badge" title="點擊重新計算天數" onclick="event.stopPropagation();resetNeglect(${t.id})">⏳ 久未完成</span>` : ''}
           ${t.recurring && t.recurMode === 'interval' ? `<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 每${t.recurInterval || '?'}天</span>` : t.recurring ? '<span class="tag" style="border-color:rgba(110,174,224,0.4);color:var(--sky);background:rgba(110,174,224,0.07)">🔁 重複</span>' : ''}
           ${isOverdue && !t.done ? '<span class="tag" style="border-color:rgba(192,86,90,0.4);color:var(--rose);background:rgba(192,86,90,0.07)">逾期</span>' : ''}
           ${t.taskDate && !t.done ? `<span class="tag" style="border-color:rgba(130,154,177,0.35);color:var(--sky);background:rgba(130,154,177,0.07)">📅 ${t.taskDate}</span>` : ''}
@@ -4243,6 +4249,22 @@ function isNeglected(t) {
   }
   return false;
 }
+
+function resetNeglect(taskId) {
+  const t = state.tasks.find(x => x.id === taskId);
+  if (!t) return;
+  // Inject a fake done-history entry dated now so the neglect timer resets from today
+  if (!state.doneHistory) state.doneHistory = [];
+  state.doneHistory.push({
+    taskId: t.id,
+    name: t.name,
+    completedAt: new Date().toISOString().slice(0, 10)
+  });
+  saveState();
+  renderTasks();
+  if (typeof showToast === 'function') showToast('🔄 已重新計算「' + t.name + '」的天數');
+}
+window.resetNeglect = resetNeglect;
 
 // ── Today Panel (under Life Tree) ──
 // Drag state for today panel
