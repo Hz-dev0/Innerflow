@@ -2346,6 +2346,7 @@ async function saveApiUrl(fragment) {
   setApiStatus('', '連線測試中…');
   try {
     const res = await fetch(url + '?action=load');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     localStorage.setItem(API_KEY_FRAGMENT_STORE, fragment);
     localStorage.setItem(API_STORAGE_KEY, url);
@@ -2446,6 +2447,7 @@ async function loadFromCloud() {
   if (!url) return false;
   try {
     const res = await fetch(url + '?action=load');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data && Array.isArray(data.tasks)) {
       state.tasks   = data.tasks;
@@ -2517,15 +2519,15 @@ async function syncToCloud() {
   const dot = document.getElementById('syncDot');
   if (dot) dot.className = 'sync-dot syncing';
   try {
-    await fetch(url, {
+    const res = await fetch(url, {
       method: 'POST',
-      mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'save',
         data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], todayOrder: state.todayOrder || [], lotteryState: lotteryState, wishPoints: state.wishPoints || 0, notes: (function(){ try { return JSON.parse(localStorage.getItem('innerflow_notes_v1') || 'null'); } catch(e){ return null; } })() }
       })
     });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     if (dot) { dot.className = 'sync-dot synced'; setTimeout(() => { if (dot) dot.className = 'sync-dot synced'; }, 2000); }
   } catch (e) {
     console.warn('雲端儲存失敗', e);
@@ -3372,7 +3374,6 @@ function checkMissedReset() {
       localStorage.setItem(LAST_RESET_KEY, cursorKey);
       // runDailyReset reads LAST_RESET_KEY at the top: it will run only if key !== todayKey.
       // We temporarily set the key to a sentinel so the guard doesn't skip it.
-      const savedKey = localStorage.getItem(LAST_RESET_KEY);
       localStorage.removeItem(LAST_RESET_KEY); // clear so the guard passes
       runDailyReset();                          // this sets key = localDateStr() = today
       // runDailyReset sets the key to today, so restore it to cursorKey if we're not done yet
