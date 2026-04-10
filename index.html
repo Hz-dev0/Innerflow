@@ -2489,6 +2489,7 @@ async function saveApiUrl(fragment) {
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
       state.wishPoints  = typeof data.wishPoints === 'number' ? data.wishPoints : (state.wishPoints || 0);
+      state.morningDialogShownDate = data.morningDialogShownDate || state.morningDialogShownDate || null;
       // ── Goal/Energy migration ──
       const _gm = { '成長':'技能','技能':'技能','探索':'技能','創作':'自我','關係':'自我','貢獻':'自我','健康':'自我','日常':'日常' };
       const _em = { deep:'focus', flow:'charge', light:'easy', rest:'charge', low:'charge', mid:'easy', high:'focus' };
@@ -2608,6 +2609,7 @@ async function loadFromCloud() {
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
       state.wishPoints  = typeof data.wishPoints === 'number' ? data.wishPoints : (state.wishPoints || 0);
+      state.morningDialogShownDate = data.morningDialogShownDate || state.morningDialogShownDate || null;
       // ── Goal migration: map old 8-goal system to new 3-goal system ──
       const _goalMigMap = {
         '成長':'技能','技能':'技能','探索':'技能',
@@ -2686,6 +2688,7 @@ function saveStateLocal() {
       doneHistory: state.doneHistory || [],
       todayOrder: state.todayOrder || [],
       wishPoints: state.wishPoints || 0,
+      morningDialogShownDate: state.morningDialogShownDate || null,
       savedAt: Date.now()
     };
     localStorage.setItem('innerflow_state_local', JSON.stringify(snapshot));
@@ -2708,6 +2711,7 @@ function loadStateLocal() {
     state.doneHistory  = data.doneHistory  || [];
     state.todayOrder   = data.todayOrder   || [];
     state.wishPoints   = typeof data.wishPoints === 'number' ? data.wishPoints : 0;
+    state.morningDialogShownDate = data.morningDialogShownDate || null;
     return true;
   } catch(e) { return false; }
 }
@@ -2733,7 +2737,7 @@ async function syncToCloud() {
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         action: 'save',
-        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], todayOrder: state.todayOrder || [], lotteryState: lotteryState, wishPoints: state.wishPoints || 0, notes: (function(){ try { return JSON.parse(localStorage.getItem('innerflow_notes_v1') || 'null'); } catch(e){ return null; } })() }
+        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], todayOrder: state.todayOrder || [], lotteryState: lotteryState, wishPoints: state.wishPoints || 0, morningDialogShownDate: state.morningDialogShownDate || null, notes: (function(){ try { return JSON.parse(localStorage.getItem('innerflow_notes_v1') || 'null'); } catch(e){ return null; } })() }
       })
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -2940,6 +2944,7 @@ let state = {
   doneHistory: [], // archive of completed tasks after reset
   todayOrder: [], // ordered task ids for the today panel
   wishPoints: 0,  // 願望碎片：完成核心任務或日常任務可獲得，可分配給許願池
+  morningDialogShownDate: null, // YYYY-MM-DD：當天已顯示過早晨重複任務視窗
 };
 
 // ── Local-timezone date helper ──
@@ -6212,7 +6217,6 @@ function _applyDateChange(t, newDate) {
 window.openDateTagPicker = openDateTagPicker;
 
 // ── Recurring Morning Check-in Dialog ──────────────────
-const MORNING_DIALOG_KEY = 'innerflow_morning_dialog_shown';
 
 let _recurMorningChecked = new Set();
 
@@ -6339,15 +6343,15 @@ function confirmRecurMorning() {
 
 function closeRecurMorningDialog() {
   document.getElementById('recurMorningOverlay').classList.remove('open');
-  // Mark as shown for today so it won't re-appear until tomorrow's reset
-  localStorage.setItem(MORNING_DIALOG_KEY, localDateStr());
+  // Mark as shown for today in state so it syncs across devices
+  state.morningDialogShownDate = localDateStr();
+  syncToCloud();
 }
 
 function maybeShowRecurMorningDialog() {
-  // Only show once per reset cycle (once per day after the reset time)
-  const lastShown = localStorage.getItem(MORNING_DIALOG_KEY);
+  // Only show once per reset cycle — tracked in state (synced across devices)
   const todayStr = localDateStr();
-  if (lastShown === todayStr) return;
+  if (state.morningDialogShownDate === todayStr) return;
   // Small delay so UI has rendered first
   setTimeout(() => {
     const items = _getRecurringTasksDueToday();
