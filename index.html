@@ -720,6 +720,113 @@
     main { padding: 20px; }
   }
 
+  /* ── Recurring Morning Dialog ── */
+  #recurMorningOverlay {
+    position: fixed; inset: 0;
+    background: rgba(20, 34, 55, 0.55);
+    backdrop-filter: blur(7px);
+    z-index: 10050;
+    display: none; align-items: center; justify-content: center;
+    animation: modalIn 0.25s ease;
+  }
+  #recurMorningOverlay.open { display: flex; }
+  #recurMorningBox {
+    background: var(--bg2);
+    border: 1px solid rgba(74,130,196,0.28);
+    border-radius: 18px;
+    padding: 22px 22px 18px;
+    width: 420px;
+    max-width: 95vw;
+    max-height: 80vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 24px 64px rgba(58,110,165,0.22), 0 4px 16px rgba(0,0,0,0.1);
+    animation: modalIn 0.25s ease;
+  }
+  #recurMorningBox .rm-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; flex-shrink: 0;
+  }
+  #recurMorningBox .rm-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 18px; color: var(--text);
+  }
+  #recurMorningBox .rm-sub {
+    font-size: 11px; color: var(--text-dim); margin-top: 3px;
+    font-family: 'Lato', sans-serif; font-weight: 300;
+  }
+  #recurMorningBox .rm-close-btn {
+    background: none; border: none; font-size: 20px;
+    color: var(--text-faint); cursor: pointer; padding: 2px 6px;
+    border-radius: 6px; transition: all 0.15s; line-height: 1;
+  }
+  #recurMorningBox .rm-close-btn:hover { background: var(--bg3); color: var(--text); }
+  #recurMorningList {
+    overflow-y: auto; flex: 1;
+    display: flex; flex-direction: column; gap: 3px;
+    padding-right: 2px;
+    scrollbar-width: thin;
+  }
+  .rm-task-row {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+    cursor: pointer; transition: all 0.15s;
+    user-select: none;
+  }
+  .rm-task-row:hover { border-color: rgba(74,130,196,0.35); background: rgba(74,130,196,0.04); }
+  .rm-task-row.rm-checked {
+    border-color: rgba(58,110,165,0.5);
+    background: rgba(58,110,165,0.07);
+  }
+  .rm-checkbox {
+    width: 17px; height: 17px; border-radius: 50%;
+    border: 1.5px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; transition: all 0.15s;
+  }
+  .rm-task-row.rm-checked .rm-checkbox {
+    background: var(--green); border-color: var(--green); color: #fff;
+  }
+  .rm-task-info { flex: 1; min-width: 0; }
+  .rm-task-name { font-size: 13px; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rm-task-meta { font-size: 11px; color: var(--text-faint); margin-top: 1px; display: flex; gap: 6px; align-items: center; }
+  .rm-freq-badge {
+    font-size: 10px; padding: 1px 7px; border-radius: 10px;
+    border: 1px solid rgba(74,130,196,0.3); color: var(--green);
+    background: rgba(74,130,196,0.07); flex-shrink: 0;
+  }
+  #recurMorningBox .rm-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 14px; flex-shrink: 0; gap: 10px;
+  }
+  .rm-select-all-btn {
+    font-size: 12px; color: var(--text-dim);
+    background: none; border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 12px; cursor: pointer;
+    font-family: inherit; transition: all 0.15s;
+  }
+  .rm-select-all-btn:hover { border-color: var(--green); color: var(--green); }
+  .rm-confirm-btn {
+    flex: 1; padding: 10px 0; border-radius: 9px; border: none;
+    background: var(--green); color: #fff; font-size: 14px;
+    font-family: inherit; cursor: pointer; font-weight: 500;
+    transition: opacity 0.2s; letter-spacing: 0.02em;
+  }
+  .rm-confirm-btn:hover { opacity: 0.87; }
+  .rm-skip-btn {
+    font-size: 12px; color: var(--text-faint);
+    background: none; border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 12px; cursor: pointer;
+    font-family: inherit; transition: all 0.15s;
+  }
+  .rm-skip-btn:hover { border-color: var(--text-dim); color: var(--text); }
+  .rm-empty { font-size: 13px; color: var(--text-faint); font-style: italic; padding: 12px 4px; }
+  .rm-section-label {
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-faint); padding: 6px 2px 2px;
+  }
+
   /* ── API Setup Modal ── */
   .api-modal-overlay {
     position: fixed; inset: 0;
@@ -2286,6 +2393,25 @@
   </div>
 </div>
 
+<!-- Recurring Morning Check-in Dialog -->
+<div id="recurMorningOverlay">
+  <div id="recurMorningBox">
+    <div class="rm-header">
+      <div>
+        <div class="rm-title">☀ 今日重複任務</div>
+        <div class="rm-sub">勾選要加入今日任務清單的項目</div>
+      </div>
+      <button class="rm-close-btn" onclick="closeRecurMorningDialog()">×</button>
+    </div>
+    <div id="recurMorningList"></div>
+    <div class="rm-footer">
+      <button class="rm-select-all-btn" onclick="recurMorningToggleAll()">全選 / 全不選</button>
+      <button class="rm-skip-btn" onclick="closeRecurMorningDialog()">跳過</button>
+      <button class="rm-confirm-btn" onclick="confirmRecurMorning()">加入今日任務 →</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"><span id="toastMsg"></span></div>
 <script>
@@ -3419,6 +3545,8 @@ function runDailyReset() {
     saveLottery();
   }
   renderLottery();
+  // Show the recurring morning check-in dialog after reset
+  setTimeout(() => { if (typeof maybeShowRecurMorningDialog === 'function') maybeShowRecurMorningDialog(); }, 1200);
   } finally {
     // Fix: 使用 try/finally 確保無論如何都會釋放 lock，避免 reset 永遠卡住
     _resetRunning = false;
@@ -3553,6 +3681,8 @@ async function init() {
       renderLottery();
       // Fix: 在雲端資料載入後才做換日重置，確保重置的是最新資料
       checkMissedReset();
+      // Show recurring morning dialog if not yet shown today
+      maybeShowRecurMorningDialog();
     } else {
       if (dot) dot.className = 'sync-dot error';
       // ── 雲端讀取失敗：嘗試從本地備份還原 ──
@@ -3596,6 +3726,7 @@ async function init() {
     loadStateLocal();
     renderEnergyDots(); renderTree(); renderTasks();
     renderSandbox(); renderStats(); renderRewards(); renderLottery();
+    maybeShowRecurMorningDialog();
   }
 
   // Logo: 長按 → 開設定選單（單擊不動作，由 IIFE notesRewireLogo 接管）
@@ -6079,6 +6210,156 @@ function _applyDateChange(t, newDate) {
   syncToCloud();
 }
 window.openDateTagPicker = openDateTagPicker;
+
+// ── Recurring Morning Check-in Dialog ──────────────────
+const MORNING_DIALOG_KEY = 'innerflow_morning_dialog_shown';
+
+let _recurMorningChecked = new Set();
+
+function _getRecurringTasksDueToday() {
+  const todayStr = localDateStr();
+  const result = [];
+
+  state.tasks.forEach(t => {
+    if (t.done) return;
+    if (!t.recurring) return;
+    // Skip if already scheduled for today
+    if (t.scheduledFor === todayStr && t.status !== 'cancelled') return;
+
+    if (t.recurMode === 'daily' || !t.recurMode) {
+      // Daily recurring tasks — always show
+      result.push({ task: t, freq: '每天' });
+    } else if (t.recurMode === 'interval') {
+      // Interval tasks — show only if scheduledFor is today (arrived)
+      if (t.scheduledFor && t.scheduledFor <= todayStr) {
+        const days = t.recurInterval || 7;
+        result.push({ task: t, freq: `每 ${days} 天` });
+      }
+    }
+  });
+
+  return result;
+}
+
+function showRecurMorningDialog() {
+  const items = _getRecurringTasksDueToday();
+  if (items.length === 0) return; // nothing to show
+
+  const list = document.getElementById('recurMorningList');
+  if (!list) return;
+
+  _recurMorningChecked = new Set();
+  // Pre-select all by default
+  items.forEach(({task}) => _recurMorningChecked.add(task.id));
+
+  _renderRecurMorningList(items);
+  document.getElementById('recurMorningOverlay').classList.add('open');
+}
+
+function _renderRecurMorningList(items) {
+  const goalIconMap = { 技能:'🌟', 自我:'🌿', 日常:'🏠' };
+  const energyLabelMap = { charge:'⚡ 充電', easy:'🍃 輕鬆', focus:'𖦏 專注' };
+
+  // Group: daily first, then interval
+  const daily = items.filter(x => x.freq === '每天');
+  const interval = items.filter(x => x.freq !== '每天');
+
+  let html = '';
+  if (daily.length > 0) {
+    if (interval.length > 0) html += `<div class="rm-section-label">每日</div>`;
+    html += daily.map(({task, freq}) => _recurMorningRowHTML(task, freq, goalIconMap, energyLabelMap)).join('');
+  }
+  if (interval.length > 0) {
+    html += `<div class="rm-section-label">週期</div>`;
+    html += interval.map(({task, freq}) => _recurMorningRowHTML(task, freq, goalIconMap, energyLabelMap)).join('');
+  }
+
+  document.getElementById('recurMorningList').innerHTML = html || '<div class="rm-empty">今日沒有重複任務。</div>';
+}
+
+function _recurMorningRowHTML(task, freq, goalIconMap, energyLabelMap) {
+  const checked = _recurMorningChecked.has(task.id);
+  const gIcon = goalIconMap[task.goal] || '●';
+  const eLabel = energyLabelMap[task.energy] || '';
+  return `<div class="rm-task-row${checked ? ' rm-checked' : ''}" onclick="recurMorningToggleRow(${task.id})" data-id="${task.id}">
+    <div class="rm-checkbox">${checked ? '✓' : ''}</div>
+    <div class="rm-task-info">
+      <div class="rm-task-name">${task.name}</div>
+      <div class="rm-task-meta">${gIcon} ${task.goal || ''}${eLabel ? ' · ' + eLabel : ''}</div>
+    </div>
+    <div class="rm-freq-badge">${freq}</div>
+  </div>`;
+}
+
+function recurMorningToggleRow(id) {
+  if (_recurMorningChecked.has(id)) {
+    _recurMorningChecked.delete(id);
+  } else {
+    _recurMorningChecked.add(id);
+  }
+  // Update just this row DOM
+  const row = document.querySelector(`#recurMorningList [data-id="${id}"]`);
+  if (row) {
+    const checked = _recurMorningChecked.has(id);
+    row.classList.toggle('rm-checked', checked);
+    const cb = row.querySelector('.rm-checkbox');
+    if (cb) cb.textContent = checked ? '✓' : '';
+  }
+}
+
+function recurMorningToggleAll() {
+  const items = _getRecurringTasksDueToday();
+  const allChecked = items.every(({task}) => _recurMorningChecked.has(task.id));
+  if (allChecked) {
+    _recurMorningChecked.clear();
+  } else {
+    items.forEach(({task}) => _recurMorningChecked.add(task.id));
+  }
+  _renderRecurMorningList(items);
+}
+
+function confirmRecurMorning() {
+  const todayStr = localDateStr();
+  let count = 0;
+  _recurMorningChecked.forEach(id => {
+    const t = state.tasks.find(x => x.id === id);
+    if (!t) return;
+    t.scheduledFor = todayStr;
+    t.status = 'active';
+    count++;
+  });
+  closeRecurMorningDialog();
+  if (count > 0) {
+    renderTodayPanel();
+    renderTasks();
+    syncToCloud();
+    showToast(`☀ 已加入 ${count} 個重複任務到今日清單`);
+  }
+}
+
+function closeRecurMorningDialog() {
+  document.getElementById('recurMorningOverlay').classList.remove('open');
+  // Mark as shown for today so it won't re-appear until tomorrow's reset
+  localStorage.setItem(MORNING_DIALOG_KEY, localDateStr());
+}
+
+function maybeShowRecurMorningDialog() {
+  // Only show once per reset cycle (once per day after the reset time)
+  const lastShown = localStorage.getItem(MORNING_DIALOG_KEY);
+  const todayStr = localDateStr();
+  if (lastShown === todayStr) return;
+  // Small delay so UI has rendered first
+  setTimeout(() => {
+    const items = _getRecurringTasksDueToday();
+    if (items.length > 0) showRecurMorningDialog();
+  }, 800);
+}
+window.recurMorningToggleRow = recurMorningToggleRow;
+window.recurMorningToggleAll = recurMorningToggleAll;
+window.confirmRecurMorning = confirmRecurMorning;
+window.closeRecurMorningDialog = closeRecurMorningDialog;
+
+// ── End Recurring Morning Dialog ────────────────────────
 
 init();
 
