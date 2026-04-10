@@ -2519,6 +2519,16 @@ async function saveApiUrl(fragment) {
           }
         } catch(e) {}
       }
+      // ── 還原設定（重置時間、久未完成天數）──
+      if (data.settings) {
+        if (data.settings.resetTime) {
+          localStorage.setItem('innerflow_reset_time', data.settings.resetTime);
+          scheduleNextReset();
+        }
+        if (data.settings.neglectDays) {
+          localStorage.setItem('innerflow_neglect_days', data.settings.neglectDays);
+        }
+      }
       renderTasks(); renderSandbox(); renderStats(); renderRewards(); renderTree(); renderEnergyDots(); renderLottery();
       if (typeof notesReloadFromStorage === 'function') notesReloadFromStorage();
       checkMissedReset();
@@ -2648,6 +2658,15 @@ async function loadFromCloud() {
         lotteryState = { ...lotteryState, ...data.lotteryState };
         localStorage.setItem('innerflow_lottery', JSON.stringify(lotteryState));
       }
+      // ── 還原設定（重置時間、久未完成天數）──
+      if (data.settings) {
+        if (data.settings.resetTime) {
+          localStorage.setItem('innerflow_reset_time', data.settings.resetTime);
+        }
+        if (data.settings.neglectDays) {
+          localStorage.setItem('innerflow_neglect_days', data.settings.neglectDays);
+        }
+      }
       return true;
     }
     // 雲端回傳了但格式異常 → 嘗試本地備份
@@ -2737,7 +2756,7 @@ async function syncToCloud() {
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         action: 'save',
-        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], todayOrder: state.todayOrder || [], lotteryState: lotteryState, wishPoints: state.wishPoints || 0, morningDialogShownDate: state.morningDialogShownDate || null, notes: (function(){ try { return JSON.parse(localStorage.getItem('innerflow_notes_v1') || 'null'); } catch(e){ return null; } })() }
+        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], todayOrder: state.todayOrder || [], lotteryState: lotteryState, wishPoints: state.wishPoints || 0, morningDialogShownDate: state.morningDialogShownDate || null, notes: (function(){ try { return JSON.parse(localStorage.getItem('innerflow_notes_v1') || 'null'); } catch(e){ return null; } })(), settings: { resetTime: localStorage.getItem('innerflow_reset_time') || '04:00', neglectDays: localStorage.getItem('innerflow_neglect_days') || '7' } }
       })
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
