@@ -307,7 +307,12 @@
     background: var(--modal-overlay-bg);
     backdrop-filter: blur(6px);
     z-index: 100;
-    display: none; align-items: center; justify-content: center;
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 20px 0 40px;
   }
   .modal-overlay.open { display: flex; }
   .modal {
@@ -700,7 +705,12 @@
     }
 
     .section-title { font-size: 18px; }
-    .modal { padding: 20px; }
+    .modal { padding: 20px; margin: auto 0; }
+    /* 手機：modal 視窗上方保留空間，讓鍵盤彈出時可以往上捲 */
+    .modal-overlay {
+      align-items: flex-start;
+      padding: 16px 0 env(keyboard-inset-height, 300px);
+    }
     .modal-row { flex-direction: column; gap: 0; }
     .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .stat-value { font-size: 24px; }
@@ -3255,16 +3265,30 @@ function renderQuotes() {
 // ── Long-press helper ──
 function attachLongPress(el, callback) {
   let timer = null;
+  let longFired = false;
   const start = (e) => {
-    timer = setTimeout(() => { timer = null; callback(); }, 600);
+    longFired = false;
+    timer = setTimeout(() => {
+      timer = null;
+      longFired = true;
+      callback();
+    }, 600);
   };
   const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
   el.addEventListener('mousedown', start);
   el.addEventListener('mouseup', cancel);
   el.addEventListener('mouseleave', cancel);
-  el.addEventListener('touchstart', (e) => { e.preventDefault(); start(e); }, { passive: false });
-  el.addEventListener('touchend', cancel);
+  el.addEventListener('touchstart', (e) => {
+    // 不呼叫 preventDefault，保留 click 事件的觸發能力
+    start(e);
+  }, { passive: true });
+  el.addEventListener('touchend', (e) => {
+    cancel();
+    // 若長按已觸發，阻止後續 click 避免重複動作
+    if (longFired) { e.preventDefault(); longFired = false; }
+  }, { passive: false });
   el.addEventListener('touchcancel', cancel);
+  el.addEventListener('touchmove', cancel, { passive: true });
 }
 
 // ── Wish Action Buttons (long-press) ──
@@ -5970,6 +5994,62 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
   if (o.id === 'editModal' || o.id === 'addModal') return;
   o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
 });
+
+// ── 手機鍵盤彈出時，捲動 modal 讓輸入欄不被遮住 ──
+(function() {
+  function scrollFocusedIntoView() {
+    const el = document.activeElement;
+    if (!el) return;
+    const overlay = el.closest('.modal-overlay.open');
+    if (!overlay) return;
+    // 給瀏覽器時間完成 layout 再捲動
+    setTimeout(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  }
+
+  // visualViewport resize = 鍵盤彈出
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      const el = document.activeElement;
+      if (!el || !el.closest('.modal-overlay.open')) return;
+      const overlay = el.closest('.modal-overlay.open');
+      const vvh = window.visualViewport.height;
+      // 讓 overlay 高度跟隨 visualViewport，使 modal 可以在鍵盤上方顯示
+      overlay.style.height = vvh + 'px';
+      overlay.style.top = window.visualViewport.offsetTop + 'px';
+      setTimeout(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 80);
+    });
+    window.visualViewport.addEventListener('scroll', () => {
+      const el = document.activeElement;
+      if (!el) return;
+      const overlay = el.closest('.modal-overlay.open');
+      if (!overlay) return;
+      overlay.style.top = window.visualViewport.offsetTop + 'px';
+    });
+  }
+
+  // 當 modal 內輸入欄 focus 時捲動
+  document.addEventListener('focusin', (e) => {
+    const tag = e.target.tagName;
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') return;
+    if (!e.target.closest('.modal-overlay.open')) return;
+    scrollFocusedIntoView();
+  });
+
+  // modal 關閉時還原 overlay 高度
+  document.querySelectorAll('.modal-overlay').forEach(o => {
+    const observer = new MutationObserver(() => {
+      if (!o.classList.contains('open')) {
+        o.style.height = '';
+        o.style.top = '';
+      }
+    });
+    observer.observe(o, { attributes: true, attributeFilter: ['class'] });
+  });
+})();
 
 
 // ── PWA Service Worker ──
