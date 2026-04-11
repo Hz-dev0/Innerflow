@@ -2837,9 +2837,58 @@ async function loadFromCloud() {
 // ── Notes cloud sync helper — debounced 5s to avoid pushing on every keystroke ──
 let _notesSyncTimer = null;
 function syncNotesToCloud() {
+  // 每次筆記變更時，更新本地 updatedAt 時間戳，確保與雲端比較時本地版本不會被誤判為舊版
+  try {
+    const raw = localStorage.getItem('innerflow_notes_v1');
+    if (raw) {
+      const data = JSON.parse(raw);
+      data.updatedAt = Date.now();
+      localStorage.setItem('innerflow_notes_v1', JSON.stringify(data));
+    }
+  } catch(e) {}
   clearTimeout(_notesSyncTimer);
   _notesSyncTimer = setTimeout(() => syncToCloud(), 5000);
 }
+
+// ── 歷史封存：將超過一年的 doneHistory 封存到獨立 localStorage key ──
+// 雲端只同步當年資料，舊資料保留在本地（不會消失）
+function archiveOldHistory() {
+  if (!state.doneHistory || state.doneHistory.length === 0) return;
+
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  const cutoff = oneYearAgo.toISOString().slice(0, 10); // YYYY-MM-DD
+
+  const toArchive = state.doneHistory.filter(h => h.completedAt && h.completedAt < cutoff);
+  if (toArchive.length === 0) return;
+
+  // 按年分組，存到 innerflow_history_YYYY
+  const byYear = {};
+  toArchive.forEach(h => {
+    const year = h.completedAt.slice(0, 4);
+    if (!byYear[year]) byYear[year] = [];
+    byYear[year].push(h);
+  });
+
+  Object.entries(byYear).forEach(([year, entries]) => {
+    const key = 'innerflow_history_' + year;
+    try {
+      const existing = JSON.parse(localStorage.getItem(key) || '[]');
+      const existingIds = new Set(existing.map(e => e.id));
+      const merged = [...existing, ...entries.filter(e => !existingIds.has(e.id))];
+      localStorage.setItem(key, JSON.stringify(merged));
+    } catch(e) {
+      console.warn('歷史封存失敗（' + year + '）', e);
+    }
+  });
+
+  // 從 state.doneHistory 移除已封存的項目
+  const archivedIds = new Set(toArchive.map(h => h.id));
+  state.doneHistory = state.doneHistory.filter(h => !archivedIds.has(h.id));
+  saveStateLocal(); // 更新本地備份，不觸發 syncToCloud（封存不需要立即推送）
+  console.log(`已封存 ${toArchive.length} 筆歷史記錄`);
+}
+window.archiveOldHistory = archiveOldHistory;
 
 // ── Local state persistence (always runs, regardless of cloud) ──
 function saveStateLocal() {
@@ -2895,6 +2944,20 @@ function loadStateLocal() {
 }
 
 async function syncToCloud() {
+  // ── 初始化保護：若 state.tasks 尚未載入完成（空陣列且本地有資料），不推送 ──
+  if (!state._initDone) {
+    const localRaw = localStorage.getItem('innerflow_state_local');
+    if (localRaw) {
+      try {
+        const parsed = JSON.parse(localRaw);
+        if (parsed && Array.isArray(parsed.tasks) && parsed.tasks.length > 0 &&
+            (!state.tasks || state.tasks.length === 0)) {
+          saveStateLocal(); // 只存本地，不推雲端
+          return;
+        }
+      } catch(e) {}
+    }
+  }
   // ── 無論雲端是否設定，先把 state 存到 localStorage ──
   saveStateLocal();
 
@@ -2915,7 +2978,28 @@ async function syncToCloud() {
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         action: 'save',
-        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], todayOrder: state.todayOrder || [], lotteryState: lotteryState, wishPoints: state.wishPoints || 0, morningDialogShownDate: state.morningDialogShownDate || null, routines: state.routines || [], notes: (function(){ try { return JSON.parse(localStorage.getItem('innerflow_notes_v1') || 'null'); } catch(e){ return null; } })(), settings: { resetTime: localStorage.getItem('innerflow_reset_time') || '04:00', neglectDays: localStorage.getItem('innerflow_neglect_days') || '7' } }
+        data: {
+          tasks: state.tasks,
+          sandbox: state.sandbox,
+          done: state.done,
+          rewards: state.rewards || [],
+          customQuotes: state.customQuotes || [],
+          energy: state.energy || 0,
+          // 雲端只同步一年內的歷史（舊資料已封存到本地 innerflow_history_YYYY）
+          doneHistory: (state.doneHistory || []).filter(h => {
+            if (!h.completedAt) return true;
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+            return h.completedAt >= oneYearAgo.toISOString().slice(0, 10);
+          }),
+          todayOrder: state.todayOrder || [],
+          lotteryState: lotteryState,
+          wishPoints: state.wishPoints || 0,
+          morningDialogShownDate: state.morningDialogShownDate || null,
+          routines: state.routines || [],
+          notes: (function(){ try { return JSON.parse(localStorage.getItem('innerflow_notes_v1') || 'null'); } catch(e){ return null; } })(),
+          settings: { resetTime: localStorage.getItem('innerflow_reset_time') || '04:00', neglectDays: localStorage.getItem('innerflow_neglect_days') || '7' }
+        }
       })
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -4027,6 +4111,12 @@ async function init() {
   // Fix: 只有在沒有設定雲端 API 時（本機模式）才在這裡執行換日重置
   // 有雲端的情況已在 loadFromCloud 完成後執行，避免競態
   if (!getApiUrl()) checkMissedReset();
+
+  // ── 初始化完成旗標，允許 syncToCloud 正常推送 ──
+  state._initDone = true;
+
+  // ── 歷史封存：將一年前的 doneHistory 封存到獨立的 localStorage key ──
+  archiveOldHistory();
 }
 
 // ── Mood Buttons ──
