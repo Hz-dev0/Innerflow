@@ -1884,6 +1884,14 @@
     font-size: 12px; color: var(--text-faint); font-style: italic;
     padding: 12px 4px; text-align: center;
   }
+  .routine-drag-handle {
+    font-size: 13px; color: var(--text-faint); cursor: grab;
+    padding: 0 4px 0 0; flex-shrink: 0; opacity: 0.4;
+    transition: opacity 0.15s; line-height: 1; user-select: none;
+  }
+  .routine-item:hover .routine-drag-handle { opacity: 0.8; }
+  .routine-item.dragging-routine { opacity: 0.4; border-style: dashed; }
+  .routine-item.drag-over-routine { border-color: var(--green); background: rgba(58,110,165,0.07); }
 
 </style>
 </head>
@@ -4685,8 +4693,7 @@ function setTaskStatus(id, status) {
     showToast('◉ 已標記為今日處理');
   } else if (status === 'none') {
     t.scheduledFor = null;
-    // 若任務有 taskDate，用 'cancelled' 防止 checkTaskDates 在重新整理時再度自動排進今日
-    // 若是純手動標記（無 taskDate），才清成 null
+    // 若任務有 taskDate，用 'cancelled' 防止 checkTaskDates 重新自動排進今日
     t.status = t.taskDate ? 'cancelled' : null;
     showToast('已取消標記');
   } else if (status === 'cancelled') {
@@ -7776,16 +7783,27 @@ function renderRoutineList() {
     return;
   }
 
-  // Sort: undone first, then done
-  const sorted = [...items].sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0));
+  // Keep user-defined order (done items go to bottom, undone respect order)
+  const undone = items.filter(it => !it.done);
+  const done   = items.filter(it =>  it.done);
+  const sorted = [...undone, ...done];
 
-  list.innerHTML = sorted.map(it => `
+  list.innerHTML = sorted.map((it, idx) => `
     <div class="routine-item${it.done ? ' done-routine' : ''}"
-      onclick="toggleRoutineItem(${it.id})" id="routine-${it.id}">
+      id="routine-${it.id}"
+      draggable="true"
+      ondragstart="routineDragStart(event,${it.id})"
+      ondragover="routineDragOver(event,${it.id})"
+      ondrop="routineDrop(event,${it.id})"
+      ondragend="routineDragEnd(event)"
+      onclick="toggleRoutineItem(${it.id})">
+      <span class="routine-drag-handle" onclick="event.stopPropagation()" title="拖曳排序">⠿</span>
       <div class="routine-check">${it.done ? '✓' : ''}</div>
       <span class="routine-name">${it.name}</span>
       <span class="routine-del" onclick="event.stopPropagation();deleteRoutineItem(${it.id})" title="刪除">×</span>
     </div>`).join('');
+  // Wire touch drag for mobile
+  _routineWireTouchDrag(list);
 }
 
 function toggleRoutineItem(id) {
@@ -7805,13 +7823,13 @@ function toggleRoutineItem(id) {
     if (state.wishPoints === undefined) state.wishPoints = 0;
     state.wishPoints++;
     if (typeof renderRewards === 'function') renderRewards();
-    if (typeof showToast === 'function') showToast('💎 +1 願望碎片');
+    showToast('💎 +1 願望碎片');
   } else {
     // 取消勾選：退還碎片
     if (state.wishPoints === undefined) state.wishPoints = 0;
     state.wishPoints = Math.max(0, state.wishPoints - 1);
     if (typeof renderRewards === 'function') renderRewards();
-    if (typeof showToast === 'function') showToast('💎 -1 願望碎片');
+    showToast('💎 -1 願望碎片');
   }
 
   if (typeof syncToCloud === 'function') syncToCloud();
@@ -7840,6 +7858,109 @@ function deleteRoutineItem(id) {
   renderRoutineList();
 }
 window.deleteRoutineItem = deleteRoutineItem;
+
+// ── Routine drag & drop ──
+let _routineDragId = null;
+
+function routineDragStart(e, id) {
+  _routineDragId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  const el = document.getElementById('routine-' + id);
+  if (el) setTimeout(() => el.classList.add('dragging-routine'), 0);
+}
+window.routineDragStart = routineDragStart;
+
+function routineDragOver(e, id) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.routine-item').forEach(el => el.classList.remove('drag-over-routine'));
+  if (id !== _routineDragId) {
+    const el = document.getElementById('routine-' + id);
+    if (el) el.classList.add('drag-over-routine');
+  }
+}
+window.routineDragOver = routineDragOver;
+
+function routineDrop(e, toId) {
+  e.preventDefault();
+  document.querySelectorAll('.routine-item').forEach(el => {
+    el.classList.remove('drag-over-routine', 'dragging-routine');
+  });
+  if (!_routineDragId || _routineDragId === toId) { _routineDragId = null; return; }
+  if (!Array.isArray(state.routines)) return;
+  const fromIdx = state.routines.findIndex(x => x.id === _routineDragId);
+  const toIdx   = state.routines.findIndex(x => x.id === toId);
+  if (fromIdx < 0 || toIdx < 0) { _routineDragId = null; return; }
+  const [moved] = state.routines.splice(fromIdx, 1);
+  state.routines.splice(toIdx, 0, moved);
+  _routineDragId = null;
+  if (typeof syncToCloud === 'function') syncToCloud();
+  renderRoutineList();
+}
+window.routineDrop = routineDrop;
+
+function routineDragEnd(e) {
+  document.querySelectorAll('.routine-item').forEach(el => {
+    el.classList.remove('drag-over-routine', 'dragging-routine');
+  });
+  _routineDragId = null;
+}
+window.routineDragEnd = routineDragEnd;
+
+// Mobile touch drag support for routines
+function _routineWireTouchDrag(list) {
+  if (!list) return;
+  let _touchDragId = null, _touchClone = null, _touchStartY = 0;
+
+  list.querySelectorAll('.routine-drag-handle').forEach(handle => {
+    handle.addEventListener('touchstart', e => {
+      const item = handle.closest('.routine-item');
+      if (!item) return;
+      const idMatch = item.id.match(/routine-(\d+)/);
+      if (!idMatch) return;
+      _touchDragId = parseInt(idMatch[1]);
+      _touchStartY = e.touches[0].clientY;
+
+      // Create ghost
+      _touchClone = item.cloneNode(true);
+      _touchClone.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;opacity:0.75;width:' + item.offsetWidth + 'px;left:' + item.getBoundingClientRect().left + 'px;top:' + item.getBoundingClientRect().top + 'px;border-radius:9px;box-shadow:0 8px 24px rgba(58,110,165,0.2);';
+      document.body.appendChild(_touchClone);
+      item.classList.add('dragging-routine');
+      e.preventDefault();
+    }, { passive: false });
+  });
+
+  list.addEventListener('touchmove', e => {
+    if (!_touchDragId || !_touchClone) return;
+    e.preventDefault();
+    const y = e.touches[0].clientY;
+    _touchClone.style.top = (parseFloat(_touchClone.style.top) + (y - _touchStartY)) + 'px';
+    _touchStartY = y;
+    // Highlight target
+    document.querySelectorAll('.routine-item').forEach(el => el.classList.remove('drag-over-routine'));
+    const target = document.elementFromPoint(e.touches[0].clientX, y);
+    const targetItem = target ? target.closest('.routine-item') : null;
+    if (targetItem && targetItem.id !== 'routine-' + _touchDragId) {
+      targetItem.classList.add('drag-over-routine');
+    }
+  }, { passive: false });
+
+  list.addEventListener('touchend', e => {
+    if (!_touchDragId) return;
+    const y = e.changedTouches[0].clientY;
+    if (_touchClone) { _touchClone.remove(); _touchClone = null; }
+    document.querySelectorAll('.routine-item').forEach(el => {
+      el.classList.remove('drag-over-routine', 'dragging-routine');
+    });
+    const target = document.elementFromPoint(e.changedTouches[0].clientX, y);
+    const targetItem = target ? target.closest('.routine-item') : null;
+    if (targetItem) {
+      const toIdMatch = targetItem.id.match(/routine-(\d+)/);
+      if (toIdMatch) routineDrop({ preventDefault: ()=>{} }, parseInt(toIdMatch[1]));
+    }
+    _touchDragId = null;
+  });
+}
 
 // 初始化：state 載入後觸發 badge 更新
 window.addEventListener('DOMContentLoaded', function() {
