@@ -2185,55 +2185,46 @@
 
 <!-- Edit Task Modal -->
 <div class="modal-overlay" id="editModal">
-  <div class="modal">
-    <div class="modal-title">✏️ 編輯任務</div>
-    <label>任務名稱</label>
-    <input id="editTaskName" placeholder="任務名稱">
-    <label>這件事對你的意義是什麼？</label>
-    <textarea id="editTaskMeaning" rows="2" placeholder="為什麼這件事值得你的時間和能量…"></textarea>
-    <div class="modal-row">
-      <div>
-        <label>掛載目標</label>
-        <select id="editTaskGoal">
-          <option value="技能">🌟 技能修練</option>
-          <option value="自我">🌿 自我實現</option>
-          <option value="日常">🏠 日常維運</option>
-        </select>
-      </div>
-      <div>
-        <label>能量類型</label>
-        <select id="editTaskEnergy">
-          <option value="charge">⚡ 充電</option>
-          <option value="easy">🍃 輕鬆</option>
-          <option value="focus">𖦏 專注</option>
-        </select>
-      </div>
+  <div class="modal" style="padding:20px">
+    <div class="modal-title" style="font-size:18px;margin-bottom:14px">✏️ 編輯任務</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+      <input id="editTaskName" placeholder="任務名稱" style="flex:1;margin-bottom:0">
+      <button type="button" onclick="pickSandboxForName('edit')" title="從沙盒選取任務名稱" style="padding:0 10px;height:38px;border:1px solid rgba(201,162,39,0.45);border-radius:8px;background:rgba(201,162,39,0.08);color:#b8922a;cursor:pointer;font-family:inherit;font-size:12px;white-space:nowrap;flex-shrink:0;transition:all 0.2s" onmouseover="this.style.background='rgba(201,162,39,0.18)'" onmouseout="this.style.background='rgba(201,162,39,0.08)'">🪐 沙盒</button>
     </div>
-    <div style="margin-bottom:16px">
-      <label>任務日期 <span style="font-size:10px;color:var(--text-faint);text-transform:none;letter-spacing:0;font-weight:400">（選填 — 到了該日自動加入今日任務）</span></label>
-      <input type="date" id="editTaskDate" style="margin-bottom:16px">
+    <textarea id="editTaskMeaning" rows="2" placeholder="這件事對你的意義是…（選填）" style="margin-bottom:12px"></textarea>
+
+    <!-- 目標 + 能量：點擊切換 -->
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button type="button" id="editGoalBtn" onclick="cycleEditGoal()" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-size:13px;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.15s">🌟 技能修練</button>
+      <button type="button" id="editEnergyBtn" onclick="cycleEditEnergy()" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg3);color:var(--text);font-size:13px;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.15s">🍃 輕鬆</button>
+      <input type="hidden" id="editTaskGoal" value="技能">
+      <input type="hidden" id="editTaskEnergy" value="easy">
     </div>
-    <div style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:10px">
-        <button type="button" id="editRecurToggle" onclick="toggleRecurSimple('edit')"
-          style="display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-dim);font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.15s">
-          🔁 <span id="editRecurLabel">不重複</span>
-        </button>
-        <div id="editIntervalWrap" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--text-dim)">
-          每 <input type="number" id="editTaskInterval" min="1" max="365" value="1"
-            style="width:48px;padding:4px 6px;margin-bottom:0;font-size:12px;text-align:center;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text)"> 天
-        </div>
+
+    <!-- 日期 + 重複：同一行 -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+      <input type="date" id="editTaskDate" style="flex:1;margin-bottom:0;font-size:13px;padding:7px 10px">
+      <button type="button" id="editRecurToggle" onclick="toggleRecurSimple('edit')"
+        style="display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--text-dim);font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all 0.15s">
+        🔁 <span id="editRecurLabel">不重複</span>
+      </button>
+      <div id="editIntervalWrap" style="display:none;align-items:center;gap:4px;font-size:12px;color:var(--text-dim);white-space:nowrap">
+        每 <input type="number" id="editTaskInterval" min="1" max="365" value="1"
+          style="width:44px;padding:5px 6px;margin-bottom:0;font-size:12px;text-align:center;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--text)"> 天
       </div>
       <input type="hidden" id="editTaskRecurring" value="false">
       <input type="hidden" id="editRecurModeHidden" name="editRecurMode" value="daily">
     </div>
-    <div style="margin-bottom:16px">
-      <label>⚡ 完成後可以… <span style="font-size:10px;color:var(--text-faint);text-transform:none;letter-spacing:0;font-weight:400">（選填 — 即時滿足）</span></label>
+
+    <!-- 即時滿足：只在⚡充電時顯示 -->
+    <div id="editRewardWrap" style="display:none;margin-bottom:12px">
       <div style="display:flex;gap:8px">
-        <input id="editTaskReward" placeholder="例如：吃一口麵包、看五分鐘影片…" style="flex:1;margin-bottom:0">
+        <input id="editTaskReward" placeholder="完成後可以…（自由填寫）" style="flex:1;margin-bottom:0">
       </div>
     </div>
-    <div class="modal-actions">
+
+    <div class="modal-actions" style="margin-top:4px">
       <button class="btn-cancel" onclick="closeModal('editModal')">取消</button>
       <button class="btn-confirm" onclick="saveEdit()">儲存變更</button>
     </div>
@@ -2839,6 +2830,43 @@ function _setEnergyBtn(key) {
   const wrap = document.getElementById('newRewardWrap');
   if (wrap) wrap.style.display = e.key === 'charge' ? 'block' : 'none';
 }
+function cycleEditGoal() {
+  const cur = document.getElementById('editTaskGoal').value;
+  const idx = _goalCycle.findIndex(g => g.key === cur);
+  const next = _goalCycle[(idx + 1) % _goalCycle.length];
+  document.getElementById('editTaskGoal').value = next.key;
+  document.getElementById('editGoalBtn').textContent = next.label;
+}
+
+function cycleEditEnergy() {
+  const cur = document.getElementById('editTaskEnergy').value;
+  const idx = _energyCycle.findIndex(e => e.key === cur);
+  const next = _energyCycle[(idx + 1) % _energyCycle.length];
+  document.getElementById('editTaskEnergy').value = next.key;
+  document.getElementById('editEnergyBtn').textContent = next.label;
+  // Show/hide reward field
+  const wrap = document.getElementById('editRewardWrap');
+  if (wrap) wrap.style.display = next.key === 'charge' ? 'block' : 'none';
+}
+
+function _setEditGoalBtn(key) {
+  const g = _goalCycle.find(x => x.key === key) || _goalCycle[0];
+  const hidden = document.getElementById('editTaskGoal');
+  const lbl = document.getElementById('editGoalBtn');
+  if (hidden) hidden.value = g.key;
+  if (lbl) lbl.textContent = g.label;
+}
+
+function _setEditEnergyBtn(key) {
+  const e = _energyCycle.find(x => x.key === key) || _energyCycle[0];
+  const hidden = document.getElementById('editTaskEnergy');
+  const lbl = document.getElementById('editEnergyBtn');
+  if (hidden) hidden.value = e.key;
+  if (lbl) lbl.textContent = e.label;
+  const wrap = document.getElementById('editRewardWrap');
+  if (wrap) wrap.style.display = e.key === 'charge' ? 'block' : 'none';
+}
+
 // ── 目標 / 能量循環切換結束 ─────────────────────────────────
 
 // ── 即時滿足 (Instant Reward) ─────────────────────────────
@@ -5911,8 +5939,8 @@ function openEditTask(t) {
   editTargetId = t.id;
   document.getElementById('editTaskName').value = t.name;
   document.getElementById('editTaskMeaning').value = t.meaning || '';
-  document.getElementById('editTaskGoal').value = t.goal;
-  document.getElementById('editTaskEnergy').value = t.energy;
+  _setEditGoalBtn(t.goal || '技能');
+  _setEditEnergyBtn(t.energy || 'easy');
   // Recurring
   const isRecurring = !!t.recurring;
   document.getElementById('editTaskDate').value = t.taskDate || '';
