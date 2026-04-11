@@ -2088,7 +2088,7 @@
         <div id="lotteryPane">
           <div class="lottery-info">
             <div class="lottery-ticket">🎫 抽卡券 <strong id="lotteryTickets">0</strong> 張</div>
-            <div class="lottery-progress" id="lotteryProgress" style="display:none">💎 可用碎片 <span id="todayDone">0</span></div>
+            <div class="lottery-progress" id="lotteryProgress">💎 可用碎片 <span id="todayDone">0</span></div>
             <button class="lottery-draw-btn" id="lotteryDrawBtn">✦ 洗牌</button>
           </div>
           <div class="lottery-grid" id="lotteryGrid"></div>
@@ -2756,7 +2756,7 @@ async function loadFromCloud() {
       state.energy  = data.energy  || 0;
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
-      state.wishPoints  = typeof data.wishPoints === 'number' ? data.wishPoints : (state.wishPoints || 0);
+      state.wishPoints  = typeof data.wishPoints === 'number' ? Math.max(data.wishPoints, state.wishPoints || 0) : (state.wishPoints || 0);
       state.morningDialogShownDate = data.morningDialogShownDate || state.morningDialogShownDate || null;
       // ── 例行任務 merge：union 合併雲端與本地，保留任何一方有的項目
       // done 狀態以「OR」為準，不蓋掉離線時完成的記錄
@@ -5377,6 +5377,7 @@ function onTaskUncompleted(task) {
   }
   checkRandomMissionProgress();
   saveLottery();
+  syncToCloud();
   renderLottery();
 }
 
@@ -5627,7 +5628,7 @@ function renderLottery() {
     return `<div class="lottery-card${isRevealed ? ' revealed' + (c.isWish ? ' is-wish' : '') + (isRM ? ' random-mission' : '') : ''}" id="lcard-${i}" ${!isRevealed ? `onclick="flipCard(${i})"` : ''}>
       <div class="lottery-card-back" style="${isRevealed ? 'display:none' : ''}">
         <div class="card-face-icon">✦</div>
-        <div class="card-face-hint">${(Math.floor(lotteryState.todayDone / 3) - (lotteryState.todayFlipped || 0)) > 0 ? '點擊翻牌' : '需要券'}</div>
+        <div class="card-face-hint">${(lotteryState.todayDone - (lotteryState.todayFlipped || 0)) > 0 ? '點擊翻牌' : '需要券'}</div>
       </div>
       <div class="lottery-card-front" style="${isRevealed ? 'display:flex' : 'display:none'}">
         ${isRM ? rmFrontHtml : `
@@ -7828,19 +7829,12 @@ function toggleRoutineItem(id) {
   if (state.wishPoints === undefined) state.wishPoints = 0;
 
   if (!wasDone) {
-    // 完成：+1 願望碎片 + 慶祝動畫
+    // 完成：+1 願望碎片
     state.wishPoints++;
     renderRewards();
+    checkRandomMissionProgress();
     syncToCloud();
-    // 顯示中間慶祝效果（同完成任務）
-    const cel = document.getElementById('celebration');
-    const sub = document.getElementById('celebSub');
-    if (cel && sub) {
-      sub.textContent = '💎 +1 願望碎片';
-      cel.classList.add('show');
-      clearTimeout(cel._routineTimer);
-      cel._routineTimer = setTimeout(() => cel.classList.remove('show'), 2800);
-    }
+    showToast('💎 +1 願望碎片');
   } else {
     // 取消：-1 願望碎片
     state.wishPoints = Math.max(0, state.wishPoints - 1);
