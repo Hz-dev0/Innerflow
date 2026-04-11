@@ -1784,6 +1784,107 @@
     #notes-md-toolbar { display: none !important; }
   }
 
+  /* ── Routine Panel ── */
+  #routineOverlay {
+    position: fixed; inset: 0;
+    background: rgba(20,30,50,0.45);
+    backdrop-filter: blur(6px);
+    z-index: 9990;
+    display: none; align-items: flex-start; justify-content: flex-end;
+    padding: 70px 20px 0 0;
+    animation: modalIn 0.2s ease;
+  }
+  #routineOverlay.open { display: flex; }
+  @media (max-width: 680px) {
+    #routineOverlay { justify-content: center; padding: 70px 0 0 0; align-items: flex-start; }
+  }
+  #routinePanel {
+    background: var(--bg2);
+    border: 1px solid rgba(74,130,196,0.25);
+    border-radius: 16px;
+    padding: 20px;
+    width: 320px;
+    max-width: 96vw;
+    max-height: 78vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(74,130,196,0.18);
+    animation: modalIn 0.22s ease;
+  }
+  .routine-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; flex-shrink: 0;
+  }
+  .routine-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 17px; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .routine-progress-badge {
+    font-size: 11px; padding: 2px 9px; border-radius: 20px;
+    background: var(--bg3); color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+  .routine-list {
+    flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px;
+    scrollbar-width: thin; padding-right: 2px; margin-bottom: 12px;
+    min-height: 0;
+  }
+  .routine-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 10px; border-radius: 9px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+    cursor: pointer; transition: all 0.15s; user-select: none;
+  }
+  .routine-item:hover { border-color: rgba(74,130,196,0.35); background: rgba(74,130,196,0.04); }
+  .routine-item.done-routine {
+    border-color: rgba(58,110,165,0.4);
+    background: rgba(58,110,165,0.06);
+  }
+  .routine-check {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 1.5px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; transition: all 0.15s; color: #fff;
+  }
+  .routine-item.done-routine .routine-check { background: var(--green); border-color: var(--green); }
+  .routine-item:hover .routine-check { border-color: var(--green); }
+  .routine-name {
+    flex: 1; font-size: 13px; font-weight: 500; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: color 0.15s, text-decoration 0.15s;
+  }
+  .routine-item.done-routine .routine-name { text-decoration: line-through; color: var(--text-dim); }
+  .routine-del {
+    font-size: 14px; color: var(--text-faint); cursor: pointer;
+    padding: 1px 5px; border-radius: 4px; transition: all 0.15s; flex-shrink: 0;
+    opacity: 0; line-height: 1;
+  }
+  .routine-item:hover .routine-del { opacity: 1; }
+  .routine-del:hover { color: var(--rose); background: rgba(192,86,90,0.08); }
+  .routine-add-row {
+    display: flex; gap: 7px; flex-shrink: 0;
+  }
+  .routine-input {
+    flex: 1; background: var(--bg3);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: inherit; font-size: 13px;
+    padding: 8px 11px; outline: none; transition: border-color 0.2s;
+  }
+  .routine-input:focus { border-color: var(--green); }
+  .routine-input::placeholder { color: var(--text-faint); }
+  .routine-add-btn {
+    padding: 8px 14px; border-radius: 8px; border: none;
+    background: var(--green); color: #fff;
+    font-family: inherit; font-size: 13px; cursor: pointer;
+    transition: opacity 0.2s; white-space: nowrap;
+  }
+  .routine-add-btn:hover { opacity: 0.85; }
+  .routine-empty {
+    font-size: 12px; color: var(--text-faint); font-style: italic;
+    padding: 12px 4px; text-align: center;
+  }
+
 </style>
 </head>
 <body>
@@ -1854,7 +1955,10 @@
     <div class="page active" id="page-tree">
       <div class="section-title">生命樹 <span class="sub">每個任務都扎根於你認同的意義</span></div>
       <div class="card">
-        <div class="card-title">你的核心目標</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:0">你的核心目標</div>
+          <button onclick="openRoutinePanel()" id="routineBtn" style="background:none;border:1px solid var(--border);border-radius:20px;padding:4px 14px;font-size:12px;color:var(--text-dim);cursor:pointer;font-family:inherit;transition:all 0.2s;display:flex;align-items:center;gap:5px;white-space:nowrap" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'"><span id="routineBtnIcon">🏠</span> 例行任務 <span id="routineBtnBadge" style="display:none;font-size:10px;background:var(--green-dim);color:var(--green);border-radius:20px;padding:0 6px;font-weight:600"></span></button>
+        </div>
         <div class="tree-grid" id="treeGrid">
           <!-- Rendered by renderTree() -->
         </div>
@@ -2052,6 +2156,21 @@
 </div>
 
 
+
+<!-- ── Routine Tasks Panel ── -->
+<div id="routineOverlay" onclick="if(event.target===this)closeRoutinePanel()">
+  <div id="routinePanel">
+    <div class="routine-header">
+      <div class="routine-title">🏠 例行任務 <span class="routine-progress-badge" id="routineProgressBadge">0/0</span></div>
+      <button onclick="closeRoutinePanel()" style="background:none;border:none;font-size:20px;color:var(--text-faint);cursor:pointer;padding:2px 6px;border-radius:6px;line-height:1;transition:all 0.15s" onmouseover="this.style.background='var(--bg3)';this.style.color='var(--text)'" onmouseout="this.style.background='none';this.style.color='var(--text-faint)'">×</button>
+    </div>
+    <div class="routine-list" id="routineList"></div>
+    <div class="routine-add-row">
+      <input class="routine-input" id="routineInput" placeholder="新增例行任務…" onkeydown="if(event.key==='Enter')addRoutineItem()">
+      <button class="routine-add-btn" onclick="addRoutineItem()">新增</button>
+    </div>
+  </div>
+</div>
 
 <!-- Mobile Bottom Nav -->
 <nav class="mobile-nav">
@@ -2608,6 +2727,7 @@ async function loadFromCloud() {
         state.doneHistory  = localBackup.doneHistory  || [];
         state.todayOrder   = localBackup.todayOrder   || [];
         state.wishPoints   = typeof localBackup.wishPoints === 'number' ? localBackup.wishPoints : 0;
+        state.routines     = Array.isArray(localBackup.routines) ? localBackup.routines : [];
         setTimeout(() => syncToCloud(), 1500); // 延遲推送，等 init 完成
         return true;
       }
@@ -2621,6 +2741,25 @@ async function loadFromCloud() {
       state.todayOrder  = data.todayOrder  || [];
       state.wishPoints  = typeof data.wishPoints === 'number' ? data.wishPoints : (state.wishPoints || 0);
       state.morningDialogShownDate = data.morningDialogShownDate || state.morningDialogShownDate || null;
+      // ── 例行任務 merge：union 合併雲端與本地，保留任何一方有的項目
+      // done 狀態以「OR」為準，不蓋掉離線時完成的記錄
+      {
+        const cloudRoutines = Array.isArray(data.routines) ? data.routines : [];
+        const localRoutines = Array.isArray(state.routines) ? state.routines : [];
+        const merged = {};
+        cloudRoutines.forEach(r => { merged[r.id] = { ...r }; });
+        localRoutines.forEach(r => {
+          if (merged[r.id]) {
+            // 任一方完成都算完成
+            merged[r.id].done = merged[r.id].done || r.done;
+            merged[r.id].doneDate = merged[r.id].done ? (merged[r.id].doneDate || r.doneDate) : null;
+          } else {
+            // 本地有但雲端沒有 → 保留（離線新增的）
+            merged[r.id] = { ...r };
+          }
+        });
+        state.routines = Object.values(merged);
+      }
       // ── Goal migration: map old 8-goal system to new 3-goal system ──
       const _goalMigMap = {
         '成長':'技能','技能':'技能','探索':'技能',
@@ -2709,6 +2848,7 @@ function saveStateLocal() {
       todayOrder: state.todayOrder || [],
       wishPoints: state.wishPoints || 0,
       morningDialogShownDate: state.morningDialogShownDate || null,
+      routines: state.routines || [],
       savedAt: Date.now()
     };
     localStorage.setItem('innerflow_state_local', JSON.stringify(snapshot));
@@ -2732,6 +2872,7 @@ function loadStateLocal() {
     state.todayOrder   = data.todayOrder   || [];
     state.wishPoints   = typeof data.wishPoints === 'number' ? data.wishPoints : 0;
     state.morningDialogShownDate = data.morningDialogShownDate || null;
+    state.routines     = Array.isArray(data.routines) ? data.routines : [];
     return true;
   } catch(e) { return false; }
 }
@@ -2757,7 +2898,7 @@ async function syncToCloud() {
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         action: 'save',
-        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], todayOrder: state.todayOrder || [], lotteryState: lotteryState, wishPoints: state.wishPoints || 0, morningDialogShownDate: state.morningDialogShownDate || null, notes: (function(){ try { return JSON.parse(localStorage.getItem('innerflow_notes_v1') || 'null'); } catch(e){ return null; } })(), settings: { resetTime: localStorage.getItem('innerflow_reset_time') || '04:00', neglectDays: localStorage.getItem('innerflow_neglect_days') || '7' } }
+        data: { tasks: state.tasks, sandbox: state.sandbox, done: state.done, rewards: state.rewards || [], customQuotes: state.customQuotes || [], energy: state.energy || 0, doneHistory: state.doneHistory || [], todayOrder: state.todayOrder || [], lotteryState: lotteryState, wishPoints: state.wishPoints || 0, morningDialogShownDate: state.morningDialogShownDate || null, routines: state.routines || [], notes: (function(){ try { return JSON.parse(localStorage.getItem('innerflow_notes_v1') || 'null'); } catch(e){ return null; } })(), settings: { resetTime: localStorage.getItem('innerflow_reset_time') || '04:00', neglectDays: localStorage.getItem('innerflow_neglect_days') || '7' } }
       })
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -3002,6 +3143,7 @@ let state = {
   todayOrder: [], // ordered task ids for the today panel
   wishPoints: 0,  // 願望碎片：完成核心任務或日常任務可獲得，可分配給許願池
   morningDialogShownDate: null, // YYYY-MM-DD：當天已顯示過早晨重複任務視窗
+  routines: [],   // 例行任務清單 [{ id, name, done, doneDate }]
 };
 
 // ── Local-timezone date helper ──
@@ -7564,6 +7706,146 @@ document.addEventListener('visibilitychange', () => {
 
 })(); // end IIFE
 
+
+// ══════════════════════════════════════════════════════════
+// ── 例行任務 (Routine Tasks) ──────────────────────────────
+// ══════════════════════════════════════════════════════════
+
+// 每日重置：若項目的 doneDate 不是今天，清空 done
+function maybeResetRoutines() {
+  const todayKey = (function() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  })();
+  if (!Array.isArray(state.routines)) state.routines = [];
+  let changed = false;
+  state.routines.forEach(it => {
+    if (it.done && it.doneDate !== todayKey) {
+      it.done = false;
+      it.doneDate = null;
+      changed = true;
+    }
+  });
+  if (changed) {
+    if (typeof syncToCloud === 'function') syncToCloud();
+  }
+}
+
+function openRoutinePanel() {
+  maybeResetRoutines();
+  renderRoutineList();
+  document.getElementById('routineOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('routineInput').focus(), 80);
+}
+window.openRoutinePanel = openRoutinePanel;
+
+function closeRoutinePanel() {
+  document.getElementById('routineOverlay').classList.remove('open');
+}
+window.closeRoutinePanel = closeRoutinePanel;
+
+function renderRoutineList() {
+  if (!Array.isArray(state.routines)) state.routines = [];
+  const items = state.routines;
+  const list  = document.getElementById('routineList');
+  const badge = document.getElementById('routineProgressBadge');
+  const btnSpan = document.getElementById('routineBtnBadge');
+
+  const doneCount = items.filter(it => it.done).length;
+  const total = items.length;
+
+  if (badge) badge.textContent = doneCount + '/' + total;
+
+  if (btnSpan) {
+    if (total > 0) {
+      btnSpan.style.display = 'inline-block';
+      btnSpan.textContent   = doneCount + '/' + total;
+      btnSpan.style.background = (doneCount === total && total > 0) ? 'rgba(58,110,165,0.25)' : 'var(--green-dim)';
+      btnSpan.style.color      = 'var(--green)';
+    } else {
+      btnSpan.style.display = 'none';
+    }
+  }
+
+  if (!list) return;
+
+  if (items.length === 0) {
+    list.innerHTML = '<div class="routine-empty">還沒有例行任務。<br>新增你每天都要做的事吧！</div>';
+    return;
+  }
+
+  // Sort: undone first, then done
+  const sorted = [...items].sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0));
+
+  list.innerHTML = sorted.map(it => `
+    <div class="routine-item${it.done ? ' done-routine' : ''}"
+      onclick="toggleRoutineItem(${it.id})" id="routine-${it.id}">
+      <div class="routine-check">${it.done ? '✓' : ''}</div>
+      <span class="routine-name">${it.name}</span>
+      <span class="routine-del" onclick="event.stopPropagation();deleteRoutineItem(${it.id})" title="刪除">×</span>
+    </div>`).join('');
+}
+
+function toggleRoutineItem(id) {
+  if (!Array.isArray(state.routines)) state.routines = [];
+  const it = state.routines.find(x => x.id === id);
+  if (!it) return;
+  const wasDone = it.done;
+  const todayKey = (function() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  })();
+  it.done = !it.done;
+  it.doneDate = it.done ? todayKey : null;
+
+  if (!wasDone) {
+    // 給願望碎片 +1
+    if (state.wishPoints === undefined) state.wishPoints = 0;
+    state.wishPoints++;
+    if (typeof renderRewards === 'function') renderRewards();
+    if (typeof showToast === 'function') showToast('💎 +1 願望碎片');
+  } else {
+    // 取消勾選：退還碎片
+    if (state.wishPoints === undefined) state.wishPoints = 0;
+    state.wishPoints = Math.max(0, state.wishPoints - 1);
+    if (typeof renderRewards === 'function') renderRewards();
+  }
+
+  if (typeof syncToCloud === 'function') syncToCloud();
+  renderRoutineList();
+}
+window.toggleRoutineItem = toggleRoutineItem;
+
+function addRoutineItem() {
+  const input = document.getElementById('routineInput');
+  if (!input) return;
+  const name = input.value.trim();
+  if (!name) return;
+  if (!Array.isArray(state.routines)) state.routines = [];
+  state.routines.push({ id: Date.now(), name, done: false, doneDate: null });
+  input.value = '';
+  if (typeof syncToCloud === 'function') syncToCloud();
+  renderRoutineList();
+  input.focus();
+}
+window.addRoutineItem = addRoutineItem;
+
+function deleteRoutineItem(id) {
+  if (!Array.isArray(state.routines)) state.routines = [];
+  state.routines = state.routines.filter(x => x.id !== id);
+  if (typeof syncToCloud === 'function') syncToCloud();
+  renderRoutineList();
+}
+window.deleteRoutineItem = deleteRoutineItem;
+
+// 初始化：state 載入後觸發 badge 更新
+window.addEventListener('DOMContentLoaded', function() {
+  // 延遲到 init() 完成後再跑，確保 state.routines 已還原
+  setTimeout(function() {
+    maybeResetRoutines();
+    renderRoutineList();
+  }, 600);
+});
 
 </script>
 </body>
