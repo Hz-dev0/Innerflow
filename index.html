@@ -2088,7 +2088,7 @@
         <div id="lotteryPane">
           <div class="lottery-info">
             <div class="lottery-ticket">🎫 抽卡券 <strong id="lotteryTickets">0</strong> 張</div>
-            <div class="lottery-progress" id="lotteryProgress">💎 可用碎片 <span id="todayDone">0</span></div>
+            <span id="todayDone" style="display:none">0</span>
             <button class="lottery-draw-btn" id="lotteryDrawBtn">✦ 洗牌</button>
           </div>
           <div class="lottery-grid" id="lotteryGrid"></div>
@@ -5564,12 +5564,7 @@ function renderLottery() {
     newBtn.addEventListener('touchend', function(e){ e.preventDefault(); drawLottery(); });
   }
 
-  // Update progress text: show remainder toward next ticket (resets to 0 after every 3)
-  const lotteryProgress = document.getElementById('lotteryProgress');
-  if (lotteryProgress) {
-    const frags = getAvailableWishPoints();
-    lotteryProgress.innerHTML = `💎 可用碎片 <span id="todayDone">${frags}</span>`;
-  }
+  // lotteryProgress 已移除，不顯示碎片於抽獎區
 
   const grid = document.getElementById('lotteryGrid');
   if (!grid) return;
