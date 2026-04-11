@@ -2071,7 +2071,7 @@
         <div id="lotteryPane">
           <div class="lottery-info">
             <div class="lottery-ticket">🎫 抽卡券 <strong id="lotteryTickets">0</strong> 張</div>
-            <div class="lottery-progress" id="lotteryProgress">💎 可用碎片 <span id="todayDone">0</span></div>
+            <div class="lottery-progress" id="lotteryProgress" style="display:none">💎 可用碎片 <span id="todayDone">0</span></div>
             <button class="lottery-draw-btn" id="lotteryDrawBtn">✦ 洗牌</button>
           </div>
           <div class="lottery-grid" id="lotteryGrid"></div>
@@ -2384,7 +2384,7 @@
         placeholder="連線密碼" maxlength="3" type="password"
         style="width:120px;flex-shrink:0;text-align:center;border-radius:8px;margin-bottom:0;font-size:14px;font-weight:600;letter-spacing:0.2em;padding:7px 10px"
         oninput="this.value=this.value.toUpperCase()">
-      <span style="font-size:11px;color:var(--text-faint);line-height:1.4">輸入三位連線密碼完成雲端設定</span>
+      <span style="font-size:11px;color:var(--text-faint);line-height:1.4">輸入連線密碼完成雲端設定</span>
     </div>
     <div class="api-status" id="apiStatus"></div>
 
@@ -7809,6 +7809,7 @@ function toggleRoutineItem(id) {
     if (state.wishPoints === undefined) state.wishPoints = 0;
     state.wishPoints = Math.max(0, state.wishPoints - 1);
     if (typeof renderRewards === 'function') renderRewards();
+    if (typeof showToast === 'function') showToast('💎 -1 願望碎片');
   }
 
   if (typeof syncToCloud === 'function') syncToCloud();
