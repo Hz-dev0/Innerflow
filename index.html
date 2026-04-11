@@ -2384,7 +2384,7 @@
         placeholder="連線密碼" maxlength="3" type="password"
         style="width:120px;flex-shrink:0;text-align:center;border-radius:8px;margin-bottom:0;font-size:14px;font-weight:600;letter-spacing:0.2em;padding:7px 10px"
         oninput="this.value=this.value.toUpperCase()">
-      <span style="font-size:11px;color:var(--text-faint);line-height:1.4">輸入連線密碼完成雲端設定</span>
+      <span style="font-size:11px;color:var(--text-faint);line-height:1.4">輸入三位連線密碼完成雲端設定</span>
     </div>
     <div class="api-status" id="apiStatus"></div>
 
@@ -4685,7 +4685,9 @@ function setTaskStatus(id, status) {
     showToast('◉ 已標記為今日處理');
   } else if (status === 'none') {
     t.scheduledFor = null;
-    t.status = null;
+    // 若任務有 taskDate，用 'cancelled' 防止 checkTaskDates 在重新整理時再度自動排進今日
+    // 若是純手動標記（無 taskDate），才清成 null
+    t.status = t.taskDate ? 'cancelled' : null;
     showToast('已取消標記');
   } else if (status === 'cancelled') {
     t.status = 'cancelled';
