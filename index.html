@@ -5955,7 +5955,8 @@ function undoneTask(id) {
   }
   t.done = false;
   t.completedAt = null;
-  state.done = state.tasks.filter(x => x.done).length; // Bug 6 fix: recalculate
+  state.done = state.tasks.filter(x => x.done).length;
+  onTaskUncompleted(t); // Fix: 退還 wishPoints 與 lotteryState.todayDone
   renderStats();
   renderTasks();
   renderTree();
@@ -6021,24 +6022,9 @@ function ctxAction(action) {
   if (action === 'edit') openEditTask(t);
   if (action === 'breakdown') openBreakdown(t);
   if (action === 'toggle') {
-    const wasDone = t.done;
-    t.done = !t.done;
-    if (!wasDone) {
-      t.completedAt = localDateStr();
-      state.done = state.tasks.filter(x => x.done).length; // Bug 5 fix: recalculate
-      if (state.wishPoints === undefined) state.wishPoints = 0;
-      state.wishPoints++;
-      showCelebration(t); checkRewardUnlocks(); renderRewards(); onTaskCompleted();
-      if (t.recurring && t.recurMode === 'interval') scheduleIntervalTask(t);
-    } else {
-      t.completedAt = null;
-      state.done = state.tasks.filter(x => x.done).length; // Bug 5 fix: recalculate
-      if (state.wishPoints === undefined) state.wishPoints = 0;
-      state.wishPoints = Math.max(0, state.wishPoints - 1);
-      renderRewards(); onTaskUncompleted();
-    }
-    renderTasks(); renderStats(); renderTree();
-    syncToCloud();
+    // 直接走 toggleTask，邏輯與主要勾選完全一致，避免重複計算 wishPoints
+    toggleTask(ctxTargetId);
+    return; // toggleTask 已處理 render 與 sync
   }
   if (action === 'delete') {
     const isRecurringDone = t.done && t.recurring;
