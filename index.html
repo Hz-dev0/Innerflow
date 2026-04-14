@@ -3842,12 +3842,32 @@ function runDailyReset() {
     state.tasks = state.tasks.filter(t => !toDelete.includes(t.id));
   }
 
+  // Reset routine tasks for the new day and refund their wishPoints
+  // (routines earn fresh points each day — yesterday's completions are refunded here)
+  // Note: maybeResetRoutines() handles the actual reset + refund logic.
+  // We call it here so the daily reset also resets routines atomically.
+  if (Array.isArray(state.routines)) {
+    const todayKey2 = localDateStr();
+    let routineRefund = 0;
+    state.routines.forEach(it => {
+      if (it.done && it.doneDate !== todayKey2) {
+        it.done = false;
+        it.doneDate = null;
+        routineRefund++;
+      }
+    });
+    if (routineRefund > 0) {
+      state.wishPoints = Math.max(0, (state.wishPoints || 0) - routineRefund);
+    }
+  }
+
   if (resetCount > 0 || toDelete.length > 0) {
     showToast(`🔁 ${resetCount} 個重複任務已重置，新的一天開始！`);
     syncToCloud();
   }
   // Always re-render so interval clones scheduled for today appear in today panel
   renderTasks(); renderStats(); renderTree(); renderRewards();
+  renderRoutineList(); // Fix: update routine badge after daily reset
   checkTaskDates();
   // Reset lottery day counters for new day — but ONLY if lotteryState is from a previous day.
   // If lotteryState.todayDate is already today (e.g. cloud-synced data), do NOT wipe
@@ -4000,6 +4020,8 @@ async function init() {
       renderLottery();
       // Fix: 在雲端資料載入後才做換日重置，確保重置的是最新資料
       checkMissedReset();
+      // Fix: 雲端資料回來後才初始化例行任務（避免競態）
+      initRoutines();
       // Show recurring morning dialog if not yet shown today
       maybeShowRecurMorningDialog();
     } else {
@@ -4011,7 +4033,8 @@ async function init() {
       }
       renderEnergyDots(); renderTree(); renderTasks();
       renderSandbox(); renderStats(); renderRewards(); renderLottery();
-      // ── 5秒後自動重試（處理暫時性網路問題）──
+      // Fix: 雲端讀取失敗走本地備份時也要初始化例行任務
+      initRoutines();
       setTimeout(async () => {
         const dot2 = document.getElementById('syncDot');
         if (!dot2 || !dot2.className.includes('error')) return;
@@ -4045,6 +4068,8 @@ async function init() {
     loadStateLocal();
     renderEnergyDots(); renderTree(); renderTasks();
     renderSandbox(); renderStats(); renderRewards(); renderLottery();
+    // Fix: 本地模式也需要初始化例行任務
+    initRoutines();
     maybeShowRecurMorningDialog();
   }
 
@@ -7815,22 +7840,25 @@ document.addEventListener('visibilitychange', () => {
 // ── 例行任務 (Routine Tasks) ──────────────────────────────
 // ══════════════════════════════════════════════════════════
 
-// 每日重置：若項目的 doneDate 不是今天，清空 done
+// 每日重置：若項目的 doneDate 不是今天，清空 done 並退還碎片
 function maybeResetRoutines() {
   const todayKey = (function() {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   })();
   if (!Array.isArray(state.routines)) state.routines = [];
-  let changed = false;
+  let refundCount = 0;
   state.routines.forEach(it => {
     if (it.done && it.doneDate !== todayKey) {
       it.done = false;
       it.doneDate = null;
-      changed = true;
+      refundCount++;
     }
   });
-  if (changed) {
+  if (refundCount > 0) {
+    // 退還昨日（或更早）例行任務的碎片，讓今天可以重新獲得
+    state.wishPoints = Math.max(0, (state.wishPoints || 0) - refundCount);
+    renderRewards();
     if (typeof syncToCloud === 'function') syncToCloud();
   }
 }
@@ -8054,14 +8082,13 @@ function _routineWireTouchDrag(list) {
   });
 }
 
-// 初始化：state 載入後觸發 badge 更新
-window.addEventListener('DOMContentLoaded', function() {
-  // 延遲到 init() 完成後再跑，確保 state.routines 已還原
-  setTimeout(function() {
-    maybeResetRoutines();
-    renderRoutineList();
-  }, 600);
-});
+// 初始化：由 init() 在 state 載入後呼叫，不再使用魔法 timeout
+// （避免雲端資料尚未回來時用空 state 渲染，導致 badge 不更新）
+function initRoutines() {
+  maybeResetRoutines();
+  renderRoutineList();
+}
+window.initRoutines = initRoutines;
 
 </script>
 </body>
