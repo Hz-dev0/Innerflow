@@ -2749,6 +2749,7 @@ async function loadFromCloud() {
         state.todayOrder   = localBackup.todayOrder   || [];
         state.wishPoints   = typeof localBackup.wishPoints === 'number' ? localBackup.wishPoints : 0;
         state.routines     = Array.isArray(localBackup.routines) ? localBackup.routines : [];
+        state.routineResetDate = localBackup.routineResetDate || null;
         setTimeout(() => syncToCloud(), 1500); // 延遲推送，等 init 完成
         return true;
       }
@@ -2762,6 +2763,7 @@ async function loadFromCloud() {
       state.todayOrder  = data.todayOrder  || [];
       state.wishPoints  = typeof data.wishPoints === 'number' ? Math.max(data.wishPoints, state.wishPoints || 0) : (state.wishPoints || 0);
       state.morningDialogShownDate = data.morningDialogShownDate || state.morningDialogShownDate || null;
+      state.routineResetDate = data.routineResetDate || state.routineResetDate || null;
       // ── 例行任務 merge：union 合併雲端與本地，保留任何一方有的項目
       // done 狀態以「OR」為準，不蓋掉離線時完成的記錄
       {
@@ -2921,6 +2923,7 @@ function saveStateLocal() {
       wishPoints: state.wishPoints || 0,
       morningDialogShownDate: state.morningDialogShownDate || null,
       routines: state.routines || [],
+      routineResetDate: state.routineResetDate || null,
       savedAt: Date.now()
     };
     localStorage.setItem('innerflow_state_local', JSON.stringify(snapshot));
@@ -2945,6 +2948,7 @@ function loadStateLocal() {
     state.wishPoints   = typeof data.wishPoints === 'number' ? data.wishPoints : 0;
     state.morningDialogShownDate = data.morningDialogShownDate || null;
     state.routines     = Array.isArray(data.routines) ? data.routines : [];
+    state.routineResetDate = data.routineResetDate || null;
     return true;
   } catch(e) { return false; }
 }
@@ -3003,6 +3007,7 @@ async function syncToCloud() {
           wishPoints: state.wishPoints || 0,
           morningDialogShownDate: state.morningDialogShownDate || null,
           routines: state.routines || [],
+          routineResetDate: state.routineResetDate || null,
           notes: (function(){ try { return JSON.parse(localStorage.getItem('innerflow_notes_v1') || 'null'); } catch(e){ return null; } })(),
           settings: { resetTime: localStorage.getItem('innerflow_reset_time') || '04:00', neglectDays: localStorage.getItem('innerflow_neglect_days') || '7' }
         }
@@ -3256,7 +3261,8 @@ let state = {
   todayOrder: [], // ordered task ids for the today panel
   wishPoints: 0,  // 願望碎片：完成核心任務或日常任務可獲得，可分配給許願池
   morningDialogShownDate: null, // YYYY-MM-DD：當天已顯示過早晨重複任務視窗
-  routines: [],   // 例行任務清單 [{ id, name, done, doneDate }]
+  routines: [],        // 例行任務清單 [{ id, name, done, doneDate }]
+  routineResetDate: null, // YYYY-MM-DD：最後一次重置例行任務的日期（跨裝置同步）
 };
 
 // ── Local-timezone date helper ──
@@ -7854,30 +7860,37 @@ document.addEventListener('visibilitychange', () => {
 // ── 例行任務 (Routine Tasks) ──────────────────────────────
 // ══════════════════════════════════════════════════════════
 
-// 每日重置：若項目的 doneDate 不是今天，清空 done 並退還碎片
-// 使用 _routineResetDate 防止同一天重複執行退款
-let _routineResetDate = null;
+// 每日重置：若項目的 doneDate 不是今天，清空 done 狀態
+// 使用 state.routineResetDate（雲端同步）防止跨裝置重複執行
+let _routineResetDate = null; // in-memory 快取，避免同 session 重複執行
 function maybeResetRoutines() {
   const todayKey = (function() {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   })();
-  // 同一天只執行一次退款，避免多次開啟面板重複扣分
+  // 同一天只執行一次（同時檢查 in-memory 快取與 state，兩者均防重複）
   if (_routineResetDate === todayKey) return;
+  if (state.routineResetDate === todayKey) {
+    _routineResetDate = todayKey; // 同步 in-memory 快取
+    return;
+  }
   if (!Array.isArray(state.routines)) state.routines = [];
-  let refundCount = 0;
+  let resetCount = 0;
   state.routines.forEach(it => {
     if (it.done && it.doneDate !== todayKey) {
       it.done = false;
       it.doneDate = null;
-      refundCount++;
+      resetCount++;
     }
   });
-  _routineResetDate = todayKey; // 標記今天已執行過
-  if (refundCount > 0) {
-    // 退還昨日（或更早）例行任務的碎片，讓今天可以重新獲得
-    state.wishPoints = Math.max(0, (state.wishPoints || 0) - refundCount);
+  _routineResetDate = todayKey;         // 更新 in-memory 快取
+  state.routineResetDate = todayKey;    // 持久化到 state（隨雲端同步）
+  // 注意：不扣碎片。昨天完成已賺的碎片屬於昨天，今天重置後可重新賺取今天的碎片。
+  if (resetCount > 0) {
     renderRewards();
+    if (typeof syncToCloud === 'function') syncToCloud();
+  } else {
+    // 即使沒有項目被重置，也要同步 routineResetDate 到雲端
     if (typeof syncToCloud === 'function') syncToCloud();
   }
 }
