@@ -3877,6 +3877,13 @@ function runDailyReset() {
     if (routineRefund > 0) {
       state.wishPoints = Math.max(0, (state.wishPoints || 0) - routineRefund);
     }
+    // Fix: 同步 routineResetDate，避免 maybeResetRoutines() 在 initRoutines() 時重複重置
+    // 若本次是補跑昨天的 reset（todayKey !== today），不更新 routineResetDate（由今天的 reset 處理）
+    const _realToday = localDateStr();
+    if (todayKey2 === _realToday) {
+      state.routineResetDate = todayKey2;
+      _routineResetDate = todayKey2;
+    }
   }
 
   if (resetCount > 0 || toDelete.length > 0) {
@@ -4003,6 +4010,14 @@ async function init() {
     if (btn) { btn.classList.add('connected'); btn.textContent = '☁ Connected'; }
     const dot = document.getElementById('syncDot');
     if (dot) dot.className = 'sync-dot syncing';
+    // Fix: 預載本地 routines，讓 loadFromCloud merge 時不會丟失離線新增的項目
+    try {
+      const _preLocal = JSON.parse(localStorage.getItem('innerflow_state_local') || 'null');
+      if (_preLocal && Array.isArray(_preLocal.routines) && _preLocal.routines.length > 0) {
+        state.routines = _preLocal.routines;
+        state.routineResetDate = _preLocal.routineResetDate || null;
+      }
+    } catch(e) {}
     const ok = await loadFromCloud();
     if (ok) {
       // 雲端資料載入後：確保 lotteryState 日期正確（可能跨日），並對齊實際完成數
