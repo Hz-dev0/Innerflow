@@ -182,13 +182,6 @@
   }
   .card-title { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 16px; }
 
-  /* ── Life Tree (card grid) ── */
-  .tree-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(clamp(80px, 18vw, 120px), 1fr));
-    gap: clamp(6px, 2vw, 10px);
-    padding: 4px 0 8px;
-  }
   /* ── Life Tree Ring Cards ── */
   .tree-grid {
     display: grid;
@@ -604,7 +597,7 @@
   .done-toggle-arrow { transition: transform 0.2s; font-size: 10px; }
   .done-toggle-arrow.open { transform: rotate(90deg); }
   .done-tasks-wrap { overflow: hidden; transition: max-height 0.3s ease; max-height: 0; }
-  .done-tasks-wrap.open { max-height: 2000px; }
+  .done-tasks-wrap.open { max-height: none; }
 
   /* ── Mobile Bottom Nav ── */
   .mobile-nav {
@@ -2003,7 +1996,7 @@
           <div class="card-title" style="margin-bottom:0">任務清單</div>
           <div style="display:flex;align-items:center;gap:10px">
             <button class="add-btn" onclick="openAddTask()" style="margin:0;padding:5px 14px;font-size:12px">＋ 新增任務</button>
-            <span id="taskSectionArrow" onclick="toggleTaskSection()" title="收合篩選區" style="font-size:11px;color:var(--text-faint);transition:transform 0.2s;display:inline-block;cursor:pointer;padding:2px 6px;border-radius:4px;border:1px solid var(--border)" title="收合篩選區">▼</span>
+            <span id="taskSectionArrow" onclick="toggleTaskSection()" title="收合篩選區" style="font-size:11px;color:var(--text-faint);transition:transform 0.2s;display:inline-block;cursor:pointer;padding:2px 6px;border-radius:4px;border:1px solid var(--border)">▼</span>
           </div>
         </div>
         <div id="taskSectionBody" style="overflow:hidden;transition:max-height 0.3s ease,opacity 0.2s ease;max-height:300px;opacity:1">
@@ -2552,6 +2545,17 @@
 <!-- Toast -->
 <div class="toast" id="toast"><span id="toastMsg"></span></div>
 <script>
+// ── HTML escape utility (prevents XSS) ──
+function escHtml(s) {
+  if (s === undefined || s === null) return '';
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
 // ── Cloud API — partial URL stored in localStorage ──
 const API_STORAGE_KEY = 'innerflow_api_url';
 const API_KEY_FRAGMENT_STORE = 'innerflow_api_fragment';
@@ -2893,14 +2897,16 @@ window.archiveOldHistory = archiveOldHistory;
 // ── Local state persistence (always runs, regardless of cloud) ──
 function saveStateLocal() {
   try {
-    // ── 安全檢查：若目前 state 是空的，但本地備份有資料，不覆蓋（防止 init 尚未完成時蓋掉資料）──
-    if (!state.tasks || state.tasks.length === 0) {
+    // ── 安全檢查：初始化完成前不覆蓋（防止 init 尚未完成時蓋掉資料）──
+    if (!state._initDone) {
       const existing = localStorage.getItem('innerflow_state_local');
       if (existing) {
-        const parsed = JSON.parse(existing);
-        if (parsed && Array.isArray(parsed.tasks) && parsed.tasks.length > 0) {
-          return; // 本地有資料，不用空 state 覆蓋
-        }
+        try {
+          const parsed = JSON.parse(existing);
+          if (parsed && Array.isArray(parsed.tasks) && parsed.tasks.length > 0) {
+            return; // 本地有資料且 init 未完成，不覆蓋
+          }
+        } catch(e) {}
       }
     }
     const snapshot = {
@@ -2968,7 +2974,7 @@ async function syncToCloud() {
   _pendingSync = false;
   const dot = document.getElementById('syncDot');
   if (dot) dot.className = 'sync-dot syncing';
-  let _retrying = false;
+  let _isRetryScheduled = false;
   try {
     // ── 重要：不使用 Content-Type: application/json ──
     // application/json 會觸發 CORS preflight (OPTIONS)，Google Apps Script 不支援
@@ -3012,12 +3018,12 @@ async function syncToCloud() {
     if (_syncRetryCount < 3) {
       _syncRetryCount++;
       const delay = _syncRetryCount * 3000;
-      _retrying = true;
+      _isRetryScheduled = true;
       isSyncing = false;
       setTimeout(() => syncToCloud(), delay);
     }
   } finally {
-    if (!_retrying) {
+    if (!_isRetryScheduled) {
       isSyncing = false;
       if (_pendingSync) { _pendingSync = false; syncToCloud(); } // retry the queued write
     }
@@ -3121,9 +3127,15 @@ function pickSandboxForName(prefix) {
   const items = state.sandbox;
   const menu = document.createElement('div');
   menu.style.cssText = 'position:fixed;z-index:10020;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:6px 0;box-shadow:0 8px 28px rgba(58,110,165,0.18);min-width:200px;max-width:300px;max-height:260px;overflow-y:auto;animation:modalIn 0.15s ease';
-  menu.innerHTML = items.map((s,i) =>
-    `<div onclick="selectSandboxForName(${i},'${prefix}',this.closest('div[style*=z-index]'))" style="padding:9px 16px;font-size:13px;color:var(--text);cursor:pointer;transition:background 0.12s" onmouseover="this.style.background='rgba(201,162,39,0.08)'" onmouseout="this.style.background=''">${typeof s === 'string' ? s : s.text}</div>`
-  ).join('');
+  items.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'padding:9px 16px;font-size:13px;color:var(--text);cursor:pointer;transition:background 0.12s';
+    div.textContent = typeof s === 'string' ? s : s.text;
+    div.addEventListener('mouseover', () => { div.style.background = 'rgba(201,162,39,0.08)'; });
+    div.addEventListener('mouseout',  () => { div.style.background = ''; });
+    div.addEventListener('click', () => selectSandboxForName(i, prefix, menu));
+    menu.appendChild(div);
+  });
   document.body.appendChild(menu);
   const btn = document.getElementById(prefix + 'TaskName');
   if (btn) {
@@ -3176,8 +3188,8 @@ function showInstantWants() {
   overlay.innerHTML = `<div style="background:var(--bg2);border:1px solid rgba(74,130,196,0.25);border-radius:16px;padding:24px;width:340px;max-width:92vw;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(74,130,196,0.15)">
     <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:16px;color:var(--text)">妳現在想要…？</div>
     ${rewards.map(r => `<div onclick="overlay_navigateToTask(${r.id}, this)" style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:rgba(74,130,196,0.03);cursor:pointer;transition:all 0.18s" onmouseover="this.style.borderColor='rgba(74,130,196,0.35)';this.style.background='rgba(74,130,196,0.06)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='rgba(74,130,196,0.03)'">
-      <div style="font-size:11px;color:var(--text-faint);margin-bottom:3px">${r.name} <span style="font-size:10px;opacity:0.6">→ 點擊跳轉</span></div>
-      <div style="font-size:14px;color:var(--text);font-weight:500">⚡ ${r.reward}</div>
+      <div style="font-size:11px;color:var(--text-faint);margin-bottom:3px">${escHtml(r.name)} <span style="font-size:10px;opacity:0.6">→ 點擊跳轉</span></div>
+      <div style="font-size:14px;color:var(--text);font-weight:500">⚡ ${escHtml(r.reward)}</div>
     </div>`).join('')}
     <button onclick="this.closest('[style*=inset]').remove()" style="margin-top:8px;width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-dim);cursor:pointer;font-family:inherit;font-size:13px">關閉</button>
   </div>`;
@@ -3462,12 +3474,12 @@ function renderRewards() {
         <div style="display:flex;align-items:center;gap:10px;width:100%">
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <span style="font-size:13px;color:${unlocked ? 'rgba(201,162,39,0.85)' : 'var(--text)'};font-weight:500;transition:color 0.4s">${r.name}</span>
+              <span style="font-size:13px;color:${unlocked ? 'rgba(201,162,39,0.85)' : 'var(--text)'};font-weight:500;transition:color 0.4s">${escHtml(r.name)}</span>
               ${unlocked
                 ? `<span style="font-size:10px;color:rgba(201,162,39,0.8);white-space:nowrap;font-weight:600;letter-spacing:0.04em">✓ 已解鎖</span>`
                 : `<span style="font-size:10px;color:var(--text-faint);white-space:nowrap">${current} / ${r.count}</span>`}
             </div>
-            <div style="font-size:11px;color:var(--text-faint);margin-top:2px">${icon} ${r.goal} · 長按可編輯／刪除</div>
+            <div style="font-size:11px;color:var(--text-faint);margin-top:2px">${icon} ${escHtml(r.goal)} · 長按可編輯／刪除</div>
             <!-- Smooth progress bar -->
             <div style="margin-top:8px;height:5px;border-radius:3px;background:${barBg};overflow:hidden;transition:background 0.4s">
               <div style="height:100%;width:${pct}%;border-radius:3px;background:${barColor};transition:width 0.5s ease,background 0.4s"></div>
@@ -4776,11 +4788,11 @@ function taskHTML(t) {
       <div class="task-check${t.done ? ' checked' : ''}" onclick="toggleTask(${t.id})" style="margin-top:1px;flex-shrink:0">${t.done ? '✓' : ''}</div>
       <div class="task-body" style="flex:1;min-width:0">
         <div class="task-name${hasSteps ? ' collapsible' : ''}" onclick="${hasSteps ? `toggleBreakdown(${t.id})` : ''}" style="color:${t.done ? 'var(--text-dim)' : taskNameColor}">
-          ${t.name}
+          ${escHtml(t.name)}
           ${hasSteps ? `<span class="task-collapse-arrow${isOpen ? ' open' : ''}">▶</span>` : ''}
         </div>
-        ${t.meaning ? `<div class="task-meaning">${t.meaning}</div>` : ''}
-        ${t.note ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;padding:4px 8px;background:rgba(200,169,110,0.08);border-radius:6px;border-left:2px solid var(--gold);line-height:1.5">📝 ${t.note}</div>` : ''}
+        ${t.meaning ? `<div class="task-meaning">${escHtml(t.meaning)}</div>` : ''}
+        ${t.note ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;padding:4px 8px;background:rgba(200,169,110,0.08);border-radius:6px;border-left:2px solid var(--gold);line-height:1.5">📝 ${escHtml(t.note)}</div>` : ''}
         <div class="task-meta">
           <span class="tag tag-energy">${eIcon} ${eLabel}</span>
           ${t.postponed >= 3 ? '<span class="tag" style="border-color:rgba(200,120,120,0.4);color:var(--rose);background:rgba(200,120,120,0.06)">⚠ 已多次延期</span>' : ''}
@@ -4803,7 +4815,23 @@ function taskHTML(t) {
 
 function toggleDoneSection() {
   state.doneOpen = !state.doneOpen;
-  renderTasks();
+  const wrap = document.getElementById('doneTasksWrap');
+  if (wrap) {
+    const arrow = wrap.previousElementSibling?.querySelector('.done-toggle-arrow');
+    if (state.doneOpen) {
+      wrap.style.maxHeight = wrap.scrollHeight + 'px';
+      setTimeout(() => { if (wrap.classList.contains('open')) wrap.style.maxHeight = 'none'; }, 320);
+      wrap.classList.add('open');
+      if (arrow) arrow.classList.add('open');
+    } else {
+      wrap.style.maxHeight = wrap.scrollHeight + 'px';
+      requestAnimationFrame(() => { wrap.style.maxHeight = '0'; });
+      wrap.classList.remove('open');
+      if (arrow) arrow.classList.remove('open');
+    }
+  } else {
+    renderTasks();
+  }
 }
 
 // ── Task Status (Today / Cancel / Overdue) ──
@@ -4937,7 +4965,7 @@ function renderTodayPanel() {
       <span class="today-chip-drag-handle" onclick="event.stopPropagation()" title="拖曳排序">⠿</span>
       <div class="today-chip-check${t.done ? ' checked' : ''}" onclick="event.stopPropagation();toggleTask(${t.id});renderTodayPanel()">${t.done ? '✓' : ''}</div>
       <span class="today-chip-goal">${gIcon}</span>
-      <span class="today-chip-name" style="${isOverdue && !t.done ? 'color:var(--rose)' : ''}">${t.name}</span>
+      <span class="today-chip-name" style="${isOverdue && !t.done ? 'color:var(--rose)' : ''}">${escHtml(t.name)}</span>
       ${isOverdue && !t.done ? '<span style="font-size:10px;color:var(--rose);flex-shrink:0;font-weight:600">逾期</span>' : ''}
       ${!t.done ? `<span style="font-size:12px;color:var(--text-faint);cursor:pointer;flex-shrink:0;padding:1px 5px;border-radius:4px;transition:all 0.2s" onclick="event.stopPropagation();deleteTodayTask(${t.id})" onmouseover="this.style.color='var(--rose)';this.style.background='rgba(192,86,90,0.08)'" onmouseout="this.style.color='var(--text-faint)';this.style.background='transparent'" title="刪除此任務">🗑</span>` : ''}
     </div>`;
@@ -5804,9 +5832,9 @@ function renderStats() {
         <div class="task-item done" style="opacity:0.85">
           <div class="task-check checked" onclick="undoneTask(${t.id})" title="取消完成">✓</div>
           <div class="task-body">
-            <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
+            <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${escHtml(t.name)}</div>
             <div class="task-meta">
-              <span class="tag tag-goal">${t.goal || ''}</span>
+              <span class="tag tag-goal">${escHtml(t.goal || '')}</span>
               <span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>
             </div>
           </div>
@@ -5826,9 +5854,9 @@ function renderStats() {
         <div class="task-item done" style="opacity:0.85">
           <div class="task-check checked" onclick="undoneTask(${t.id})" title="取消完成">✓</div>
           <div class="task-body">
-            <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
+            <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${escHtml(t.name)}</div>
             <div class="task-meta">
-              <span class="tag tag-goal">${t.goal || ''}</span>
+              <span class="tag tag-goal">${escHtml(t.goal || '')}</span>
               <span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>
             </div>
           </div>
@@ -5882,9 +5910,9 @@ function renderStats() {
                     <div class="task-item done" style="opacity:0.7">
                       <div class="task-check checked" style="cursor:default">✓</div>
                       <div class="task-body">
-                        <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${t.name}</div>
+                        <div class="task-name" style="text-decoration:line-through;color:var(--text-dim)">${escHtml(t.name)}</div>
                         <div class="task-meta">
-                          <span class="tag tag-goal">${t.goal || ''}</span>
+                          <span class="tag tag-goal">${escHtml(t.goal || '')}</span>
                         </div>
                       </div>
                       ${t.id ? `<span onclick="deletePastDoneTask(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'" title="從任務列表刪除（熱力圖紀錄保留）">×</span>` : ''}
@@ -6461,7 +6489,7 @@ function showCalPopup(e, dateStr) {
     ${doneTasks.map(t => `
       <div class="cal-popup-item">
         <span style="color:var(--green);flex-shrink:0">✓</span>
-        <span>${t.name}${t.goal ? ` <span style="font-size:10px;color:var(--text-faint)">${t.goal}</span>` : ''}</span>
+        <span>${escHtml(t.name)}${t.goal ? ` <span style="font-size:10px;color:var(--text-faint)">${escHtml(t.goal)}</span>` : ''}</span>
       </div>`).join('')}
   `;
   document.body.appendChild(popup);
@@ -6672,8 +6700,8 @@ function _recurMorningRowHTML(task, freq, goalIconMap, energyLabelMap) {
   return `<div class="rm-task-row${checked ? ' rm-checked' : ''}" onclick="recurMorningToggleRow(${task.id})" data-id="${task.id}">
     <div class="rm-checkbox">${checked ? '✓' : ''}</div>
     <div class="rm-task-info">
-      <div class="rm-task-name">${task.name}</div>
-      <div class="rm-task-meta">${gIcon} ${task.goal || ''}${eLabel ? ' · ' + eLabel : ''}</div>
+      <div class="rm-task-name">${escHtml(task.name)}</div>
+      <div class="rm-task-meta">${gIcon} ${escHtml(task.goal || '')}${eLabel ? ' · ' + eLabel : ''}</div>
     </div>
     <div class="rm-freq-badge">${freq}</div>
   </div>`;
@@ -7827,11 +7855,15 @@ document.addEventListener('visibilitychange', () => {
 // ══════════════════════════════════════════════════════════
 
 // 每日重置：若項目的 doneDate 不是今天，清空 done 並退還碎片
+// 使用 _routineResetDate 防止同一天重複執行退款
+let _routineResetDate = null;
 function maybeResetRoutines() {
   const todayKey = (function() {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   })();
+  // 同一天只執行一次退款，避免多次開啟面板重複扣分
+  if (_routineResetDate === todayKey) return;
   if (!Array.isArray(state.routines)) state.routines = [];
   let refundCount = 0;
   state.routines.forEach(it => {
@@ -7841,6 +7873,7 @@ function maybeResetRoutines() {
       refundCount++;
     }
   });
+  _routineResetDate = todayKey; // 標記今天已執行過
   if (refundCount > 0) {
     // 退還昨日（或更早）例行任務的碎片，讓今天可以重新獲得
     state.wishPoints = Math.max(0, (state.wishPoints || 0) - refundCount);
@@ -7907,7 +7940,7 @@ function renderRoutineList() {
       onclick="toggleRoutineItem(${it.id})">
       <span class="routine-drag-handle" onclick="event.stopPropagation()" title="拖曳排序">⠿</span>
       <div class="routine-check">${it.done ? '✓' : ''}</div>
-      <span class="routine-name">${it.name}</span>
+      <span class="routine-name">${escHtml(it.name)}</span>
       <span class="routine-del" onclick="event.stopPropagation();deleteRoutineItem(${it.id})" title="刪除">×</span>
     </div>`).join('');
   _routineWireTouchDrag(list);
