@@ -2172,6 +2172,7 @@
   <div id="routinePanel">
     <div class="routine-header">
       <div class="routine-title">🏠 例行任務 <span class="routine-progress-badge" id="routineProgressBadge">0/0</span></div>
+      <div style="font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:4px">💎 <span id="routineFragmentCount" style="color:var(--green);font-weight:600">0</span> <span style="color:var(--text-faint)">可用碎片</span></div>
       <button onclick="closeRoutinePanel()" style="background:none;border:none;font-size:20px;color:var(--text-faint);cursor:pointer;padding:2px 6px;border-radius:6px;line-height:1;transition:all 0.15s" onmouseover="this.style.background='var(--bg3)';this.style.color='var(--text)'" onmouseout="this.style.background='none';this.style.color='var(--text-faint)'">×</button>
     </div>
     <div class="routine-list" id="routineList"></div>
@@ -3437,6 +3438,8 @@ function renderRewards() {
   // 更新許願池可用碎片數
   const fragCountEl = document.getElementById('wishFragmentCount');
   if (fragCountEl) fragCountEl.textContent = getAvailableWishPoints();
+  const routineFragEl = document.getElementById('routineFragmentCount');
+  if (routineFragEl) routineFragEl.textContent = getAvailableWishPoints();
 
   // 清掉舊的願力點數框（如果存在）
   const oldBar = document.getElementById('wishPointsBar');
@@ -5647,6 +5650,18 @@ function flipCard(i) {
 
   saveLottery();
   syncToCloud();
+
+  // ── 翻到格言牌或已解鎖願望（重複）：+1 願望碎片安慰獎 ──
+  if (!card.isWish && !card.isRandomMission) {
+    // 格言牌（含格言和 placeholder）
+    if (state.wishPoints === undefined) state.wishPoints = 0;
+    state.wishPoints++;
+    renderRewards();
+    syncToCloud();
+    showToast('💎 +1 願望碎片（格言牌安慰獎）');
+  } else if (card.isWish && card.wishId) {
+    // 已是解鎖願望，會在下面兌現，不另給碎片
+  }
 
   // ── 翻到許願牌：自動兌現願望 ──
   if (card.isWish && card.wishId) {
@@ -7934,6 +7949,9 @@ function renderRoutineList() {
   const total = items.length;
 
   if (badge) badge.textContent = doneCount + '/' + total;
+
+  const fragEl = document.getElementById('routineFragmentCount');
+  if (fragEl) fragEl.textContent = getAvailableWishPoints();
 
   if (btnSpan) {
     if (total > 0) {
