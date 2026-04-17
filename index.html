@@ -3919,9 +3919,7 @@ function runDailyReset() {
     lotteryState.todayFlipped = 0;
     lotteryState.rmSlot = undefined;
     lotteryState.cards = []; // clear deck so user must draw again
-    if (lotteryState.randomMission && !lotteryState.randomMission.awarded) {
-      lotteryState.randomMission = null; // expire unawarded missions from previous day
-    }
+    // 隨機任務不隨每日 reset 消失，持續到下次洗牌前都可以完成並獲得對應卡片數量
     saveLottery();
   }
   renderLottery();
@@ -5612,9 +5610,8 @@ function buildCardPool() {
 
 function drawLottery() {
   // 洗牌：不消耗券，隨時可用，重新組合並重置所有牌面朝下
-  if (lotteryState.randomMission && lotteryState.randomMission.awarded) {
-    lotteryState.randomMission = null;
-  }
+  // 洗牌時清除隨機任務（無論是否已完成），下次翻到金卡再重新指派
+  lotteryState.randomMission = null;
   const deck = buildCardPool();
   lotteryState.cards = deck.map(item => ({
     revealed: false,
