@@ -3890,7 +3890,8 @@ function runDailyReset() {
       }
     });
     if (routineRefund > 0) {
-      state.wishPoints = Math.max(0, (state.wishPoints || 0) - routineRefund);
+      const allocated = (state.rewards || []).reduce((sum, r) => sum + (r.allocatedPoints || 0), 0);
+      state.wishPoints = Math.max(allocated, (state.wishPoints || 0) - routineRefund);
     }
     // Fix: 同步 routineResetDate，避免 maybeResetRoutines() 在 initRoutines() 時重複重置
     // 若本次是補跑昨天的 reset（todayKey !== today），不更新 routineResetDate（由今天的 reset 處理）
@@ -4184,6 +4185,16 @@ async function init() {
   // Fix: 只有在沒有設定雲端 API 時（本機模式）才在這裡執行換日重置
   // 有雲端的情況已在 loadFromCloud 完成後執行，避免競態
   if (!getApiUrl()) checkMissedReset();
+
+  // ── 修復：確保 wishPoints 不低於已分配給願望的點數（防止可用碎片永遠顯示 0）──
+  {
+    const allocatedTotal = (state.rewards || []).reduce((sum, r) => sum + (r.allocatedPoints || 0), 0);
+    if ((state.wishPoints || 0) < allocatedTotal) {
+      state.wishPoints = allocatedTotal;
+      saveStateLocal();
+      if (typeof syncToCloud === 'function') syncToCloud();
+    }
+  }
 
   // ── 初始化完成旗標，允許 syncToCloud 正常推送 ──
   state._initDone = true;
