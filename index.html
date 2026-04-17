@@ -2770,19 +2770,29 @@ async function loadFromCloud() {
       {
         const cloudRoutines = Array.isArray(data.routines) ? data.routines : [];
         const localRoutines = Array.isArray(state.routines) ? state.routines : [];
-        const merged = {};
-        cloudRoutines.forEach(r => { merged[r.id] = { ...r }; });
-        localRoutines.forEach(r => {
-          if (merged[r.id]) {
-            // 任一方完成都算完成
-            merged[r.id].done = merged[r.id].done || r.done;
-            merged[r.id].doneDate = merged[r.id].done ? (merged[r.id].doneDate || r.doneDate) : null;
-          } else {
-            // 本地有但雲端沒有 → 保留（離線新增的）
-            merged[r.id] = { ...r };
-          }
-        });
-        state.routines = Object.values(merged);
+
+        // ── 安全保護：若雲端 routines 為空但本地有資料（且雲端 tasks 不為空），
+        // 代表可能是舊版雲端資料未同步 routines 欄位，保留本地並推送修復
+        if (cloudRoutines.length === 0 && localRoutines.length > 0) {
+          console.warn('[InnerFlow] 雲端 routines 為空，但本地有', localRoutines.length, '筆，保留本地並重新推送');
+          state.routines = localRoutines;
+          // 延遲推送，讓 init 完成後把本地 routines 寫回雲端
+          setTimeout(() => { if (typeof syncToCloud === 'function') syncToCloud(); }, 2000);
+        } else {
+          const merged = {};
+          cloudRoutines.forEach(r => { merged[r.id] = { ...r }; });
+          localRoutines.forEach(r => {
+            if (merged[r.id]) {
+              // 任一方完成都算完成
+              merged[r.id].done = merged[r.id].done || r.done;
+              merged[r.id].doneDate = merged[r.id].done ? (merged[r.id].doneDate || r.doneDate) : null;
+            } else {
+              // 本地有但雲端沒有 → 保留（離線新增的）
+              merged[r.id] = { ...r };
+            }
+          });
+          state.routines = Object.values(merged);
+        }
       }
       // ── Goal migration: map old 8-goal system to new 3-goal system ──
       const _goalMigMap = {
@@ -7921,10 +7931,9 @@ function maybeResetRoutines() {
   if (resetCount > 0) {
     renderRewards();
     if (typeof syncToCloud === 'function') syncToCloud();
-  } else {
-    // 即使沒有項目被重置，也要同步 routineResetDate 到雲端
-    if (typeof syncToCloud === 'function') syncToCloud();
   }
+  // resetCount === 0 時不觸發 syncToCloud，防止換裝置時 routines 尚未從雲端載入
+  // 就把空陣列推回去覆蓋雲端資料。routineResetDate 已寫入 state，下次資料變更時會一起推送。
 }
 
 function openRoutinePanel() {
