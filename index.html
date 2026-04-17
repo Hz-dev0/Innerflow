@@ -2630,7 +2630,7 @@ async function saveApiUrl(fragment) {
       state.energy  = data.energy  || 0;
       state.doneHistory = data.doneHistory || [];
       state.todayOrder  = data.todayOrder  || [];
-      state.wishPoints  = typeof data.wishPoints === 'number' ? data.wishPoints : (state.wishPoints || 0);
+      state.wishPoints  = typeof data.wishPoints === 'number' ? Math.max(data.wishPoints, state.wishPoints || 0) : (state.wishPoints || 0);
       state.morningDialogShownDate = data.morningDialogShownDate || state.morningDialogShownDate || null;
       // ── Goal/Energy migration ──
       const _gm = { '成長':'技能','技能':'技能','探索':'技能','創作':'自我','關係':'自我','貢獻':'自我','健康':'自我','日常':'日常' };
@@ -2906,8 +2906,10 @@ function saveStateLocal() {
       if (existing) {
         try {
           const parsed = JSON.parse(existing);
-          if (parsed && Array.isArray(parsed.tasks) && parsed.tasks.length > 0) {
-            return; // 本地有資料且 init 未完成，不覆蓋
+          // 只有在 state.tasks 尚未載入（仍是空陣列）時才阻擋
+          if (parsed && Array.isArray(parsed.tasks) && parsed.tasks.length > 0 &&
+              (!state.tasks || state.tasks.length === 0)) {
+            return; // state 還是空的，init 尚未完成，不覆蓋
           }
         } catch(e) {}
       }
@@ -8009,6 +8011,7 @@ function toggleRoutineItem(id) {
   if (!wasDone) {
     // 完成：+1 願望碎片
     state.wishPoints++;
+    saveStateLocal();   // 立即寫 localStorage，不等 async syncToCloud
     renderRewards();
     checkRandomMissionProgress();
     syncToCloud();
@@ -8016,6 +8019,7 @@ function toggleRoutineItem(id) {
   } else {
     // 取消：-1 願望碎片
     state.wishPoints = Math.max(0, state.wishPoints - 1);
+    saveStateLocal();   // 立即寫 localStorage，不等 async syncToCloud
     renderRewards();
     syncToCloud();
     showToast('💎 -1 願望碎片');
