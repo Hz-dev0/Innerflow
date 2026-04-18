@@ -2632,6 +2632,8 @@ async function saveApiUrl(fragment) {
       state.todayOrder  = data.todayOrder  || [];
       state.wishPoints  = typeof data.wishPoints === 'number' ? Math.max(data.wishPoints, state.wishPoints || 0) : (state.wishPoints || 0);
       state.morningDialogShownDate = data.morningDialogShownDate || state.morningDialogShownDate || null;
+      state.routines = Array.isArray(data.routines) ? data.routines : [];
+      state.routineResetDate = data.routineResetDate || null;
       // ── Goal/Energy migration ──
       const _gm = { '成長':'技能','技能':'技能','探索':'技能','創作':'自我','關係':'自我','貢獻':'自我','健康':'自我','日常':'日常' };
       const _em = { deep:'focus', flow:'charge', light:'easy', rest:'charge', low:'charge', mid:'easy', high:'focus' };
@@ -2673,6 +2675,8 @@ async function saveApiUrl(fragment) {
       }
       renderTasks(); renderSandbox(); renderStats(); renderRewards(); renderTree(); renderEnergyDots(); renderLottery();
       if (typeof notesReloadFromStorage === 'function') notesReloadFromStorage();
+      if (typeof initRoutines === 'function') initRoutines();
+      saveStateLocal();
       checkMissedReset();
     }
     return true;
