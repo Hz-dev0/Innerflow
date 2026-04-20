@@ -2395,7 +2395,7 @@
         placeholder="連線密碼" maxlength="3" type="password"
         style="width:120px;flex-shrink:0;text-align:center;border-radius:8px;margin-bottom:0;font-size:14px;font-weight:600;letter-spacing:0.2em;padding:7px 10px"
         oninput="this.value=this.value.toUpperCase()">
-      <span style="font-size:11px;color:var(--text-faint);line-height:1.4">輸入三位連線密碼完成雲端設定</span>
+      <span style="font-size:11px;color:var(--text-faint);line-height:1.4">輸入連線密碼完成雲端設定</span>
     </div>
     <div class="api-status" id="apiStatus"></div>
 
@@ -2712,6 +2712,7 @@ async function saveApiSettings() {
 }
 
 function clearApiUrl() {
+  // ── 清除雲端連線設定 ──
   localStorage.removeItem(API_STORAGE_KEY);
   localStorage.removeItem(API_KEY_FRAGMENT_STORE);
   const fragInput = document.getElementById('apiKeyFragment');
@@ -2719,7 +2720,39 @@ function clearApiUrl() {
   document.getElementById('apiClearBtn').style.display = 'none';
   const sb2 = document.getElementById('settingsBtn');
   if (sb2) { sb2.classList.remove('connected'); sb2.textContent = '⚙ Cloud'; }
-  setApiStatus('ok', '已清除，目前為本機模式');
+
+  // ── 清除所有本地資料（包含筆記），防止被他人看到 ──
+  localStorage.removeItem('innerflow_state_local');
+  localStorage.removeItem('innerflow_notes_v1');
+
+  // 重置記憶體中的 state
+  state.tasks        = [];
+  state.sandbox      = [];
+  state.done         = 0;
+  state.rewards      = [];
+  state.customQuotes = [];
+  state.energy       = 0;
+  state.doneHistory  = [];
+  state.todayOrder   = [];
+  state.wishPoints   = 0;
+  state.routines     = [];
+  state.routineResetDate = null;
+  state._initDone    = true;
+
+  // 重置記憶體中的筆記
+  if (typeof notesFolderData !== 'undefined') {
+    notesFolderData = [{ name: '筆記', pages: [{ titleA:'', a:'', titleB:'', b:'' }], currentPage: 0 }];
+    notesTabIndex = 0;
+    if (typeof notesEnsureDefaults === 'function') notesEnsureDefaults();
+    if (typeof notesRenderTabs === 'function') notesRenderTabs();
+  }
+
+  // 重新渲染畫面
+  if (typeof render === 'function') render();
+  if (typeof renderRewards === 'function') renderRewards();
+  if (typeof renderRoutineList === 'function') renderRoutineList();
+
+  setApiStatus('ok', '已清除連線，所有本地資料已淨空');
 }
 
 let isSyncing = false;
