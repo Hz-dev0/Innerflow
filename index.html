@@ -388,6 +388,228 @@
   .sandbox-del { cursor: pointer; font-size: 15px; opacity: 0.35; transition: opacity 0.2s; flex-shrink: 0; margin-left: 12px; }
   .sandbox-del:hover { opacity: 1; color: var(--rose); }
 
+  /* ── 共用按鈕 class（取代 inline onmouseover/onmouseout） ── */
+
+  /* 幽靈綠色邊框按鈕：hover 邊框＋文字變綠 */
+  .btn-ghost-green {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 12px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+  }
+  .btn-ghost-green:hover { border-color: var(--green); color: var(--green); }
+
+  /* 同上但 padding 較大，用於「妳現在想要…？」 */
+  .btn-ghost-green-lg {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 18px;
+    font-size: 13px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .btn-ghost-green-lg:hover { border-color: var(--green); color: var(--green); }
+
+  /* 今日任務面板「＋ 新增」按鈕 */
+  .btn-today-add {
+    background: none;
+    border: 1px solid rgba(58,110,165,0.3);
+    border-radius: 6px;
+    color: var(--green);
+    font-size: 11px;
+    padding: 2px 9px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    line-height: 1.5;
+  }
+  .btn-today-add:hover { background: rgba(58,110,165,0.08); }
+
+  /* 清除篩選按鈕（紅色幽靈） */
+  .btn-clear-filter {
+    font-size: 11px;
+    color: var(--rose);
+    cursor: pointer;
+    padding: 3px 10px;
+    border: 1px solid rgba(192,86,90,0.3);
+    border-radius: 20px;
+    font-family: 'Lato', sans-serif;
+    font-weight: 300;
+    transition: all 0.2s;
+    background: transparent;
+  }
+  .btn-clear-filter:hover { background: rgba(192,86,90,0.06); }
+
+  /* 沙盒選取按鈕（金色） */
+  .btn-sandbox-pick {
+    padding: 0 10px;
+    height: 38px;
+    border: 1px solid rgba(201,162,39,0.45);
+    border-radius: 8px;
+    background: rgba(201,162,39,0.08);
+    color: #b8922a;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .btn-sandbox-pick:hover { background: rgba(201,162,39,0.18); }
+
+  /* 關閉面板的 × 按鈕 */
+  .btn-close-panel {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--text-faint);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    line-height: 1;
+    transition: all 0.15s;
+  }
+  .btn-close-panel:hover { background: var(--bg3); color: var(--text); }
+
+  /* Settings modal 關閉按鈕（位置 absolute，繼承 btn-close-panel） */
+  .btn-close-panel-abs {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+  }
+
+  /* input / textarea focus 綠色邊框（取代 onfocus/onblur inline） */
+  .input-green:focus { border-color: var(--green) !important; outline: none; }
+
+  /* notes IO 按鈕（圓形，hover 綠色） */
+  .btn-icon-circle {
+    display: none; /* 預設 none，由 JS 控制顯示 */
+    align-items: center;
+    justify-content: center;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    padding: 0;
+  }
+  .btn-icon-circle:hover { border-color: var(--green); color: var(--green); background: rgba(58,110,165,0.08); }
+
+  /* logo 選單項目 */
+  .logo-menu-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 9px;
+    font-size: 14px; color: var(--text-dim); cursor: pointer;
+    transition: all 0.15s;
+  }
+  .logo-menu-item:hover { background: var(--bg3); color: var(--text); }
+
+  /* 統計頁沙盒卡片 hover */
+  .stat-card-link { cursor: pointer; transition: all 0.2s; }
+  .stat-card-link:hover { border-color: var(--gold) !important; box-shadow: 0 0 0 2px rgba(130,154,177,0.2); }
+
+  /* 刪除按鈕（× 或 🗑），hover 變紅 */
+  .btn-del-icon {
+    font-size: 14px; cursor: pointer;
+    color: var(--text-faint); padding: 2px 6px;
+    transition: color 0.2s;
+  }
+  .btn-del-icon:hover { color: var(--rose); }
+
+  /* 過去任務群組 header hover */
+  .past-group-header {
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer; padding: 7px 10px;
+    border-radius: 8px;
+    background: var(--bg3); border: 1px solid var(--border);
+    transition: all 0.2s; user-select: none;
+  }
+  .past-group-header:hover { border-color: rgba(74,130,196,0.3); }
+
+  /* 數字調整按鈕（圓形 −/＋） */
+  .btn-adj {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 1px solid var(--border);
+    background: transparent; color: var(--text);
+    font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+  .btn-adj:hover { border-color: var(--green); }
+
+  /* 儲存按鈕（綠底） */
+  .btn-save-green {
+    padding: 8px 0; border-radius: 8px;
+    border: none; background: var(--green);
+    color: #fff; font-size: 13px;
+    cursor: pointer; font-family: inherit;
+    transition: opacity 0.2s;
+  }
+  .btn-save-green:hover { opacity: 0.85; }
+
+  /* 編輯格言小圖示 */
+  .btn-edit-icon {
+    font-size: 12px; cursor: pointer;
+    color: var(--text-faint); padding: 2px 4px;
+    border-radius: 5px; transition: all 0.2s;
+  }
+  .btn-edit-icon:hover { color: var(--green); }
+
+  /* 即時想要 overlay 項目 */
+  .instant-want-item {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: rgba(74,130,196,0.03);
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .instant-want-item:hover { border-color: rgba(74,130,196,0.35); background: rgba(74,130,196,0.06); }
+
+  /* 任務備忘 📝 與 ⋯ 按鈕 */
+  .task-icon-btn {
+    font-size: 15px; cursor: pointer;
+    transition: opacity 0.2s; padding: 2px 4px;
+  }
+  .task-icon-btn:hover { opacity: 1 !important; }
+
+  /* task stripe 左色條 hover */
+  .task-stripe:hover { width: 6px; opacity: 1; }
+
+  /* sandbox input 特殊金色樣式 */
+  .input-sandbox {
+    flex: 1;
+    background: rgba(201,162,39,0.13);
+    border: 1px solid rgba(201,162,39,0.45);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .input-sandbox:focus {
+    border-color: #c9a227;
+    background: rgba(201,162,39,0.22);
+  }
+
   /* ── Postpone Dialog ── */
   .postpone-msg {
     font-size: 13px; color: var(--text); line-height: 1.7;
@@ -1907,14 +2129,7 @@
     </div>
     <div class="header-right">
       <!-- Notes import/export button: only visible on notes page -->
-      <button id="notes-io-btn" onclick="notesShowIoMenu()" title="匯入 / 匯出筆記"
-        style="display:none;align-items:center;justify-content:center;
-               width:30px;height:30px;border-radius:50%;
-               border:1px solid var(--border);background:transparent;
-               color:var(--text-dim);cursor:pointer;flex-shrink:0;
-               transition:all 0.2s;padding:0;"
-        onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)';this.style.background='rgba(58,110,165,0.08)'"
-        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)';this.style.background='transparent'">
+      <button id="notes-io-btn" onclick="notesShowIoMenu()" title="匯入 / 匯出筆記" class="btn-icon-circle">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 13h10"/>
           <path d="M8 10V3"/>
@@ -1967,21 +2182,21 @@
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
           <div class="card-title" style="margin-bottom:0">你的核心目標</div>
-          <button onclick="openRoutinePanel()" id="routineBtn" style="background:none;border:1px solid var(--border);border-radius:20px;padding:4px 14px;font-size:12px;color:var(--text-dim);cursor:pointer;font-family:inherit;transition:all 0.2s;display:flex;align-items:center;gap:5px;white-space:nowrap" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'"><span id="routineBtnIcon">🫧</span> 例行任務 <span id="routineBtnBadge" style="display:none;font-size:10px;background:var(--green-dim);color:var(--green);border-radius:20px;padding:0 6px;font-weight:600"></span></button>
+          <button onclick="openRoutinePanel()" id="routineBtn" class="btn-ghost-green"><span id="routineBtnIcon">🫧</span> 例行任務 <span id="routineBtnBadge" style="display:none;font-size:10px;background:var(--green-dim);color:var(--green);border-radius:20px;padding:0 6px;font-weight:600"></span></button>
         </div>
         <div class="tree-grid" id="treeGrid">
           <!-- Rendered by renderTree() -->
         </div>
         <div style="text-align:center;font-size:12px;color:var(--text-faint);margin-top:8px">點擊目標卡片，篩選相關任務並新增任務時自動帶入分類</div>
         <div style="text-align:center;margin-top:12px">
-          <button onclick="showInstantWants()" style="background:none;border:1px solid var(--border);border-radius:20px;padding:6px 18px;font-size:13px;color:var(--text-dim);cursor:pointer;font-family:inherit;transition:all 0.2s" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">妳現在想要…？</button>
+          <button onclick="showInstantWants()" class="btn-ghost-green-lg">妳現在想要…？</button>
         </div>
       </div>
       <!-- Today Tasks Panel -->
       <div class="today-panel" id="todayPanel">
         <div class="today-panel-title" style="display:flex;align-items:center;justify-content:space-between">
           <span>☀ 今日任務&#x20;<span id="todayPanelCount" style="font-size:10px;background:var(--green-dim);color:var(--green);border-radius:20px;padding:1px 8px;font-weight:600;letter-spacing:0"></span></span>
-          <button onclick="openAddTaskForToday()" style="background:none;border:1px solid rgba(58,110,165,0.3);border-radius:6px;color:var(--green);font-size:11px;padding:2px 9px;cursor:pointer;font-family:inherit;transition:all 0.2s;line-height:1.5" onmouseover="this.style.background='rgba(58,110,165,0.08)'" onmouseout="this.style.background='none'" title="新增今日任務">＋ 新增</button>
+          <button onclick="openAddTaskForToday()" class="btn-today-add" title="新增今日任務">＋ 新增</button>
         </div>
         <div id="todayPanelList"></div>
       </div>
@@ -1989,7 +2204,7 @@
 
     <!-- Page: Tasks -->
     <div class="page" id="page-tasks">
-      <div class="section-title">任務總覽 <span class="sub" id="filtered-label"></span><span id="clear-filter-btn" onclick="clearGoalFilter()" style="display:none;font-size:11px;color:var(--rose);cursor:pointer;padding:3px 10px;border:1px solid rgba(192,86,90,0.3);border-radius:20px;font-family:'Lato',sans-serif;font-weight:300;transition:all 0.2s" onmouseover="this.style.background='rgba(192,86,90,0.06)'" onmouseout="this.style.background='transparent'">✕ 清除篩選</span></div>
+      <div class="section-title">任務總覽 <span class="sub" id="filtered-label"></span><span id="clear-filter-btn" onclick="clearGoalFilter()" style="display:none" class="btn-clear-filter">✕ 清除篩選</span></div>
 
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -2047,7 +2262,7 @@
         <div class="card-title">✦ 還沒決定要做，但聽起來很有趣</div>
         <div class="sandbox-list" id="sandboxList"></div>
         <div style="display:flex;gap:10px;margin-top:16px">
-          <input id="sandboxInput" placeholder="一個讓你好奇的想法、主題或冒險…" style="flex:1;background:rgba(201,162,39,0.13);border:1px solid rgba(201,162,39,0.45);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border-color 0.2s,background 0.2s" onfocus="this.style.borderColor='#c9a227';this.style.background='rgba(201,162,39,0.22)'" onblur="this.style.borderColor='rgba(201,162,39,0.45)';this.style.background='rgba(201,162,39,0.13)'" onkeydown="if(event.key==='Enter')addSandbox()">
+          <input id="sandboxInput" placeholder="一個讓你好奇的想法、主題或冒險…" class="input-sandbox" onkeydown="if(event.key==='Enter')addSandbox()">
           <button class="btn-confirm" onclick="addSandbox()" style="background:rgba(201,162,39,0.18);border:1px solid rgba(201,162,39,0.55);color:#b8922a;font-weight:600">丟進來</button>
         </div>
         <div style="font-size:11px;color:var(--text-faint);margin-top:8px">這裡沒有截止日期，沒有完成率壓力，只有好奇心本身。</div>
@@ -2091,7 +2306,7 @@
         <!-- Quote pane -->
         <div id="quotePane" style="display:none">
           <div style="display:flex;gap:10px;margin-bottom:14px">
-            <input id="quoteInput" placeholder="新增一句讓你有力量的話…" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border-color 0.2s" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'" onkeydown="if(event.key==='Enter')addCustomQuote()">
+            <input id="quoteInput" placeholder="新增一句讓你有力量的話…" class="input-green" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;font-family:inherit;transition:border-color 0.2s" onkeydown="if(event.key==='Enter')addCustomQuote()">
             <button class="btn-confirm" onclick="addCustomQuote()">加入</button>
           </div>
           <div style="font-size:12px;color:var(--text-faint);margin-bottom:12px">這些格言會混入抽獎牌中。你也可以新增自己的。</div>
@@ -2124,7 +2339,7 @@
 
     <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
       <input id="newTaskName" placeholder="任務名稱" style="flex:1;margin-bottom:0">
-      <button type="button" onclick="pickSandboxForName('new')" title="從沙盒選取任務名稱" style="padding:0 10px;height:38px;border:1px solid rgba(201,162,39,0.45);border-radius:8px;background:rgba(201,162,39,0.08);color:#b8922a;cursor:pointer;font-family:inherit;font-size:12px;white-space:nowrap;flex-shrink:0;transition:all 0.2s" onmouseover="this.style.background='rgba(201,162,39,0.18)'" onmouseout="this.style.background='rgba(201,162,39,0.08)'">🪐 沙盒</button>
+      <button type="button" onclick="pickSandboxForName('new')" title="從沙盒選取任務名稱" class="btn-sandbox-pick">🪐 沙盒</button>
     </div>
     <textarea id="newTaskMeaning" rows="2" placeholder="這件事對你的意義是…（選填）" style="margin-bottom:12px"></textarea>
 
@@ -2173,7 +2388,7 @@
     <div class="routine-header">
       <div class="routine-title">🫧 例行任務 <span class="routine-progress-badge" id="routineProgressBadge">0/0</span></div>
       <div style="font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:4px">💎 <span id="routineFragmentCount" style="color:var(--green);font-weight:600">0</span> <span style="color:var(--text-faint)">可用碎片</span></div>
-      <button onclick="closeRoutinePanel()" style="background:none;border:none;font-size:20px;color:var(--text-faint);cursor:pointer;padding:2px 6px;border-radius:6px;line-height:1;transition:all 0.15s" onmouseover="this.style.background='var(--bg3)';this.style.color='var(--text)'" onmouseout="this.style.background='none';this.style.color='var(--text-faint)'">×</button>
+      <button onclick="closeRoutinePanel()" class="btn-close-panel">×</button>
     </div>
     <div class="routine-list" id="routineList"></div>
     <div class="routine-add-row">
@@ -2320,7 +2535,7 @@
 
     <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
       <input id="editTaskName" placeholder="任務名稱" style="flex:1;margin-bottom:0">
-      <button type="button" onclick="pickSandboxForName('edit')" title="從沙盒選取任務名稱" style="padding:0 10px;height:38px;border:1px solid rgba(201,162,39,0.45);border-radius:8px;background:rgba(201,162,39,0.08);color:#b8922a;cursor:pointer;font-family:inherit;font-size:12px;white-space:nowrap;flex-shrink:0;transition:all 0.2s" onmouseover="this.style.background='rgba(201,162,39,0.18)'" onmouseout="this.style.background='rgba(201,162,39,0.08)'">🪐 沙盒</button>
+      <button type="button" onclick="pickSandboxForName('edit')" title="從沙盒選取任務名稱" class="btn-sandbox-pick">🪐 沙盒</button>
     </div>
     <textarea id="editTaskMeaning" rows="2" placeholder="這件事對你的意義是…（選填）" style="margin-bottom:12px"></textarea>
 
@@ -2366,7 +2581,7 @@
   <div class="modal" style="width:400px">
     <div class="modal-title" style="font-size:16px;margin-bottom:6px">📝 <span id="noteModalTaskName" style="font-size:14px;color:var(--text-dim);font-family:'Noto Sans TC',sans-serif;font-weight:400"></span></div>
     <div id="noteModalExisting" style="display:none;margin-bottom:10px"></div>
-    <textarea id="noteInput" rows="3" placeholder="現在卡在哪？等待什麼？或只是一個念頭…" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:none;transition:border-color 0.2s;margin-bottom:0" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'" onkeydown="if(event.key==='Enter'&&(event.metaKey||event.ctrlKey))saveNote()"></textarea>
+    <textarea id="noteInput" rows="3" placeholder="現在卡在哪？等待什麼？或只是一個念頭…" class="input-green" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;resize:none;transition:border-color 0.2s;margin-bottom:0" onkeydown="if(event.key==='Enter'&&(event.metaKey||event.ctrlKey))saveNote()"></textarea>
     <div style="font-size:10px;color:var(--text-faint);margin-top:5px;margin-bottom:14px">Cmd/Ctrl + Enter 儲存</div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeNoteModal()">取消</button>
@@ -2385,7 +2600,7 @@
 <!-- API Setup Modal -->
 <div class="api-modal-overlay" id="apiModal" onclick="handleApiModalOverlayClick(event)">
   <div class="api-modal-box" style="position:relative" onclick="event.stopPropagation()">
-    <button id="apiModalCloseBtn" onclick="closeApiModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;color:var(--text-faint);cursor:pointer;line-height:1;padding:2px 6px;border-radius:6px;transition:all 0.2s" onmouseover="this.style.color='var(--text)';this.style.background='var(--bg3)'" onmouseout="this.style.color='var(--text-faint)';this.style.background='none'">×</button>
+    <button id="apiModalCloseBtn" onclick="closeApiModal()" class="btn-close-panel btn-close-panel-abs">×</button>
     <div class="api-modal-title">⚙️ 使用設定</div>
 
     <!-- Cloud section -->
@@ -2402,7 +2617,7 @@
     <!-- Reset time -->
     <div style="font-size:10px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px;margin-top:10px">⏰ 每日重置時間</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <input type="time" id="resetTimeInput" value="04:00" style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;font-weight:300;padding:6px 10px;outline:none;transition:border-color 0.2s;width:120px;flex-shrink:0" onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
+      <input type="time" id="resetTimeInput" value="04:00" class="input-green" style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;font-weight:300;padding:6px 10px;outline:none;transition:border-color 0.2s;width:120px;flex-shrink:0">
       <span style="font-size:11px;color:var(--text-faint)">重複任務在此時間自動重置</span>
     </div>
 
@@ -2410,8 +2625,8 @@
     <div style="font-size:10px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px;margin-top:10px">⏳ 久未完成任務提醒</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       <input type="number" id="neglectDaysInput" min="1" max="365" value="7"
-        style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;padding:6px 10px;outline:none;transition:border-color 0.2s;width:70px;flex-shrink:0;text-align:center"
-        onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
+        class="input-green"
+        style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:inherit;font-size:13px;padding:6px 10px;outline:none;transition:border-color 0.2s;width:70px;flex-shrink:0;text-align:center">
       <span style="font-size:11px;color:var(--text-faint)">天未完成的任務自動置頂，顯示銀色邊框</span>
     </div>
 
@@ -2432,12 +2647,7 @@
   min-width:180px;
   animation: modalIn 0.18s ease;
 ">
-  <div onclick="openApiModal();closeLogoMenu()" style="
-    display:flex;align-items:center;gap:10px;
-    padding:10px 14px;border-radius:9px;
-    font-size:14px;color:var(--text-dim);cursor:pointer;
-    transition:all 0.15s;
-  " onmouseover="this.style.background='var(--bg3)';this.style.color='var(--text)'" onmouseout="this.style.background='transparent';this.style.color='var(--text-dim)'">
+  <div onclick="openApiModal();closeLogoMenu()" class="logo-menu-item">
     <span style="font-size:17px">⚙️</span>
     <span>使用設定</span>
   </div>
@@ -3242,7 +3452,7 @@ function showInstantWants() {
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(224,234,244,0.78);backdrop-filter:blur(6px);z-index:200;display:flex;align-items:center;justify-content:center;animation:modalIn 0.2s ease';
   overlay.innerHTML = `<div style="background:var(--bg2);border:1px solid rgba(74,130,196,0.25);border-radius:16px;padding:24px;width:340px;max-width:92vw;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(74,130,196,0.15)">
     <div style="font-family:'DM Serif Display',serif;font-size:18px;margin-bottom:16px;color:var(--text)">妳現在想要…？</div>
-    ${rewards.map(r => `<div onclick="overlay_navigateToTask(${r.id}, this)" style="padding:10px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:rgba(74,130,196,0.03);cursor:pointer;transition:all 0.18s" onmouseover="this.style.borderColor='rgba(74,130,196,0.35)';this.style.background='rgba(74,130,196,0.06)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='rgba(74,130,196,0.03)'">
+    ${rewards.map(r => `<div onclick="overlay_navigateToTask(${r.id}, this)" class="instant-want-item">
       <div style="font-size:11px;color:var(--text-faint);margin-bottom:3px">${escHtml(r.name)} <span style="font-size:10px;opacity:0.6">→ 點擊跳轉</span></div>
       <div style="font-size:14px;color:var(--text);font-weight:500">⚡ ${escHtml(r.reward)}</div>
     </div>`).join('')}
@@ -3552,7 +3762,8 @@ function renderRewards() {
                    cursor:${canAdd ? 'pointer' : 'default'};transition:all 0.2s;font-family:inherit;
                    -webkit-tap-highlight-color:transparent;touch-action:manipulation;
                    ${!canAdd ? 'opacity:0.35' : ''}"
-            ${canAdd ? `onmouseover="this.style.background='rgba(58,110,165,0.18)';this.style.transform='scale(1.08)'" onmouseout="this.style.background='rgba(58,110,165,0.08)';this.style.transform='scale(1)'"` : ''}>
+            ${canAdd ? `onmouseover="this.style.background='rgba(58,110,165,0.18)';this.style.transform='scale(1.08)'" onmouseout="this.style.background='rgba(58,110,165,0.08)';this.style.transform='scale(1)'"` : ''}
+            onclick="${canAdd ? `allocateWishPoint(${r.id})` : ''}">
             <span style="font-size:18px;line-height:1">${unlocked ? '🔓' : canAdd ? '🗝️' : '🔒'}</span>
             <span style="font-size:9px;color:${canAdd ? 'var(--green)' : 'var(--text-faint)'};font-weight:600;letter-spacing:0.04em">${canAdd ? '+1' : unlocked ? '已解鎖' : '不足'}</span>
           </button>
@@ -3596,7 +3807,7 @@ function renderQuotes() {
     <div class="sandbox-item custom-quote" id="cq-${i}" style="justify-content:space-between">
       <span class="sandbox-text" style="font-style:italic;color:var(--text)">✦ ${t}</span>
       <div style="display:flex;gap:4px;flex-shrink:0;align-items:center">
-        <span style="font-size:12px;cursor:pointer;color:var(--text-faint);padding:2px 4px;border-radius:5px;transition:all 0.2s" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text-faint)'" onclick="openEditCustomQuote(${i})">✏️</span>
+        <span class="btn-edit-icon" onclick="openEditCustomQuote(${i})">✏️</span>
         <span class="sandbox-del" onclick="removeCustomQuote(${i})">×</span>
       </div>
     </div>`).join('');
@@ -4627,11 +4838,11 @@ function openDailyGoalCtx(e, key, refEl) {
     <div style="font-size:13px;color:var(--text);font-weight:500">${n.icon} ${n.label} — 每日目標</div>
     <div style="font-size:11px;color:var(--text-faint);line-height:1.5">今天完成幾件算「完整的一天」？<br>圓環會以此為滿格基準。</div>
     <div style="display:flex;align-items:center;gap:10px">
-      <button onclick="_dailyGoalAdj('${key}',-1)" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">−</button>
+      <button onclick="_dailyGoalAdj('${key}',-1)" class="btn-adj">−</button>
       <div id="dailyGoalVal-${key}" style="font-family:'DM Serif Display',serif;font-size:28px;color:${n.ringColor};min-width:32px;text-align:center">${n.dailyGoal}</div>
-      <button onclick="_dailyGoalAdj('${key}',+1)" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">＋</button>
+      <button onclick="_dailyGoalAdj('${key}',+1)" class="btn-adj">＋</button>
     </div>
-    <button onclick="_dailyGoalSave('${key}')" style="padding:8px 0;border-radius:8px;border:none;background:var(--green);color:#fff;font-size:13px;cursor:pointer;font-family:inherit;transition:opacity 0.2s" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">儲存</button>
+    <button onclick="_dailyGoalSave('${key}')" class="btn-save-green" style="padding:8px 0">儲存</button>
   `;
 
   document.body.appendChild(menu);
@@ -4886,9 +5097,9 @@ function taskHTML(t) {
       <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">
         <div style="display:flex;flex-direction:row;gap:6px;align-items:center">
           ${neglected ? `<span class="neglect-badge" title="點擊重新計算天數" onclick="event.stopPropagation();resetNeglect(${t.id})">⏳ 久未完成</span>` : ''}
-          <div onclick="openNoteModal(${t.id})" id="noteBtn-${t.id}" style="font-size:15px;cursor:pointer;opacity:${t.note ? 1 : 0.3};transition:opacity 0.2s;padding:2px 4px;color:${t.note ? 'var(--gold)' : 'inherit'}" title="${t.note ? '查看/編輯備忘' : '新增備忘'}" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity='${t.note ? 1 : 0.3}'">📝</div>
+          <div onclick="openNoteModal(${t.id})" id="noteBtn-${t.id}" class="task-icon-btn" style="opacity:${t.note ? 1 : 0.3};color:${t.note ? 'var(--gold)' : 'inherit'}" title="${t.note ? '查看/編輯備忘' : '新增備忘'}">📝</div>
         </div>
-        <div onclick="openCtxMenu(event,${t.id})" style="font-size:16px;cursor:pointer;opacity:0.3;transition:opacity 0.2s;padding:2px 4px;line-height:1;letter-spacing:1px" title="更多" onmouseover="this.style.opacity=0.9" onmouseout="this.style.opacity=0.3">⋯</div>
+        <div onclick="openCtxMenu(event,${t.id})" class="task-icon-btn" style="font-size:16px;opacity:0.3;line-height:1;letter-spacing:1px" title="更多">⋯</div>
       </div>
     </div>
     ${breakdownHTML}
@@ -5043,13 +5254,13 @@ function renderTodayPanel() {
       ondrop="todayChipDrop(event,${idx})"
       ondragend="todayChipDragEnd(event)"
       title="點擊跳轉到此任務（可拖曳排序）">
-      ${!t.done ? `<div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:${stripeColor};border-radius:3px 0 0 3px;opacity:0.85;cursor:pointer;transition:width 0.15s,opacity 0.15s;flex-shrink:0" title="${stripeTitle}" onclick="event.stopPropagation();setTaskStatus(${t.id},'none')" onmouseover="this.style.width='6px';this.style.opacity=1" onmouseout="this.style.width='4px';this.style.opacity=0.85"></div>` : ''}
+      ${!t.done ? `<div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:${stripeColor};border-radius:3px 0 0 3px;opacity:0.85;cursor:pointer;transition:width 0.15s,opacity 0.15s;flex-shrink:0" title="${stripeTitle}" onclick="event.stopPropagation();setTaskStatus(${t.id},'none')" ></div>` : ''}
       <span class="today-chip-drag-handle" onclick="event.stopPropagation()" title="拖曳排序">⠿</span>
       <div class="today-chip-check${t.done ? ' checked' : ''}" onclick="event.stopPropagation();toggleTask(${t.id});renderTodayPanel()">${t.done ? '✓' : ''}</div>
       <span class="today-chip-goal">${gIcon}</span>
       <span class="today-chip-name" style="${isOverdue && !t.done ? 'color:var(--rose)' : ''}">${escHtml(t.name)}</span>
       ${isOverdue && !t.done ? '<span style="font-size:10px;color:var(--rose);flex-shrink:0;font-weight:600">逾期</span>' : ''}
-      ${!t.done ? `<span style="font-size:12px;color:var(--text-faint);cursor:pointer;flex-shrink:0;padding:1px 5px;border-radius:4px;transition:all 0.2s" onclick="event.stopPropagation();deleteTodayTask(${t.id})" onmouseover="this.style.color='var(--rose)';this.style.background='rgba(192,86,90,0.08)'" onmouseout="this.style.color='var(--text-faint)';this.style.background='transparent'" title="刪除此任務">🗑</span>` : ''}
+      ${!t.done ? `<span class="btn-del-icon" style="font-size:12px;flex-shrink:0;padding:1px 5px;border-radius:4px" onclick="event.stopPropagation();deleteTodayTask(${t.id})" title="刪除此任務">🗑</span>` : ''}
     </div>`;
   }).join('');
 }
@@ -5886,7 +6097,7 @@ function renderStats() {
       <div class="stat-value">${allDoneTasks.length + historyTasks.length}</div>
       <div class="stat-label">已完成任務</div>
     </div>
-    <div class="stat-card" onclick="showPage('sandbox')" style="cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--gold)';this.style.boxShadow='0 0 0 2px rgba(130,154,177,0.2)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'" title="前往沙盒探索">
+    <div class="stat-card stat-card-link" onclick="showPage('sandbox')" title="前往沙盒探索">
       <div class="stat-value">${state.sandbox.length}</div>
       <div class="stat-label">探索中的好奇 <span style="font-size:9px;opacity:0.6">→</span></div>
     </div>
@@ -5931,7 +6142,7 @@ function renderStats() {
               <span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>
             </div>
           </div>
-          <span onclick="deleteTaskFromStats(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'">×</span>
+          <span onclick="deleteTaskFromStats(${t.id})" class="btn-del-icon">×</span>
         </div>`).join('');
       doneList.innerHTML = html;
     }
@@ -5953,7 +6164,7 @@ function renderStats() {
               <span style="font-size:10px;color:var(--text-faint)">${t.completedAt}</span>
             </div>
           </div>
-          <span onclick="deleteTaskFromStats(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'">×</span>
+          <span onclick="deleteTaskFromStats(${t.id})" class="btn-del-icon">×</span>
         </div>`).join('');
     } else {
       html += '<div style="color:var(--text-faint);font-size:13px;padding:8px;font-style:italic">今天還沒有完成任何任務，繼續加油！</div>';
@@ -5992,7 +6203,7 @@ function renderStats() {
           const isOpen = idx === 0;
           pastHtml += `
             <div style="margin-bottom:4px">
-              <div onclick="togglePastGroup('${groupId}')" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:7px 10px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);transition:all 0.2s;user-select:none" onmouseover="this.style.borderColor='rgba(74,130,196,0.3)'" onmouseout="this.style.borderColor='var(--border)'">
+              <div onclick="togglePastGroup('${groupId}')" class="past-group-header">
                 <span id="${groupId}_arrow" style="font-size:10px;color:var(--text-faint);transition:transform 0.2s;display:inline-block;${isOpen ? 'transform:rotate(90deg)' : ''}">▶</span>
                 <span style="font-size:12px;color:var(--text-dim);font-weight:500">${label}</span>
                 <span style="font-size:11px;color:var(--text-faint);margin-left:auto">${tasks.length} 件</span>
@@ -6008,7 +6219,7 @@ function renderStats() {
                           <span class="tag tag-goal">${escHtml(t.goal || '')}</span>
                         </div>
                       </div>
-                      ${t.id ? `<span onclick="deletePastDoneTask(${t.id})" style="font-size:14px;cursor:pointer;color:var(--text-faint);padding:2px 6px;transition:color 0.2s" onmouseover="this.style.color='var(--rose)'" onmouseout="this.style.color='var(--text-faint)'" title="從任務列表刪除（熱力圖紀錄保留）">×</span>` : ''}
+                      ${t.id ? `<span onclick="deletePastDoneTask(${t.id})" class="btn-del-icon" title="從任務列表刪除（熱力圖紀錄保留）">×</span>` : ''}
                     </div>`).join('')}
                 </div>
               </div>
@@ -7780,11 +7991,7 @@ function notesShowIoMenu() {
   ];
   menu.innerHTML = items.map(it => {
     if (it.sep) return `<div style="height:1px;background:var(--border);margin:4px 8px"></div>`;
-    return `<div onclick="${it.fn};_notesCloseIoMenu()" style="
-      padding:9px 16px;font-size:13px;color:var(--text);cursor:pointer;
-      transition:background 0.12s;
-    " onmouseover="this.style.background='rgba(58,110,165,0.07)'"
-       onmouseout="this.style.background='transparent'">${it.label}</div>`;
+    return `<div onclick="${it.fn};_notesCloseIoMenu()" class="logo-menu-item" style="font-size:13px">${it.label}</div>`;
   }).join('');
 
   document.body.appendChild(menu);
