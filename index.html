@@ -3782,12 +3782,20 @@ function renderRewards() {
         const rect = el.getBoundingClientRect();
         showWishCtxMenu(r.id, unlocked, rect.left + rect.width/2, rect.top);
       });
-      // Wire allocate button for both click and touchend (mobile fix)
+      // Wire allocate button — touchend + e.preventDefault() 阻止後續合成 click，避免雙重觸發
       const allocBtn = document.getElementById('wishAllocBtn-' + r.id);
       if (allocBtn && !unlocked && getAvailableWishPoints() > 0) {
-        const doAlloc = (e) => { e.preventDefault(); e.stopPropagation(); allocateWishPoint(r.id); };
-        allocBtn.addEventListener('click', doAlloc);
-        allocBtn.addEventListener('touchend', doAlloc, { passive: false });
+        allocBtn.addEventListener('touchend', (e) => {
+          e.preventDefault(); // 阻止瀏覽器產生後續合成 click 事件
+          e.stopPropagation();
+          allocateWishPoint(r.id);
+        }, { passive: false });
+        // click 只處理非觸控（桌機）：e.detail === 0 代表合成 click，直接略過
+        allocBtn.addEventListener('click', (e) => {
+          if (e.detail === 0) return;
+          e.stopPropagation();
+          allocateWishPoint(r.id);
+        });
       }
     });
   }
@@ -8154,14 +8162,20 @@ document.addEventListener('visibilitychange', () => {
 // ── 例行任務 (Routine Tasks) ──────────────────────────────
 // ══════════════════════════════════════════════════════════
 
-// 每日重置：逐項檢查 doneDate，不是今天就清空 done 狀態
-// 改為逐項判斷，不再依賴 routineResetDate 作為整體擋關
-// 優點：雲端同步前後順序不影響結果，跨裝置競爭安全
+// 每日重置：若項目的 doneDate 不是今天，清空 done 狀態
+// 使用 state.routineResetDate（雲端同步）防止跨裝置重複執行
+let _routineResetDate = null; // in-memory 快取，避免同 session 重複執行
 function maybeResetRoutines() {
   const todayKey = (function() {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   })();
+  // 同一天只執行一次（同時檢查 in-memory 快取與 state，兩者均防重複）
+  if (_routineResetDate === todayKey) return;
+  if (state.routineResetDate === todayKey) {
+    _routineResetDate = todayKey; // 同步 in-memory 快取
+    return;
+  }
   if (!Array.isArray(state.routines)) state.routines = [];
   let resetCount = 0;
   state.routines.forEach(it => {
@@ -8171,13 +8185,15 @@ function maybeResetRoutines() {
       resetCount++;
     }
   });
-  // 更新 routineResetDate 供其他用途參考（不再作為擋關條件）
-  state.routineResetDate = todayKey;
+  _routineResetDate = todayKey;         // 更新 in-memory 快取
+  state.routineResetDate = todayKey;    // 持久化到 state（隨雲端同步）
   // 注意：不扣碎片。昨天完成已賺的碎片屬於昨天，今天重置後可重新賺取今天的碎片。
   if (resetCount > 0) {
     renderRewards();
     if (typeof syncToCloud === 'function') syncToCloud();
   }
+  // resetCount === 0 時不觸發 syncToCloud，防止換裝置時 routines 尚未從雲端載入
+  // 就把空陣列推回去覆蓋雲端資料。routineResetDate 已寫入 state，下次資料變更時會一起推送。
 }
 
 function openRoutinePanel() {
