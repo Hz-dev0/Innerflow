@@ -2949,10 +2949,21 @@ function clearApiUrl() {
   state.routineResetDate = null;
   state._initDone    = true;
 
-  // 重置記憶體中的筆記
+  // 重置記憶體中的筆記（取消 pending auto-save，避免清空後舊資料被寫回）
+  clearTimeout(notesSaveTimer);
+  notesSaveTimer = null;
   if (typeof notesFolderData !== 'undefined') {
     notesFolderData = [{ name: '筆記', pages: [{ titleA:'', a:'', titleB:'', b:'' }], currentPage: 0 }];
     notesTabIndex = 0;
+    // 直接清空 DOM，確保畫面立即淨空（不論目前是否在筆記頁）
+    ['notesTitleA','notesTextA','notesTitleB','notesTextB'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const preA = document.getElementById('notes-md-preview-a');
+    const preB = document.getElementById('notes-md-preview-b');
+    if (preA) preA.innerHTML = '';
+    if (preB) preB.innerHTML = '';
     if (typeof notesEnsureDefaults === 'function') notesEnsureDefaults();
     if (typeof notesRenderTabs === 'function') notesRenderTabs();
   }
