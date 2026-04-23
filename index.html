@@ -3765,16 +3765,15 @@ function renderRewards() {
             </div>
           </div>
           <!-- Allocate point button -->
-          <button title="${canAdd ? `配入一點（剩餘 ${available} 點）` : available <= 0 ? '完成任務獲得點數' : '已解鎖'}"
+          <button title="${canAdd ? `配入一點（剩餘 ${available} 點）` : available <= 0 ? '完成任務來獲得願望碎片' : '已解鎖'}"
             id="wishAllocBtn-${r.id}"
             style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
                    width:48px;height:48px;border-radius:10px;border:1.5px solid ${canAdd ? 'var(--green)' : 'var(--border)'};
                    background:${canAdd ? 'rgba(58,110,165,0.08)' : 'transparent'};
-                   cursor:${canAdd ? 'pointer' : 'default'};transition:all 0.2s;font-family:inherit;
+                   cursor:${unlocked ? 'default' : 'pointer'};transition:all 0.2s;font-family:inherit;
                    -webkit-tap-highlight-color:transparent;touch-action:manipulation;
-                   ${!canAdd ? 'opacity:0.35' : ''}"
-            ${canAdd ? `onmouseover="this.style.background='rgba(58,110,165,0.18)';this.style.transform='scale(1.08)'" onmouseout="this.style.background='rgba(58,110,165,0.08)';this.style.transform='scale(1)'"` : ''}
-            onclick="${canAdd ? `allocateWishPoint(${r.id})` : ''}">
+                   ${unlocked ? 'opacity:0.35' : ''}"
+            ${canAdd ? `onmouseover="this.style.background='rgba(58,110,165,0.18)';this.style.transform='scale(1.08)'" onmouseout="this.style.background='rgba(58,110,165,0.08)';this.style.transform='scale(1)'"` : ''}>
             <span style="font-size:18px;line-height:1">${unlocked ? '🔓' : canAdd ? '🗝️' : '🔒'}</span>
             <span style="font-size:9px;color:${canAdd ? 'var(--green)' : 'var(--text-faint)'};font-weight:600;letter-spacing:0.04em">${canAdd ? '+1' : unlocked ? '已解鎖' : '不足'}</span>
           </button>
@@ -3795,7 +3794,7 @@ function renderRewards() {
       });
       // Wire allocate button for both click and touchend (mobile fix)
       const allocBtn = document.getElementById('wishAllocBtn-' + r.id);
-      if (allocBtn && !unlocked && getAvailableWishPoints() > 0) {
+      if (allocBtn && !unlocked) {
         const doAlloc = (e) => { e.preventDefault(); e.stopPropagation(); allocateWishPoint(r.id); };
         allocBtn.addEventListener('click', doAlloc);
         allocBtn.addEventListener('touchend', doAlloc, { passive: false });
