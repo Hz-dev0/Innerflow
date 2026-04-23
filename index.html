@@ -2742,12 +2742,12 @@
         <div class="rm-title">☀ 今日重複任務</div>
         <div class="rm-sub">勾選要加入今日任務清單的項目</div>
       </div>
-      <button class="rm-close-btn" onclick="closeRecurMorningDialog()">×</button>
+      <button class="rm-close-btn" onclick="skipRecurMorningDialog()">×</button>
     </div>
     <div id="recurMorningList"></div>
     <div class="rm-footer">
       <button class="rm-select-all-btn" onclick="recurMorningToggleAll()">全選 / 全不選</button>
-      <button class="rm-skip-btn" onclick="closeRecurMorningDialog()">跳過</button>
+      <button class="rm-skip-btn" onclick="skipRecurMorningDialog()">跳過（下次再問）</button>
       <button class="rm-confirm-btn" onclick="confirmRecurMorning()">加入今日任務 →</button>
     </div>
   </div>
@@ -4085,7 +4085,27 @@ function getResetTime() {
   return localStorage.getItem(RESET_TIME_KEY) || '04:00';
 }
 
-function getNextResetMs() {
+// 取得「上一次重置時間點」的 timestamp（毫秒）
+// 即：今天的 HH:MM（若已過），否則昨天的 HH:MM
+function getLastResetTimestamp() {
+  const [hStr, mStr] = getResetTime().split(':');
+  const h = parseInt(hStr), m = parseInt(mStr);
+  const now = new Date();
+  const candidate = new Date(now);
+  candidate.setHours(h, m, 0, 0);
+  if (candidate > now) {
+    // 今天的重置時間還沒到，上一次重置是昨天
+    candidate.setDate(candidate.getDate() - 1);
+  }
+  return candidate.getTime();
+}
+
+// 判斷任務是否在「當前重置週期內」被標記為今日
+// 即 scheduledAt >= 上次重置時間點
+function isScheduledInCurrentCycle(task) {
+  if (!task.scheduledAt) return false;
+  return task.scheduledAt >= getLastResetTimestamp();
+}
   const [hStr, mStr] = getResetTime().split(':');
   const h = parseInt(hStr), m = parseInt(mStr);
   const now = new Date();
@@ -4109,6 +4129,16 @@ function runDailyReset() {
 
   let resetCount = 0;
   const toDelete = [];
+
+  // ── 保護：在 00:00~重置時間 之間預先安排今日的任務，更新 scheduledFor 為真正的今天 ──
+  // （避免 scheduledFor 停在昨天的日期被當成逾期）
+  const resetMoment = getLastResetTimestamp();
+  state.tasks.forEach(t => {
+    if (t.done || !t.scheduledFor || t.status === 'cancelled') return;
+    if (t.scheduledAt && t.scheduledAt >= resetMoment && t.scheduledFor < todayKey) {
+      t.scheduledFor = todayKey; // 更新為今天
+    }
+  });
 
   state.tasks.forEach(t => {
     if (!t.done) return;
@@ -5021,7 +5051,10 @@ function taskHTML(t) {
   const todayStr = localDateStr();
   const isToday = t.scheduledFor === todayStr;
   const isCancelled = t.status === 'cancelled';
-  const isOverdue = t.scheduledFor && t.scheduledFor < todayStr && !t.done && !isCancelled;
+  // 若任務的 scheduledFor 是昨天，但 scheduledAt（標記時間）是在上次重置之後
+  // 代表是 00:00~重置時間 之間預先安排的，不算逾期
+  const isOverdue = t.scheduledFor && t.scheduledFor < todayStr && !t.done && !isCancelled
+    && !isScheduledInCurrentCycle(t);
 
   // Side stripe color: overdue = red, today-marked = gold, default = blue
   let stripeColor, stripeTitle, stripeOnClick;
@@ -5146,15 +5179,18 @@ function setTaskStatus(id, status) {
   if (status === 'today') {
     t.scheduledFor = todayStr;
     t.status = 'active';
+    t.scheduledAt = Date.now(); // 記錄標記時間戳，防止在 00:00~重置時間 之間被誤判為逾期
     showToast('◉ 已標記為今日處理');
   } else if (status === 'none') {
     t.scheduledFor = null;
+    t.scheduledAt = null;
     // 若任務有 taskDate，用 'cancelled' 防止 checkTaskDates 重新自動排進今日
     t.status = t.taskDate ? 'cancelled' : null;
     showToast('已取消標記');
   } else if (status === 'cancelled') {
     t.status = 'cancelled';
     t.scheduledFor = null;
+    t.scheduledAt = null;
     showToast('✕ 已取消今日處理');
   }
   renderTasks();
@@ -5251,7 +5287,7 @@ function renderTodayPanel() {
   const goalIconMap = { 技能:'🌟', 自我:'🌿', 日常:'🏠', 任意:'🌈' };
   list.innerHTML = allToday.map((t, idx) => {
     const gIcon = goalIconMap[t.goal] || '●';
-    const isOverdue = t.scheduledFor < todayStr;
+    const isOverdue = t.scheduledFor < todayStr && !isScheduledInCurrentCycle(t);
     const overdueStyle = isOverdue && !t.done ? 'border-color:rgba(192,86,90,0.3);background:rgba(192,86,90,0.04);' : '';
     const stripeColor = isOverdue && !t.done ? 'var(--rose)' : '#C9A227';
     const stripeTitle = isOverdue && !t.done ? '逾期 — 點擊取消標記' : '今日處理中 — 點擊取消標記';
@@ -5372,6 +5408,17 @@ function toggleTask(id) {
   t.done = !t.done;
   if (!wasDone) {
     t.completedAt = localDateStr();
+    // ── 追蹤完成次數與近期完成日期（用於早晨重複任務排序與連續天數判斷）──
+    if (!t.completionCount) t.completionCount = 0;
+    t.completionCount++;
+    if (!t.recentCompletions) t.recentCompletions = [];
+    // 加入今日日期，保留最近 14 筆，去重
+    if (!t.recentCompletions.includes(t.completedAt)) {
+      t.recentCompletions.push(t.completedAt);
+    }
+    // 只保留最近 14 天
+    t.recentCompletions = t.recentCompletions.sort().slice(-14);
+
     state.done = state.tasks.filter(x => x.done).length;
     showCelebration(t);
     checkRewardUnlocks();
@@ -6948,6 +6995,44 @@ window.openDateTagPicker = openDateTagPicker;
 
 let _recurMorningChecked = new Set();
 
+// 計算某任務的連續完成天數（從 doneHistory + task.recentCompletions 推算）
+function _getTaskConsecutiveDays(task) {
+  const history = state.doneHistory || [];
+  // 收集所有完成日期（doneHistory + task 自身 recentCompletions）
+  const dateSet = new Set();
+  history.filter(h => (h.taskId === task.id || h.name === task.name) && h.completedAt && !h._neglectReset)
+    .forEach(h => dateSet.add(h.completedAt));
+  if (Array.isArray(task.recentCompletions)) {
+    task.recentCompletions.forEach(d => dateSet.add(d));
+  }
+  if (task.completedAt) dateSet.add(task.completedAt);
+
+  if (dateSet.size === 0) return 0;
+
+  // 從昨天開始往回數連續天數（今天尚未完成）
+  let streak = 0;
+  const d = new Date();
+  d.setDate(d.getDate() - 1); // 昨天
+  while (true) {
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    if (dateSet.has(key)) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
+// 計算某任務的總完成次數（doneHistory + task.completionCount）
+function _getTaskTotalCompletions(task) {
+  const fromHistory = (state.doneHistory || [])
+    .filter(h => (h.taskId === task.id || h.name === task.name) && h.completedAt && !h._neglectReset)
+    .length;
+  return fromHistory + (task.completionCount || 0);
+}
+
 function _getRecurringTasksDueToday() {
   const todayStr = localDateStr();
   const result = [];
@@ -6955,11 +7040,10 @@ function _getRecurringTasksDueToday() {
   state.tasks.forEach(t => {
     if (t.done) return;
     if (!t.recurring) return;
-    // Skip if already scheduled for today
+    // 已釘選今日（且未取消）的不列出
     if (t.scheduledFor === todayStr && t.status !== 'cancelled') return;
 
     if (t.recurMode === 'daily' || !t.recurMode) {
-      // Daily recurring tasks — always show
       result.push({ task: t, freq: '每天' });
     } else if (t.recurMode === 'interval') {
       // Interval tasks — show only if scheduledFor is today (arrived)
@@ -6970,19 +7054,31 @@ function _getRecurringTasksDueToday() {
     }
   });
 
+  // 排序：完成次數越多排越前面（越常完成）
+  result.sort((a, b) => {
+    const ca = _getTaskTotalCompletions(a.task);
+    const cb = _getTaskTotalCompletions(b.task);
+    return cb - ca;
+  });
+
   return result;
 }
 
 function showRecurMorningDialog() {
   const items = _getRecurringTasksDueToday();
-  if (items.length === 0) return; // nothing to show
+  if (items.length === 0) return;
 
   const list = document.getElementById('recurMorningList');
   if (!list) return;
 
   _recurMorningChecked = new Set();
-  // Pre-select all by default
-  items.forEach(({task}) => _recurMorningChecked.add(task.id));
+  // 連續三天（含）以上才預設勾選
+  items.forEach(({task}) => {
+    const streak = _getTaskConsecutiveDays(task);
+    if (streak >= 3) {
+      _recurMorningChecked.add(task.id);
+    }
+  });
 
   _renderRecurMorningList(items);
   document.getElementById('recurMorningOverlay').classList.add('open');
@@ -7013,10 +7109,12 @@ function _recurMorningRowHTML(task, freq, goalIconMap, energyLabelMap) {
   const checked = _recurMorningChecked.has(task.id);
   const gIcon = goalIconMap[task.goal] || '●';
   const eLabel = energyLabelMap[task.energy] || '';
+  const streak = _getTaskConsecutiveDays(task);
+  const streakHint = streak >= 3 ? ` <span style="font-size:10px;color:var(--green);opacity:0.75">🔥${streak}天</span>` : '';
   return `<div class="rm-task-row${checked ? ' rm-checked' : ''}" onclick="recurMorningToggleRow(${task.id})" data-id="${task.id}">
     <div class="rm-checkbox">${checked ? '✓' : ''}</div>
     <div class="rm-task-info">
-      <div class="rm-task-name">${escHtml(task.name)}</div>
+      <div class="rm-task-name">${escHtml(task.name)}${streakHint}</div>
       <div class="rm-task-meta">${gIcon} ${escHtml(task.goal || '')}${eLabel ? ' · ' + eLabel : ''}</div>
     </div>
     <div class="rm-freq-badge">${freq}</div>
@@ -7060,20 +7158,26 @@ function confirmRecurMorning() {
     t.status = 'active';
     count++;
   });
-  closeRecurMorningDialog();
+  // 確認後標記今日已顯示，不再重複詢問
+  document.getElementById('recurMorningOverlay').classList.remove('open');
+  state.morningDialogShownDate = localDateStr();
+  syncToCloud();
   if (count > 0) {
     renderTodayPanel();
     renderTasks();
-    syncToCloud();
     showToast(`☀ 已加入 ${count} 個重複任務到今日清單`);
   }
 }
 
-function closeRecurMorningDialog() {
+// 跳過：關閉視窗但【不】寫入 morningDialogShownDate，下次開啟 app 會再詢問一次
+function skipRecurMorningDialog() {
   document.getElementById('recurMorningOverlay').classList.remove('open');
-  // Mark as shown for today in state so it syncs across devices
-  state.morningDialogShownDate = localDateStr();
-  syncToCloud();
+  // 不寫 state.morningDialogShownDate，下次開啟會重新詢問
+}
+
+// 用 × 關閉（等同跳過）
+function closeRecurMorningDialog() {
+  skipRecurMorningDialog();
 }
 
 function maybeShowRecurMorningDialog() {
@@ -7090,6 +7194,7 @@ window.recurMorningToggleRow = recurMorningToggleRow;
 window.recurMorningToggleAll = recurMorningToggleAll;
 window.confirmRecurMorning = confirmRecurMorning;
 window.closeRecurMorningDialog = closeRecurMorningDialog;
+window.skipRecurMorningDialog = skipRecurMorningDialog;
 
 // ── End Recurring Morning Dialog ────────────────────────
 
