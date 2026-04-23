@@ -4079,14 +4079,25 @@ function checkRewardUnlocks() {
 
 // ── Daily Reset for Recurring Tasks ──
 const RESET_TIME_KEY = 'innerflow_reset_time';
-const LAST_RESET_KEY = 'innerflow_last_reset';
+const LAST_RESET_KEY = 'innerflow_last_reset'; // 現在存時間戳（毫秒），不再存日期字串
 
 function getResetTime() {
   return localStorage.getItem(RESET_TIME_KEY) || '04:00';
 }
 
-// 取得「上一次重置時間點」的 timestamp（毫秒）
-// 即：今天的 HH:MM（若已過），否則昨天的 HH:MM
+// 計算下一次重置距離現在的毫秒數
+function getNextResetMs() {
+  const [hStr, mStr] = getResetTime().split(':');
+  const h = parseInt(hStr), m = parseInt(mStr);
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(h, m, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  return next.getTime() - now.getTime();
+}
+
+// 取得「上一次應觸發的重置點」的 timestamp（毫秒）
+// 今天的 HH:MM 若已過 → 今天的 HH:MM；否則 → 昨天的 HH:MM
 function getLastResetTimestamp() {
   const [hStr, mStr] = getResetTime().split(':');
   const h = parseInt(hStr), m = parseInt(mStr);
@@ -4094,7 +4105,6 @@ function getLastResetTimestamp() {
   const candidate = new Date(now);
   candidate.setHours(h, m, 0, 0);
   if (candidate > now) {
-    // 今天的重置時間還沒到，上一次重置是昨天
     candidate.setDate(candidate.getDate() - 1);
   }
   return candidate.getTime();
@@ -4106,24 +4116,22 @@ function isScheduledInCurrentCycle(task) {
   if (!task.scheduledAt) return false;
   return task.scheduledAt >= getLastResetTimestamp();
 }
-  const [hStr, mStr] = getResetTime().split(':');
-  const h = parseInt(hStr), m = parseInt(mStr);
-  const now = new Date();
-  const next = new Date(now);
-  next.setHours(h, m, 0, 0);
-  if (next <= now) next.setDate(next.getDate() + 1);
-  return next.getTime() - now.getTime();
-}
 
-let _resetRunning = false; // Bug 3 fix: prevent concurrent/double reset runs
+let _resetRunning = false;
 function runDailyReset() {
-  if (_resetRunning) return; // already running, skip
+  if (_resetRunning) return;
   _resetRunning = true;
   try {
+  // ── 用時間戳判斷，不再用日期字串 ──
+  // 避免 00:00~重置時間 這段開啟 app 就觸發提早重置
+  const thisCycleResetTs = getLastResetTimestamp();
+  const rawStored = localStorage.getItem(LAST_RESET_KEY);
+  // 向下相容：舊版存的是日期字串（如 "2024-04-23"），數字解析後會是 NaN
+  const lastResetTs = rawStored && /^\d{10,}$/.test(rawStored) ? parseInt(rawStored) : 0;
+  if (lastResetTs >= thisCycleResetTs) { scheduleNextReset(); return; }
+  localStorage.setItem(LAST_RESET_KEY, String(thisCycleResetTs));
+  // todayKey 用於 archive、heatmap 等需要日期字串的地方
   const todayKey = localDateStr();
-  const lastReset = localStorage.getItem(LAST_RESET_KEY);
-  if (lastReset === todayKey) { scheduleNextReset(); return; }
-  localStorage.setItem(LAST_RESET_KEY, todayKey);
 
   if (!state.doneHistory) state.doneHistory = [];
 
@@ -4228,51 +4236,53 @@ function scheduleNextReset() {
   _resetTimer = setTimeout(() => { runDailyReset(); }, msUntil);
 }
 
-// Check on startup if one or more resets were missed (e.g. app closed for multiple days).
-// For each missed day we archive that day's done tasks into doneHistory before resetting,
-// so the heatmap never has gaps even when the user skips days.
+// 啟動時補跑錯過的重置（例如 app 關閉多天）
 function checkMissedReset() {
   const [hStr, mStr] = getResetTime().split(':');
   const resetH = parseInt(hStr), resetM = parseInt(mStr);
   const now = new Date();
-  const todayKey = localDateStr(now);
-  const lastReset = localStorage.getItem(LAST_RESET_KEY);
+  const rawStored = localStorage.getItem(LAST_RESET_KEY);
+  // 向下相容：舊版存日期字串
+  let lastResetTs = rawStored && /^\d{10,}$/.test(rawStored) ? parseInt(rawStored) : 0;
 
-  if (!lastReset) {
-    // First-ever run — just schedule from today
+  if (!lastResetTs) {
+    // 第一次執行或舊格式 — 從今天的重置點開始排程即可
     scheduleNextReset();
     return;
   }
 
-  // Count how many reset boundaries have passed since lastReset
-  // Walk day-by-day from lastReset+1 up to today, running reset for each missed day.
-  let cursor = new Date(lastReset + 'T00:00:00');
-  cursor.setDate(cursor.getDate() + 1); // start from day after last reset
+  // 從 lastResetTs 之後，逐個重置點往前走直到「上一個應觸發的重置點」
+  // 每個重置點 = 某天的 HH:MM
+  const thisCycleResetTs = getLastResetTimestamp();
+  if (lastResetTs >= thisCycleResetTs) {
+    // 本週期已重置，只需排程下一次
+    scheduleNextReset();
+    return;
+  }
+
+  // 計算從 lastResetTs 到 thisCycleResetTs 之間有幾個重置點需要補跑
+  // 從 lastResetTs 的隔天重置點開始逐步往前
+  let cursor = new Date(lastResetTs);
+  // 移到下一個重置點
+  cursor.setHours(resetH, resetM, 0, 0);
+  if (cursor.getTime() <= lastResetTs) {
+    cursor.setDate(cursor.getDate() + 1);
+  }
 
   let didReset = false;
-  while (localDateStr(cursor) <= todayKey) {
-    const cursorKey = localDateStr(cursor);
-    // Build the reset moment for this cursor day
-    const resetMoment = new Date(cursor);
-    resetMoment.setHours(resetH, resetM, 0, 0);
-
-    // Only fire the reset if that reset moment is in the past
-    if (now >= resetMoment || cursorKey < todayKey) {
-      // Temporarily override localStorage so runDailyReset sees this day as "today"
-      // and archives tasks correctly into doneHistory with the right completedAt.
-      // We don't actually mutate task dates — we just let it archive whatever is done.
-      localStorage.setItem(LAST_RESET_KEY, cursorKey);
-      // runDailyReset reads LAST_RESET_KEY at the top: it will run only if key !== todayKey.
-      // We temporarily set the key to a sentinel so the guard doesn't skip it.
-      localStorage.removeItem(LAST_RESET_KEY); // clear so the guard passes
-      runDailyReset();                          // this sets key = localDateStr() = today
-      // runDailyReset sets the key to today, so restore it to cursorKey if we're not done yet
-      if (cursorKey < todayKey) {
-        localStorage.setItem(LAST_RESET_KEY, cursorKey);
-      }
-      didReset = true;
-    }
+  while (cursor.getTime() <= now.getTime()) {
+    const cursorTs = cursor.getTime();
+    // 暫時把 LAST_RESET_KEY 清掉讓 runDailyReset 的守衛通過
+    localStorage.removeItem(LAST_RESET_KEY);
+    runDailyReset();
+    // runDailyReset 會把 LAST_RESET_KEY 設為 thisCycleResetTs
+    // 若還有更早的重置點要補，手動覆寫回 cursor 前一刻讓下一輪能通過守衛
     cursor.setDate(cursor.getDate() + 1);
+    if (cursor.getTime() <= now.getTime()) {
+      // 還有更多重置點要補，把 key 設回剛才這個點
+      localStorage.setItem(LAST_RESET_KEY, String(cursorTs));
+    }
+    didReset = true;
   }
 
   if (!didReset) {
