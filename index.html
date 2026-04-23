@@ -3684,7 +3684,7 @@ function getAvailableWishPoints() {
 function allocateWishPoint(id) {
   const r = state.rewards.find(x => x.id === id);
   if (!r) return;
-  if (getAvailableWishPoints() <= 0) { showToast('❌ 沒有可用的願力點數，完成任務來獲得！'); return; }
+  if (getAvailableWishPoints() <= 0) { showToast('❌ 沒有可用的願望碎片，完成任務來獲得！'); return; }
   if (!r.allocatedPoints) r.allocatedPoints = 0;
   r.allocatedPoints++;
   checkRewardUnlocks();
@@ -3711,7 +3711,7 @@ function renderRewards() {
   const routineFragEl = document.getElementById('routineFragmentCount');
   if (routineFragEl) routineFragEl.textContent = getAvailableWishPoints();
 
-  // 清掉舊的願力點數框（如果存在）
+  // 清掉舊的願望碎片框（如果存在）
   const oldBar = document.getElementById('wishPointsBar');
   if (oldBar) oldBar.remove();
 
@@ -3959,8 +3959,13 @@ function saveWishEdit() {
     showToast('⚠️ 目標數不可超過已分配的 ' + allocated + ' 點，已自動調整');
     return;
   }
+  // 若 count 降低且現在滿足解鎖條件，重置 _notified 讓解鎖通知能再觸發
+  if (newCount !== r.count) {
+    r._notified = false;
+  }
   r.count = newCount;
   closeModal('editWishModal');
+  checkRewardUnlocks();
   renderRewards();
   showToast('🌊 願望已更新');
   syncToCloud();
@@ -6440,6 +6445,11 @@ function ctxAction(action) {
   if (action === 'delete') {
     const isRecurringDone = t.done && t.recurring;
     if (isRecurringDone) { showToast('🔒 重複任務完成後不可刪除'); return; }
+    // 若已完成的任務被刪除，退還 wishPoints（非充電任務才有給）
+    if (t.done && t.energy !== 'charge') {
+      if (state.wishPoints === undefined) state.wishPoints = 0;
+      state.wishPoints = Math.max(0, state.wishPoints - 1);
+    }
     if (t.done && state.done > 0) state.done--;
     state.tasks = state.tasks.filter(x => x.id !== ctxTargetId);
     renderTasks(); renderStats(); renderTree(); checkAchievements(); renderRewards();
