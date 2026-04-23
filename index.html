@@ -4140,11 +4140,10 @@ function runDailyReset() {
 
   // ── 保護：在 00:00~重置時間 之間預先安排今日的任務，更新 scheduledFor 為真正的今天 ──
   // （避免 scheduledFor 停在昨天的日期被當成逾期）
-  const resetMoment = getLastResetTimestamp();
   state.tasks.forEach(t => {
     if (t.done || !t.scheduledFor || t.status === 'cancelled') return;
-    if (t.scheduledAt && t.scheduledAt >= resetMoment && t.scheduledFor < todayKey) {
-      t.scheduledFor = todayKey; // 更新為今天
+    if (t.scheduledAt && t.scheduledAt >= thisCycleResetTs && t.scheduledFor < todayKey) {
+      t.scheduledFor = todayKey;
     }
   });
 
@@ -4155,10 +4154,13 @@ function runDailyReset() {
       state.doneHistory.push({ id: archiveKey, taskId: t.id, name: t.name, goal: t.goal, energy: t.energy, completedAt: t.completedAt, recurring: t.recurring || false });
     }
     if (t.recurring && t.recurMode !== 'interval') {
-      // Daily recurring: reset back to undone
+      // Daily recurring: reset back to undone，清掉排程讓早晨對話框重新詢問
       if (state.done > 0) state.done--;
       t.done = false;
       t.postponed = 0;
+      t.scheduledFor = null;
+      t.scheduledAt = null;
+      t.status = null;
       resetCount++;
     } else {
       // Non-recurring done task or interval task → delete after reset
@@ -4177,12 +4179,14 @@ function runDailyReset() {
   // Note: maybeResetRoutines() handles the actual reset + refund logic.
   // We call it here so the daily reset also resets routines atomically.
   if (Array.isArray(state.routines)) {
-    const todayKey2 = localDateStr();
     let routineRefund = 0;
     state.routines.forEach(it => {
-      if (it.done && it.doneDate !== todayKey2) {
+      // 若完成時間戳早於本次重置點，代表是上個週期完成的，需要重置
+      const doneTsOk = it.doneTs && it.doneTs >= thisCycleResetTs;
+      if (it.done && !doneTsOk) {
         it.done = false;
         it.doneDate = null;
+        it.doneTs = null;
         routineRefund++;
       }
     });
@@ -4190,13 +4194,9 @@ function runDailyReset() {
       const allocated = (state.rewards || []).reduce((sum, r) => sum + (r.allocatedPoints || 0), 0);
       state.wishPoints = Math.max(allocated, (state.wishPoints || 0) - routineRefund);
     }
-    // Fix: 同步 routineResetDate，避免 maybeResetRoutines() 在 initRoutines() 時重複重置
-    // 若本次是補跑昨天的 reset（todayKey !== today），不更新 routineResetDate（由今天的 reset 處理）
-    const _realToday = localDateStr();
-    if (todayKey2 === _realToday) {
-      state.routineResetDate = todayKey2;
-      _routineResetDate = todayKey2;
-    }
+    // 同步 routineResetDate（時間戳字串），避免 maybeResetRoutines() 重複執行
+    state.routineResetDate = String(thisCycleResetTs);
+    _routineResetDate = String(thisCycleResetTs);
   }
 
   if (resetCount > 0 || toDelete.length > 0) {
@@ -5568,10 +5568,13 @@ function _applyRecurUI(prefix, state) {
 // Schedule a future cloned task for interval-recurring tasks
 function scheduleIntervalTask(t) {
   const days = t.recurInterval || 7;
-  const future = new Date();
+  // 「有效今日」：若現在在 00:00~重置時間 之間，實際上還是上個週期的「今天」
+  // 用重置時間點的日期作為基準，避免深夜完成時 +days 差一天
+  const resetTs = getLastResetTimestamp();
+  const effectiveToday = localDateStr(new Date(resetTs));
+  const future = new Date(resetTs);
   future.setDate(future.getDate() + days);
   const futureStr = localDateStr(future);
-  const todayStr = localDateStr();
   const clone = {
     id: Date.now() + Math.floor(Math.random() * 1000),
     name: t.name, meaning: t.meaning || '', goal: t.goal, energy: t.energy,
@@ -5581,7 +5584,7 @@ function scheduleIntervalTask(t) {
     _intervalScheduled: true
   };
   state.tasks.push(clone);
-  if (futureStr === todayStr) {
+  if (futureStr === effectiveToday) {
     showToast(`🔁 「${t.name}」已加入今日任務`);
     renderTodayPanel();
   } else {
@@ -5591,20 +5594,20 @@ function scheduleIntervalTask(t) {
 
 // ── Auto-schedule tasks by taskDate or interval scheduledFor ──
 function checkTaskDates() {
-  const todayStr = localDateStr();
+  // 「有效今日」：00:00~重置時間 之間仍視為上個週期的今天
+  const effectiveToday = localDateStr(new Date(getLastResetTimestamp()));
   let changed = false;
   state.tasks.forEach(t => {
     if (t.done) return;
-    // Auto-mark by taskDate
-    if (t.taskDate && t.taskDate <= todayStr && !t.scheduledFor && t.status !== 'cancelled') {
-      t.scheduledFor = todayStr;
+    // Auto-mark by taskDate — 只在有效今日才排入，不在深夜提早觸發
+    if (t.taskDate && t.taskDate <= effectiveToday && !t.scheduledFor && t.status !== 'cancelled') {
+      t.scheduledFor = effectiveToday;
       t.status = 'active';
       t._scheduledByDate = true;
       changed = true;
     }
     // Interval-recurring clone: when scheduledFor date arrives, mark as today
-    if (t._intervalScheduled && t.scheduledFor && t.scheduledFor <= todayStr && t.status !== 'cancelled') {
-      // Already has scheduledFor — today panel will pick it up; just ensure it's visible
+    if (t._intervalScheduled && t.scheduledFor && t.scheduledFor <= effectiveToday && t.status !== 'cancelled') {
       changed = true;
     }
   });
@@ -7168,9 +7171,9 @@ function confirmRecurMorning() {
     t.status = 'active';
     count++;
   });
-  // 確認後標記今日已顯示，不再重複詢問
+  // 確認後標記本週期已顯示（存時間戳字串），不再重複詢問
   document.getElementById('recurMorningOverlay').classList.remove('open');
-  state.morningDialogShownDate = localDateStr();
+  state.morningDialogShownDate = String(getLastResetTimestamp());
   syncToCloud();
   if (count > 0) {
     renderTodayPanel();
@@ -7191,10 +7194,14 @@ function closeRecurMorningDialog() {
 }
 
 function maybeShowRecurMorningDialog() {
-  // Only show once per reset cycle — tracked in state (synced across devices)
-  const todayStr = localDateStr();
-  if (state.morningDialogShownDate === todayStr) return;
-  // Small delay so UI has rendered first
+  // 每個重置週期只顯示一次 — 用重置時間戳比對（不用日期字串，避免 00:00 提早觸發）
+  const thisCycleResetStr = String(getLastResetTimestamp());
+  const stored = state.morningDialogShownDate;
+  // 向下相容：舊版存日期字串，重置時間戳字串是純數字
+  const alreadyShown = stored && /^\d{10,}$/.test(stored)
+    ? parseInt(stored) >= getLastResetTimestamp()
+    : false; // 舊格式一律視為未顯示，讓使用者升級後觸發一次
+  if (alreadyShown) return;
   setTimeout(() => {
     const items = _getRecurringTasksDueToday();
     if (items.length > 0) showRecurMorningDialog();
@@ -8281,38 +8288,39 @@ document.addEventListener('visibilitychange', () => {
 // ── 例行任務 (Routine Tasks) ──────────────────────────────
 // ══════════════════════════════════════════════════════════
 
-// 每日重置：若項目的 doneDate 不是今天，清空 done 狀態
-// 使用 state.routineResetDate（雲端同步）防止跨裝置重複執行
-let _routineResetDate = null; // in-memory 快取，避免同 session 重複執行
+// 每日重置：若上次重置週期已過，清空例行任務的 done 狀態
+// 使用重置時間戳而非日期字串，確保 00:00~重置時間 之間不會提早重置
+let _routineResetDate = null; // in-memory 快取（存重置時間戳字串）
 function maybeResetRoutines() {
-  const todayKey = (function() {
-    const d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-  })();
-  // 同一天只執行一次（同時檢查 in-memory 快取與 state，兩者均防重複）
-  if (_routineResetDate === todayKey) return;
-  if (state.routineResetDate === todayKey) {
-    _routineResetDate = todayKey; // 同步 in-memory 快取
+  const thisCycleResetTs = getLastResetTimestamp();
+  const thisCycleResetStr = String(thisCycleResetTs);
+  // 同一週期只執行一次（同時檢查 in-memory 快取與 state）
+  if (_routineResetDate === thisCycleResetStr) return;
+  // state.routineResetDate 向下相容：可能是舊的日期字串或新的時間戳字串
+  const storedTs = state.routineResetDate && /^\d{10,}$/.test(state.routineResetDate)
+    ? parseInt(state.routineResetDate) : 0;
+  if (storedTs >= thisCycleResetTs) {
+    _routineResetDate = thisCycleResetStr;
     return;
   }
   if (!Array.isArray(state.routines)) state.routines = [];
   let resetCount = 0;
   state.routines.forEach(it => {
-    if (it.done && it.doneDate !== todayKey) {
+    // 若完成時間在上次重置點之前，代表是上個週期完成的，需要重置
+    const doneTsOk = it.doneTs && it.doneTs >= thisCycleResetTs;
+    if (it.done && !doneTsOk) {
       it.done = false;
       it.doneDate = null;
+      it.doneTs = null;
       resetCount++;
     }
   });
-  _routineResetDate = todayKey;         // 更新 in-memory 快取
-  state.routineResetDate = todayKey;    // 持久化到 state（隨雲端同步）
-  // 注意：不扣碎片。昨天完成已賺的碎片屬於昨天，今天重置後可重新賺取今天的碎片。
+  _routineResetDate = thisCycleResetStr;
+  state.routineResetDate = thisCycleResetStr;
   if (resetCount > 0) {
     renderRewards();
     if (typeof syncToCloud === 'function') syncToCloud();
   }
-  // resetCount === 0 時不觸發 syncToCloud，防止換裝置時 routines 尚未從雲端載入
-  // 就把空陣列推回去覆蓋雲端資料。routineResetDate 已寫入 state，下次資料變更時會一起推送。
 }
 
 function openRoutinePanel() {
@@ -8387,12 +8395,10 @@ function toggleRoutineItem(id) {
   const it = state.routines.find(x => x.id === id);
   if (!it) return;
   const wasDone = it.done;
-  const todayKey = (function() {
-    const d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-  })();
+  const todayKey = localDateStr();
   it.done = !it.done;
   it.doneDate = it.done ? todayKey : null;
+  it.doneTs = it.done ? Date.now() : null; // 記錄完成時間戳，供重置週期判斷使用
 
   if (state.wishPoints === undefined) state.wishPoints = 0;
 
