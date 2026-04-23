@@ -3951,7 +3951,15 @@ function saveWishEdit() {
   if (!r) return;
   r.name = name;
   r.goal = document.getElementById('editWishGoal').value;
-  r.count = parseInt(document.getElementById('editWishCount').value) || 3;
+  const newCount = parseInt(document.getElementById('editWishCount').value) || 3;
+  // 若已分配點數，不允許把 count 調高超過已分配量（否則會反解鎖）
+  const allocated = r.allocatedPoints || 0;
+  if (allocated > 0 && newCount > allocated) {
+    document.getElementById('editWishCount').value = allocated;
+    showToast('⚠️ 目標數不可超過已分配的 ' + allocated + ' 點，已自動調整');
+    return;
+  }
+  r.count = newCount;
   closeModal('editWishModal');
   renderRewards();
   showToast('🌊 願望已更新');
