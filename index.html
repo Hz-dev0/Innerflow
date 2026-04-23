@@ -655,13 +655,20 @@
   /* ── Toast ── */
   .toast {
     position: fixed; bottom: 28px; right: 28px; z-index: 99998;
-    background: var(--bg2); border: 1px solid rgba(74,130,196,0.3);
-    border-radius: 10px; padding: 12px 18px;
-    font-size: 13px; color: var(--text);
-    box-shadow: 0 8px 24px rgba(74,130,196,0.15);
-    display: none; align-items: center; gap: 10px;
+    background: rgba(255,255,255,0.35);
+    backdrop-filter: blur(20px) saturate(1.6);
+    -webkit-backdrop-filter: blur(20px) saturate(1.6);
+    border: none;
+    border-radius: 12px;
+    box-shadow: none;
+    padding: 11px 18px;
+    font-size: 13px; font-weight: 500;
+    color: var(--text);
+    text-shadow: 0 1px 8px rgba(255,255,255,0.8), 0 0 20px rgba(58,110,165,0.2);
+    display: none; align-items: center; gap: 8px;
     animation: slideUp 0.25s ease;
     max-width: 300px;
+    pointer-events: none;
   }
   .toast.show { display: flex; }
   @media (max-width: 680px) {
