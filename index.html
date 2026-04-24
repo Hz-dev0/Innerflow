@@ -523,6 +523,9 @@
   .stat-card-link { cursor: pointer; transition: all 0.2s; }
   .stat-card-link:hover { border-color: var(--gold) !important; box-shadow: 0 0 0 2px rgba(130,154,177,0.2); }
 
+  /* 長按提示：觸控裝置（手機）隱藏，桌機才顯示 */
+  @media (pointer: coarse) { .hint-longpress { display: none; } }
+
   /* 刪除按鈕（× 或 🗑），hover 變紅 */
   .btn-del-icon {
     font-size: 14px; cursor: pointer;
@@ -3765,7 +3768,7 @@ function renderRewards() {
                 ? `<span style="font-size:10px;color:rgba(201,162,39,0.8);white-space:nowrap;font-weight:600;letter-spacing:0.04em">✓ 已解鎖</span>`
                 : `<span style="font-size:10px;color:var(--text-faint);white-space:nowrap">${current} / ${r.count}</span>`}
             </div>
-            <div style="font-size:11px;color:var(--text-faint);margin-top:2px">${icon} ${escHtml(r.goal)} · 長按可編輯／刪除</div>
+            <div style="font-size:11px;color:var(--text-faint);margin-top:2px">${icon} ${escHtml(r.goal)}<span class="hint-longpress"> · 長按可編輯／刪除</span></div>
             <!-- Smooth progress bar -->
             <div style="margin-top:8px;height:5px;border-radius:3px;background:${barBg};overflow:hidden;transition:background 0.4s">
               <div style="height:100%;width:${pct}%;border-radius:3px;background:${barColor};transition:width 0.5s ease,background 0.4s"></div>
@@ -3803,6 +3806,8 @@ function renderRewards() {
       const allocBtn = document.getElementById('wishAllocBtn-' + r.id);
       if (allocBtn && !unlocked) {
         const doAlloc = (e) => { e.preventDefault(); e.stopPropagation(); allocateWishPoint(r.id); };
+        // stopPropagation on touchstart prevents the parent wish-item's long-press timer from starting
+        allocBtn.addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: true });
         allocBtn.addEventListener('click', doAlloc);
         allocBtn.addEventListener('touchend', doAlloc, { passive: false });
       }
