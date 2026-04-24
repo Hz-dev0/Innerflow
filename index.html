@@ -5436,7 +5436,8 @@ function toggleTask(id) {
   const wasDone = t.done;
   t.done = !t.done;
   if (!wasDone) {
-    t.completedAt = localDateStr();
+    // 使用「有效今日」：若現在在 00:00~重置時間 之間，仍屬上個週期的今天
+    t.completedAt = localDateStr(new Date(getLastResetTimestamp()));
     // ── 追蹤完成次數與近期完成日期（用於早晨重複任務排序與連續天數判斷）──
     if (!t.completionCount) t.completionCount = 0;
     t.completionCount++;
@@ -6046,8 +6047,8 @@ function flipCard(i) {
         id: Date.now(),
         name: `願望成真✨ ${wishName}`,
         meaning: `來自許願池的願望：${wishName}`,
-        goal: r.goal || '',
-        energy: 'low',
+        goal: '日常',
+        energy: 'easy',
         done: false,
         postponed: 0,
         recurring: false,
@@ -6764,6 +6765,40 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
   });
 })();
 
+
+// ── 手機手勢：右滑回到生命樹 ──
+(function() {
+  let _swipeStartX = 0;
+  let _swipeStartY = 0;
+  let _swipeActive = false;
+
+  document.addEventListener('touchstart', function(e) {
+    const touch = e.touches[0];
+    _swipeStartX = touch.clientX;
+    _swipeStartY = touch.clientY;
+    // 只在畫面左側 30px 內開始的滑動才算「上一頁手勢」（避免與頁內橫向捲動衝突）
+    _swipeActive = touch.clientX <= 30;
+  }, { passive: true });
+
+  document.addEventListener('touchend', function(e) {
+    if (!_swipeActive) return;
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - _swipeStartX;
+    const deltaY = Math.abs(touch.clientY - _swipeStartY);
+    // 橫向位移 > 60px 且縱向位移 < 80px，視為向右滑動（上一頁）
+    if (deltaX > 60 && deltaY < 80) {
+      // 若 notes 頁面可見，回到先前頁面
+      if (typeof _notesIsVisible !== 'undefined' && _notesIsVisible) {
+        const prevPage = window._notesPrevPage || 'tree';
+        showPage(prevPage);
+      } else {
+        // 一律回到生命樹
+        showPage('tree');
+      }
+    }
+    _swipeActive = false;
+  }, { passive: true });
+})();
 
 // ── PWA Service Worker ──
 if ('serviceWorker' in navigator) {
