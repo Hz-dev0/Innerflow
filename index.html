@@ -5127,7 +5127,7 @@ function flatSetTime(key) {
 }
 window.flatSetTime = flatSetTime;
 
-
+function taskHTML(t) {
   const eIcon = energyIcons[t.energy] || '●';
   const eLabel = energyLabels[t.energy] || t.energy;
   const steps = t.steps || [];
