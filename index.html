@@ -39,7 +39,12 @@
 
 
 
-  * { box-sizing: border-box; margin: 0; padding: 0; transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  /* 只讓需要主題切換動畫的關鍵元素套 transition，避免全局 transition 拖垮手機渲染效能 */
+  body, header, aside, main, .card, .modal, .task-item, .nav-item, .mob-nav-item,
+  .goal-ring-card, .routine-item, .today-task-chip, .lottery-card, .achievement-card, .stat-card {
+    transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+  }
 
   body {
     background: var(--bg);
@@ -255,6 +260,16 @@
     cursor: pointer;
     transition: all 0.2s;
     font-size: 10px;
+    /* 手機觸控：用 padding 擴大點擊範圍到 44x44 最低標準 */
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  @media (pointer: coarse) {
+    .task-check {
+      padding: 13px;
+      margin: -13px;
+      margin-top: calc(-13px + 1px);
+    }
   }
   .task-check:hover { border-color: var(--green); }
   .task-check.checked { background: var(--green); border-color: var(--green); color: #fff; }
@@ -333,6 +348,10 @@
     animation: modalIn 0.25s ease;
   }
   @keyframes modalIn { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  /* 手機：modal 從底部大幅滑出（Android bottom sheet 習慣） */
+  @media (max-width: 680px) and (pointer: coarse) {
+    @keyframes modalIn { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  }
   @keyframes wishBtnIn { from { opacity:0; transform:translateY(-6px) scale(0.9); } to { opacity:1; transform:translateY(0) scale(1); } }
   .modal-title { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 20px; color: var(--text); }
   .modal label { display: block; font-size: 11px; letter-spacing: 0.08em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px; }
@@ -536,6 +555,14 @@
   /* 統計頁沙盒卡片 hover */
   .stat-card-link { cursor: pointer; transition: all 0.2s; }
   .stat-card-link:hover { border-color: var(--gold) !important; box-shadow: 0 0 0 2px rgba(130,154,177,0.2); }
+
+  /* 安卓：消除按鈕的 300ms 觸控延遲 + 藍色 tap 高亮 */
+  button, .nav-item, .mob-nav-item, .task-item, .fpill, .filter-chip,
+  .goal-ring-card, .today-task-chip, .lottery-card-back, .routine-item,
+  .ctx-item, .add-btn, .btn-confirm, .btn-cancel, .energy-dot, .cal-nav-btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
 
   /* 長按提示：觸控裝置（手機）隱藏，桌機才顯示 */
   @media (pointer: coarse) { .hint-longpress { display: none; } }
@@ -867,8 +894,8 @@
   .done-section-header:hover { color: var(--text); }
   .done-toggle-arrow { transition: transform 0.2s; font-size: 10px; }
   .done-toggle-arrow.open { transform: rotate(90deg); }
-  .done-tasks-wrap { overflow: hidden; transition: max-height 0.3s ease; max-height: 0; }
-  .done-tasks-wrap.open { max-height: none; }
+  .done-tasks-wrap { overflow: hidden; transition: max-height 0.35s ease; max-height: 0; }
+  .done-tasks-wrap.open { max-height: 4000px; }
 
   /* ── Mobile Bottom Nav ── */
   .mobile-nav {
@@ -936,8 +963,9 @@
       top: 0 !important;
       left: 0;
       right: 0;
-      height: 52px;
+      height: calc(52px + env(safe-area-inset-top, 0px));
       padding: 0 16px;
+      padding-top: env(safe-area-inset-top, 0px);
       z-index: 40;
       overflow: hidden;
       transform: translateZ(0);
@@ -950,7 +978,7 @@
     /* ✅ Main：填滿 header 和 bottom nav 之間 */
     main {
       position: fixed !important;
-      top: 52px;
+      top: calc(52px + env(safe-area-inset-top, 0px));
       left: 0;
       right: 0;
       bottom: calc(60px + env(safe-area-inset-bottom));
@@ -981,7 +1009,7 @@
     /* 手機：modal 視窗上方保留空間，讓鍵盤彈出時可以往上捲 */
     .modal-overlay {
       align-items: flex-start;
-      padding: 16px 0 env(keyboard-inset-height, 300px);
+      padding: 16px 0 env(safe-area-inset-bottom, 20px);
     }
     .modal-row { flex-direction: column; gap: 0; }
     .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -1420,6 +1448,15 @@
     transition: all 0.18s;
     font-size: 9px;
     color: #fff;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  @media (pointer: coarse) {
+    .step-check {
+      padding: 12px;
+      margin: -12px;
+      flex-shrink: 0;
+    }
   }
   .step-check:hover { border-color: var(--green); }
   .step-check.checked { background: var(--green); border-color: var(--green); }
@@ -1557,6 +1594,22 @@
   .today-chip-goal { font-size: 10px; color: var(--text-faint); flex-shrink: 0; }
   .today-chip-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .today-panel-empty { font-size: 12px; color: var(--text-faint); font-style: italic; padding: 4px 0; }
+
+  /* ── 手機左滑刪除動畫 ── */
+  @media (pointer: coarse) {
+    .task-item {
+      will-change: transform;
+      /* 確保 overflow:hidden 不裁掉左滑浮層 */
+      overflow: visible;
+    }
+    /* 手機：⋯ 更多按鈕和 📝 備忘按鈕，增大觸控區域 */
+    .task-icon-btn {
+      padding: 8px !important;
+      margin: -4px;
+    }
+    /* routine 刪除按鈕手機上永遠顯示（hover 在手機無效） */
+    .routine-del { opacity: 0.5 !important; }
+  }
 
   /* ── Task Highlight (navigate from today panel) ── */
   @keyframes taskPulse {
@@ -2118,6 +2171,11 @@
     border: 1.5px solid var(--border); flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
     font-size: 10px; transition: all 0.15s; color: #fff;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  @media (pointer: coarse) {
+    .routine-check { padding: 12px; margin: -12px; }
   }
   .routine-item.done-routine .routine-check { background: var(--green); border-color: var(--green); }
   .routine-item:hover .routine-check { border-color: var(--green); }
@@ -5102,6 +5160,14 @@ function renderTasks() {
   if (typeof _syncStripToState === 'function') _syncStripToState();
   // sync flat pills
   if (typeof _syncFlatPills === 'function') _syncFlatPills();
+  // 手機：為每個有 breakdown 的任務綁定觸控拖曳
+  if (window.matchMedia('(pointer: coarse)').matches) {
+    state.tasks.filter(t => t.steps && t.steps.length > 0).forEach(t => {
+      _wireStepTouchDrag(t.id);
+    });
+    // 為每個任務綁定長按 context menu（取代桌機右鍵）
+    _wireTaskLongPress();
+  }
 }
 
 // ── 扁平 Pill 篩選 ──────────────────────────────────────
@@ -5426,6 +5492,9 @@ function renderTodayPanel() {
       ${!t.done ? `<span class="btn-del-icon" style="font-size:12px;flex-shrink:0;padding:1px 5px;border-radius:4px" onclick="event.stopPropagation();deleteTodayTask(${t.id})" title="刪除此任務">🗑</span>` : ''}
     </div>`;
   }).join('');
+
+  // 手機：今日任務觸控拖曳排序
+  if (window.matchMedia('(pointer: coarse)').matches) _wireTodayChipTouchDrag(list);
 }
 
 // ── Delete task from today panel ──
@@ -5492,6 +5561,53 @@ function todayChipDragEnd(e) {
   _todayDragIdx = null;
 }
 
+// ── Today Panel 觸控拖曳（手機）──
+function _wireTodayChipTouchDrag(list) {
+  if (!list) return;
+  let _tidx = null, _clone = null, _startY = 0;
+
+  list.querySelectorAll('.today-chip-drag-handle').forEach(handle => {
+    handle.addEventListener('touchstart', e => {
+      const chip = handle.closest('.today-task-chip');
+      if (!chip) return;
+      _tidx = parseInt(chip.dataset.idx);
+      _startY = e.touches[0].clientY;
+      const rect = chip.getBoundingClientRect();
+      _clone = chip.cloneNode(true);
+      _clone.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;opacity:0.85;width:' + rect.width + 'px;left:' + rect.left + 'px;top:' + rect.top + 'px;border-radius:8px;box-shadow:0 6px 24px rgba(201,162,39,0.25);transition:none';
+      document.body.appendChild(_clone);
+      chip.classList.add('dragging-chip');
+      e.preventDefault();
+    }, { passive: false });
+  });
+
+  list.addEventListener('touchmove', e => {
+    if (_tidx === null || !_clone) return;
+    e.preventDefault();
+    const dy = e.touches[0].clientY - _startY;
+    _clone.style.transform = 'translateY(' + dy + 'px)';
+    list.querySelectorAll('.today-task-chip').forEach(el => el.classList.remove('drag-over-chip'));
+    const target = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+    const targetChip = target && target.closest('.today-task-chip');
+    if (targetChip && parseInt(targetChip.dataset.idx) !== _tidx) {
+      targetChip.classList.add('drag-over-chip');
+    }
+  }, { passive: false });
+
+  list.addEventListener('touchend', e => {
+    if (_tidx === null) return;
+    if (_clone) { _clone.remove(); _clone = null; }
+    list.querySelectorAll('.today-task-chip').forEach(el => el.classList.remove('dragging-chip', 'drag-over-chip'));
+    const pt = e.changedTouches[0];
+    const target = document.elementFromPoint(pt.clientX, pt.clientY);
+    const targetChip = target && target.closest('.today-task-chip');
+    if (targetChip) {
+      todayChipDrop({ preventDefault: () => {} }, parseInt(targetChip.dataset.idx));
+    }
+    _tidx = null;
+  });
+}
+
 // ── Navigate to task in task overview with highlight effect ──
 function navigateToTask(id) {
   // Clear goal filter and switch to tasks page
@@ -5522,6 +5638,8 @@ function toggleTask(id) {
   if (!t) return;
   const wasDone = t.done;
   t.done = !t.done;
+  // 安卓觸覺回饋：完成任務輕震動，取消則短震
+  if (navigator.vibrate) navigator.vibrate(wasDone ? 15 : [20, 30, 20]);
   if (!wasDone) {
     // 使用「有效今日」：若現在在 00:00~重置時間 之間，仍屬上個週期的今天
     t.completedAt = localDateStr(new Date(getLastResetTimestamp()));
@@ -6705,6 +6823,59 @@ function stepDragEnd(e, id) {
   _dragStepIdx = null;
 }
 
+// ── Breakdown Steps 觸控拖曳（手機）──
+function _wireStepTouchDrag(taskId) {
+  const container = document.getElementById('bsteps-' + taskId);
+  if (!container) return;
+  let _tid = null, _fromIdx = null, _clone = null, _startY = 0;
+
+  container.querySelectorAll('.step-drag-handle').forEach(handle => {
+    handle.addEventListener('touchstart', e => {
+      const step = handle.closest('.breakdown-step');
+      if (!step) return;
+      const m = step.id.match(/bstep-\d+-(\d+)/);
+      if (!m) return;
+      _fromIdx = parseInt(m[1]);
+      _tid = taskId;
+      _startY = e.touches[0].clientY;
+      const rect = step.getBoundingClientRect();
+      _clone = step.cloneNode(true);
+      _clone.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;opacity:0.82;width:' + rect.width + 'px;left:' + rect.left + 'px;top:' + rect.top + 'px;border-radius:8px;box-shadow:0 6px 20px rgba(58,110,165,0.2);transition:none';
+      document.body.appendChild(_clone);
+      step.classList.add('dragging');
+      e.preventDefault();
+    }, { passive: false });
+  });
+
+  container.addEventListener('touchmove', e => {
+    if (_tid === null || !_clone) return;
+    e.preventDefault();
+    const dy = e.touches[0].clientY - _startY;
+    _clone.style.transform = 'translateY(' + dy + 'px)';
+    container.querySelectorAll('.breakdown-step').forEach(el => el.classList.remove('drag-over'));
+    const target = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+    const targetStep = target && target.closest('.breakdown-step');
+    if (targetStep) {
+      const m = targetStep.id.match(/bstep-\d+-(\d+)/);
+      if (m && parseInt(m[1]) !== _fromIdx) targetStep.classList.add('drag-over');
+    }
+  }, { passive: false });
+
+  container.addEventListener('touchend', e => {
+    if (_tid === null) return;
+    if (_clone) { _clone.remove(); _clone = null; }
+    container.querySelectorAll('.breakdown-step').forEach(el => el.classList.remove('dragging', 'drag-over'));
+    const pt = e.changedTouches[0];
+    const target = document.elementFromPoint(pt.clientX, pt.clientY);
+    const targetStep = target && target.closest('.breakdown-step');
+    if (targetStep) {
+      const m = targetStep.id.match(/bstep-\d+-(\d+)/);
+      if (m) stepDrop({ preventDefault: () => {} }, _tid, parseInt(m[1]));
+    }
+    _tid = null; _fromIdx = null;
+  });
+}
+
 // ── Edit Task ──
 let editTargetId = null;
 
@@ -6796,64 +6967,227 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
   o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
 });
 
-// ── 手機鍵盤彈出時，捲動 modal 讓輸入欄不被遮住 ──
+// ── 手機鍵盤彈出時，通用防遮擋處理 ──
+// 涵蓋：所有 .modal-overlay、#routineOverlay、#routinePanel、
+//        #recurMorningOverlay、.api-modal-overlay、#page-notes、
+//        以及頁面主內容區（main）內的輸入欄
 (function() {
-  function scrollFocusedIntoView() {
-    const el = document.activeElement;
-    if (!el) return;
-    const overlay = el.closest('.modal-overlay.open');
+  // 找出「目前正在顯示且含有 focus 元素的 overlay 容器」
+  // 若 focus 元素在某個 fixed 容器內，回傳該容器；否則回傳 null（代表在 main 捲動區）
+  function findActiveOverlay(el) {
+    // 依優先順序嘗試各種 overlay 選擇器
+    return (
+      el.closest('.modal-overlay.open') ||
+      el.closest('#routineOverlay.open') ||
+      el.closest('#recurMorningOverlay.open') ||
+      el.closest('.api-modal-overlay.open') ||
+      el.closest('#notes-dlg-overlay.visible') ||
+      null
+    );
+  }
+
+  // 對 overlay 容器本身（fixed 定位）依 visualViewport 調整高度+位移
+  function adjustOverlay(overlay) {
+    if (!overlay || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    overlay.style.height = vv.height + 'px';
+    overlay.style.top    = vv.offsetTop + 'px';
+  }
+
+  // 還原 overlay 高度（鍵盤收起後呼叫）
+  function resetOverlay(overlay) {
     if (!overlay) return;
-    // 給瀏覽器時間完成 layout 再捲動
+    overlay.style.height = '';
+    overlay.style.top    = '';
+  }
+
+  // 把 focus 元素捲入可視區（給瀏覽器完成 layout 的時間）
+  function scrollIntoView(el) {
+    if (!el) return;
     setTimeout(() => {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 100);
+    }, 120);
   }
 
-  // visualViewport resize = 鍵盤彈出
+  // 目前正在被調整的 overlay（用於鍵盤收起時還原）
+  let _activeOverlay = null;
+
   if (window.visualViewport) {
+    // 鍵盤彈出 / 收起：visualViewport.height 改變
     window.visualViewport.addEventListener('resize', () => {
       const el = document.activeElement;
-      if (!el || !el.closest('.modal-overlay.open')) return;
-      const overlay = el.closest('.modal-overlay.open');
-      const vvh = window.visualViewport.height;
-      // 讓 overlay 高度跟隨 visualViewport，使 modal 可以在鍵盤上方顯示
-      overlay.style.height = vvh + 'px';
-      overlay.style.top = window.visualViewport.offsetTop + 'px';
-      setTimeout(() => {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 80);
-    });
-    window.visualViewport.addEventListener('scroll', () => {
-      const el = document.activeElement;
       if (!el) return;
-      const overlay = el.closest('.modal-overlay.open');
-      if (!overlay) return;
-      overlay.style.top = window.visualViewport.offsetTop + 'px';
+      const tag = el.tagName;
+
+      // Notes 頁面 textarea：page-notes 本身是 fixed，直接 scrollIntoView 即可
+      if (el.closest('#page-notes')) {
+        scrollIntoView(el);
+        return;
+      }
+
+      const overlay = findActiveOverlay(el);
+      if (overlay) {
+        _activeOverlay = overlay;
+        adjustOverlay(overlay);
+        scrollIntoView(el);
+      } else if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        // 在 main 捲動區的輸入欄（例如沙盒輸入）：直接 scrollIntoView
+        scrollIntoView(el);
+      }
+    });
+
+    // visualViewport 位移（部分 Android 鍵盤實作）
+    window.visualViewport.addEventListener('scroll', () => {
+      if (_activeOverlay) {
+        _activeOverlay.style.top = window.visualViewport.offsetTop + 'px';
+      }
     });
   }
 
-  // 當 modal 內輸入欄 focus 時捲動
+  // focusin：任何輸入欄獲得 focus 時也觸發一次
   document.addEventListener('focusin', (e) => {
     const tag = e.target.tagName;
     if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') return;
-    if (!e.target.closest('.modal-overlay.open')) return;
-    scrollFocusedIntoView();
+
+    if (e.target.closest('#page-notes')) {
+      scrollIntoView(e.target);
+      return;
+    }
+
+    const overlay = findActiveOverlay(e.target);
+    if (overlay) {
+      _activeOverlay = overlay;
+      // 若 visualViewport 已縮小（鍵盤已開），立即調整
+      if (window.visualViewport && window.visualViewport.height < window.innerHeight * 0.85) {
+        adjustOverlay(overlay);
+      }
+      scrollIntoView(e.target);
+    }
   });
 
-  // modal 關閉時還原 overlay 高度
-  document.querySelectorAll('.modal-overlay').forEach(o => {
-    const observer = new MutationObserver(() => {
-      if (!o.classList.contains('open')) {
-        o.style.height = '';
-        o.style.top = '';
+  // focusout：鍵盤收起，還原所有 overlay
+  document.addEventListener('focusout', () => {
+    // 延遲確認焦點沒有移到另一個輸入欄
+    setTimeout(() => {
+      const el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) return;
+      if (_activeOverlay) {
+        resetOverlay(_activeOverlay);
+        _activeOverlay = null;
       }
+    }, 200);
+  });
+
+  // 用 MutationObserver 監聽所有 overlay 關閉，強制還原高度
+  // （處理程式呼叫 classList.remove('open') 關閉 modal 的情況）
+  const overlaySelectors = [
+    '.modal-overlay', '#routineOverlay', '#recurMorningOverlay',
+    '.api-modal-overlay', '#notes-dlg-overlay'
+  ];
+  overlaySelectors.forEach(sel => {
+    document.querySelectorAll(sel).forEach(o => {
+      new MutationObserver(() => {
+        const isOpen = o.classList.contains('open') || o.classList.contains('visible');
+        if (!isOpen) {
+          resetOverlay(o);
+          if (_activeOverlay === o) _activeOverlay = null;
+        }
+      }).observe(o, { attributes: true, attributeFilter: ['class'] });
     });
-    observer.observe(o, { attributes: true, attributeFilter: ['class'] });
   });
 })();
 
 
-// ── 手機手勢：右滑回到生命樹 ──
+// ── 手機：任務長按開啟 context menu ──
+function _wireTaskLongPress() {
+  document.querySelectorAll('.task-item').forEach(el => {
+    const m = el.id && el.id.match(/task-(\d+)/);
+    if (!m) return;
+    const id = parseInt(m[1]);
+    // 長按 600ms 觸發 context menu（模擬桌機右鍵）
+    attachLongPress(el, () => {
+      if (navigator.vibrate) navigator.vibrate(40);
+      // 合成一個假的 event 讓 openCtxMenu 定位到元素中心
+      const rect = el.getBoundingClientRect();
+      const fakeEvent = {
+        stopPropagation: () => {},
+        clientX: rect.left + rect.width / 2,
+        clientY: rect.top + rect.height / 2
+      };
+      openCtxMenu(fakeEvent, id);
+    });
+  });
+}
+
+// ── 手機：任務左滑顯示快速操作（刪除 / 完成）──
+(function _initSwipeTask() {
+  let _sx = 0, _sy = 0, _el = null, _id = null, _swiping = false, _overlay = null;
+
+  document.addEventListener('touchstart', e => {
+    const taskEl = e.target.closest('.task-item');
+    if (!taskEl) return;
+    // 若點到 check、stripe、icon 按鈕不觸發滑動
+    if (e.target.closest('.task-check,.task-stripe,.task-icon-btn,.step-check,.step-del,.breakdown-add-btn,.task-collapse-arrow')) return;
+    const m = taskEl.id && taskEl.id.match(/task-(\d+)/);
+    if (!m) return;
+    _el = taskEl;
+    _id = parseInt(m[1]);
+    _sx = e.touches[0].clientX;
+    _sy = e.touches[0].clientY;
+    _swiping = false;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!_el) return;
+    const dx = e.touches[0].clientX - _sx;
+    const dy = Math.abs(e.touches[0].clientY - _sy);
+    if (!_swiping && dy > 10) { _el = null; return; } // 縱向滑動，取消
+    if (!_swiping && Math.abs(dx) > 12) _swiping = true;
+    if (!_swiping) return;
+    if (dx < -10 && dx > -90) {
+      _el.style.transform = 'translateX(' + Math.max(dx, -80) + 'px)';
+      _el.style.transition = 'none';
+      // 顯示刪除提示背景
+      if (!_overlay) {
+        _overlay = document.createElement('div');
+        _overlay.style.cssText = 'position:absolute;right:0;top:0;bottom:0;width:80px;display:flex;align-items:center;justify-content:center;background:rgba(192,86,90,0.88);border-radius:0 8px 8px 0;color:#fff;font-size:13px;font-weight:600;pointer-events:none;z-index:2;border-radius:0 8px 8px 0';
+        _overlay.textContent = '🗑 刪除';
+        _el.style.position = 'relative';
+        _el.appendChild(_overlay);
+      }
+    } else if (dx >= 0) {
+      _resetSwipe();
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    if (!_el || !_swiping) { _el = null; _id = null; return; }
+    const dx = e.changedTouches[0].clientX - _sx;
+    if (dx < -55) {
+      // 滑超過 55px → 確認刪除
+      if (navigator.vibrate) navigator.vibrate(30);
+      _el.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
+      _el.style.transform = 'translateX(-100%)';
+      _el.style.opacity = '0';
+      const delId = _id;
+      setTimeout(() => {
+        // reuse ctxAction 刪除邏輯
+        ctxTargetId = delId;
+        ctxAction('delete');
+      }, 220);
+    } else {
+      _resetSwipe();
+    }
+    _el = null; _id = null; _swiping = false;
+  });
+
+  function _resetSwipe() {
+    if (!_el) return;
+    _el.style.transition = 'transform 0.2s ease';
+    _el.style.transform = '';
+    if (_overlay) { _overlay.remove(); _overlay = null; }
+  }
+})();
 (function() {
   let _swipeStartX = 0;
   let _swipeStartY = 0;
@@ -6890,9 +7224,16 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
 // ── PWA Service Worker ──
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/Innerflow/sw.js')
+    // 使用相對路徑，不論部署在哪個子路徑都能正常運作
+    const swPath = (function() {
+      const scripts = document.getElementsByTagName('script');
+      // 以目前頁面路徑為基準找同目錄的 sw.js
+      const base = location.pathname.endsWith('/') ? location.pathname : location.pathname.replace(/[^/]*$/, '');
+      return base + 'sw.js';
+    })();
+    navigator.serviceWorker.register(swPath)
       .then(reg => console.log('SW registered:', reg.scope))
-      .catch(err => console.warn('SW registration failed:', err));
+      .catch(err => console.warn('SW registration failed (sw.js 尚未建立？):', err));
   });
 }
 
