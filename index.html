@@ -6,7 +6,15 @@
 <title>內流 InnerFlow — 為內驅力而生的任務工具</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- 非阻塞字型載入：先用系統字型顯示內容，字型下載完再換 (font-display:swap) -->
+<!-- Noto Sans TC 分成兩段請求：先載常用的 400/500，700 稍後 -->
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Lato:wght@300;400&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<!-- 不支援 preload onload 的瀏覽器 fallback -->
+<noscript>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=DM+Serif+Display:ital@0;1&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+</noscript>
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js" defer></script>
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
@@ -49,7 +57,7 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Noto Sans TC', sans-serif;
+    font-family: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
     font-weight: 400;
     min-height: 100vh;
     overflow-x: hidden;
@@ -2975,10 +2983,13 @@ async function saveApiUrl(fragment) {
       if (data.settings) {
         if (data.settings.resetTime) {
           localStorage.setItem('innerflow_reset_time', data.settings.resetTime);
+          document.getElementById('resetTimeInput').value = data.settings.resetTime;
           scheduleNextReset();
         }
         if (data.settings.neglectDays) {
           localStorage.setItem('innerflow_neglect_days', data.settings.neglectDays);
+          const neglectEl = document.getElementById('neglectDaysInput');
+          if (neglectEl) neglectEl.value = data.settings.neglectDays;
         }
       }
       renderEnergyDots(); renderSandbox(); renderAll();
@@ -3192,9 +3203,13 @@ async function loadFromCloud() {
       if (data.settings) {
         if (data.settings.resetTime) {
           localStorage.setItem('innerflow_reset_time', data.settings.resetTime);
+          const rtEl = document.getElementById('resetTimeInput');
+          if (rtEl) rtEl.value = data.settings.resetTime;
         }
         if (data.settings.neglectDays) {
           localStorage.setItem('innerflow_neglect_days', data.settings.neglectDays);
+          const ndEl = document.getElementById('neglectDaysInput');
+          if (ndEl) ndEl.value = data.settings.neglectDays;
         }
       }
       return true;
