@@ -4472,6 +4472,10 @@ async function init() {
       renderLottery();
       // Fix: 在雲端資料載入後才做換日重置，確保重置的是最新資料
       checkMissedReset();
+      // Fix: 無論是否觸發換日重置，都要呼叫 checkTaskDates，
+      // 確保幾天前就排定「今天」的任務能出現在今日面板
+      // （若剛好今天已重置過，runDailyReset 不執行，checkTaskDates 也不會被呼叫）
+      checkTaskDates();
       // Fix: 雲端資料回來後才初始化例行任務（避免競態）
       initRoutines();
       // Show recurring morning dialog if not yet shown today
@@ -5357,6 +5361,8 @@ function toggleDoneSection() {
 function setTaskStatus(id, status) {
   const t = state.tasks.find(x => x.id === id);
   if (!t) return;
+  // 注意：刻意用 localDateStr()（時鐘日期）而非 effectiveToday，
+  // 00:00~重置時間 期間使用者可能在安排「隔天（重置後）」的任務，應保留此行為。
   const todayStr = localDateStr();
   if (status === 'today') {
     t.scheduledFor = todayStr;
@@ -5887,6 +5893,8 @@ function addTask() {
     taskDate: taskDate || null
   };
   // If the task date is today, auto-mark as today's task
+  // 注意：這裡刻意用 localDateStr()（時鐘日期）而非 effectiveToday，
+  // 因為 00:00~重置時間 期間使用者可能在安排「隔天（重置後）」的任務，應保留此行為。
   if (taskDate && taskDate === todayStr) {
     newTask.scheduledFor = todayStr;
     newTask.status = 'active';
