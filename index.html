@@ -2981,7 +2981,7 @@ async function saveApiUrl(fragment) {
           localStorage.setItem('innerflow_neglect_days', data.settings.neglectDays);
         }
       }
-      renderTasks(); renderSandbox(); renderStats(); renderRewards(); renderTree(); renderEnergyDots(); renderLottery();
+      renderEnergyDots(); renderSandbox(); renderAll();
       if (typeof notesReloadFromStorage === 'function') notesReloadFromStorage();
       if (typeof initRoutines === 'function') initRoutines();
       saveStateLocal();
@@ -3645,6 +3645,36 @@ function localDateStr(date) {
   return `${y}-${m}-${dd}`;
 }
 
+// ── 統一渲染入口 ──
+// 同一個 tick 內多次呼叫只會執行一次，避免連鎖操作重複刷新 DOM
+let _renderAllTimer = null;
+function renderAll() {
+  if (_renderAllTimer) return;
+  _renderAllTimer = setTimeout(() => {
+    _renderAllTimer = null;
+    renderTree();
+    renderTasks();
+    renderTodayPanel();
+    renderStats();
+    renderRewards();
+    renderLottery();
+    renderRoutineList();
+  }, 0);
+}
+
+// ── checkTaskDates 定時器（App 開著跨日時自動觸發）──
+let _checkTaskDatesTimer = null;
+function scheduleCheckTaskDates() {
+  if (_checkTaskDatesTimer) clearTimeout(_checkTaskDatesTimer);
+  // 下一個重置點後 1 秒觸發（確保 runDailyReset 先跑完）
+  const msUntil = getNextResetMs() + 1000;
+  _checkTaskDatesTimer = setTimeout(() => {
+    _checkTaskDatesTimer = null;
+    checkTaskDates();
+    scheduleCheckTaskDates(); // 排下一次
+  }, msUntil);
+}
+
 const energyLabels = { charge: '充電', easy: '輕鬆', focus: '專注' };
 const energyIcons  = { charge: '⚡', easy: '🍃', focus: '𖦏' };
 
@@ -4286,8 +4316,13 @@ function runDailyReset() {
   });
 
   // Delete non-recurring completed tasks
+  // 安全保護：只刪除已確認寫入 doneHistory 的任務，避免重置異常時資料消失
   if (toDelete.length > 0) {
-    state.tasks = state.tasks.filter(t => !toDelete.includes(t.id));
+    state.tasks = state.tasks.filter(t => {
+      if (!toDelete.includes(t.id)) return true;
+      const archiveKey = t.id + '_' + t.completedAt;
+      return !state.doneHistory.some(h => h.id === archiveKey); // 未寫入則保留
+    });
   }
 
   // Reset routine tasks for the new day and refund their wishPoints
@@ -4320,8 +4355,7 @@ function runDailyReset() {
     syncToCloud();
   }
   // Always re-render so interval clones scheduled for today appear in today panel
-  renderTasks(); renderStats(); renderTree(); renderRewards();
-  renderRoutineList();
+  renderAll();
   checkTaskDates();
   // Reset lottery day counters for new day — but ONLY if lotteryState is from a previous day.
   // If lotteryState.todayDate is already today (e.g. cloud-synced data), do NOT wipe
@@ -4474,12 +4508,8 @@ async function init() {
       saveLottery();
       if (dot) dot.className = 'sync-dot synced';
       renderEnergyDots();
-      renderTree();
-      renderTasks();
       renderSandbox();
-      renderStats();
-      renderRewards();
-      renderLottery();
+      renderAll();
       checkMissedReset();
       // Fix: 無論是否觸發換日重置，都要呼叫 checkTaskDates，
       // 確保幾天前就排定「今天」的任務能出現在今日面板
@@ -4496,8 +4526,7 @@ async function init() {
       if (localOk) {
         showToast('⚠️ 雲端讀取失敗，已從本地備份還原');
       }
-      renderEnergyDots(); renderTree(); renderTasks();
-      renderSandbox(); renderStats(); renderRewards(); renderLottery();
+      renderEnergyDots(); renderSandbox(); renderAll();
       initRoutines();
       setTimeout(async () => {
         const dot2 = document.getElementById('syncDot');
@@ -4506,8 +4535,7 @@ async function init() {
         const ok2 = await loadFromCloud();
         if (ok2) {
           dot2.className = 'sync-dot synced';
-          renderEnergyDots(); renderTree(); renderTasks();
-          renderSandbox(); renderStats(); renderRewards(); renderLottery();
+          renderEnergyDots(); renderSandbox(); renderAll();
         } else {
           dot2.className = 'sync-dot error';
           // 再 15 秒後第二次重試
@@ -4518,8 +4546,7 @@ async function init() {
             const ok3 = await loadFromCloud();
             if (ok3) {
               dot3.className = 'sync-dot synced';
-              renderEnergyDots(); renderTree(); renderTasks();
-              renderSandbox(); renderStats(); renderRewards(); renderLottery();
+              renderEnergyDots(); renderSandbox(); renderAll();
             } else {
               dot3.className = 'sync-dot error';
             }
@@ -4530,8 +4557,7 @@ async function init() {
   } else {
     // ── 沒有設定雲端 API：從本地備份讀取 ──
     loadStateLocal();
-    renderEnergyDots(); renderTree(); renderTasks();
-    renderSandbox(); renderStats(); renderRewards(); renderLottery();
+    renderEnergyDots(); renderSandbox(); renderAll();
     initRoutines();
     maybeShowRecurMorningDialog();
   }
@@ -4602,6 +4628,9 @@ async function init() {
   // 只有在沒有設定雲端 API 時（本機模式）才在這裡執行換日重置
   // 有雲端的情況已在 loadFromCloud 完成後執行，避免競態
   if (!getApiUrl()) checkMissedReset();
+
+  // App 開著跨日時自動觸發 checkTaskDates，確保排定日期的任務準時出現
+  scheduleCheckTaskDates();
 
   // ── 修復：確保 wishPoints 不低於已分配給願望的點數（防止可用碎片永遠顯示 0）──
   {
@@ -6680,7 +6709,7 @@ function ctxAction(action) {
     }
     if (t.done && state.done > 0) state.done--;
     state.tasks = state.tasks.filter(x => x.id !== ctxTargetId);
-    renderTasks(); renderStats(); renderTree(); checkAchievements(); renderRewards();
+    checkAchievements(); renderAll();
     showToast('🗑 任務已移除');
     syncToCloud();
   }
