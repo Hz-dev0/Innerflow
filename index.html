@@ -4321,7 +4321,7 @@ function runDailyReset() {
   }
   // Always re-render so interval clones scheduled for today appear in today panel
   renderTasks(); renderStats(); renderTree(); renderRewards();
-  renderRoutineList(); // Fix: update routine badge after daily reset
+  renderRoutineList();
   checkTaskDates();
   // Reset lottery day counters for new day — but ONLY if lotteryState is from a previous day.
   // If lotteryState.todayDate is already today (e.g. cloud-synced data), do NOT wipe
@@ -4339,7 +4339,7 @@ function runDailyReset() {
   // Show the recurring morning check-in dialog after reset
   setTimeout(() => { if (typeof maybeShowRecurMorningDialog === 'function') maybeShowRecurMorningDialog(); }, 1200);
   } finally {
-    // Fix: 使用 try/finally 確保無論如何都會釋放 lock，避免 reset 永遠卡住
+    // 使用 try/finally 確保無論如何都會釋放 lock，避免 reset 永遠卡住
     _resetRunning = false;
     scheduleNextReset();
   }
@@ -4439,7 +4439,7 @@ async function init() {
     if (btn) { btn.classList.add('connected'); btn.textContent = '☁ Connected'; }
     const dot = document.getElementById('syncDot');
     if (dot) dot.className = 'sync-dot syncing';
-    // Fix: 預載本地 routines，讓 loadFromCloud merge 時不會丟失離線新增的項目
+    // 預載本地 routines，讓 loadFromCloud merge 時不會丟失離線新增的項目
     try {
       const _preLocal = JSON.parse(localStorage.getItem('innerflow_state_local') || 'null');
       if (_preLocal && Array.isArray(_preLocal.routines) && _preLocal.routines.length > 0) {
@@ -4480,13 +4480,12 @@ async function init() {
       renderStats();
       renderRewards();
       renderLottery();
-      // Fix: 在雲端資料載入後才做換日重置，確保重置的是最新資料
       checkMissedReset();
       // Fix: 無論是否觸發換日重置，都要呼叫 checkTaskDates，
       // 確保幾天前就排定「今天」的任務能出現在今日面板
       // （若剛好今天已重置過，runDailyReset 不執行，checkTaskDates 也不會被呼叫）
       checkTaskDates();
-      // Fix: 雲端資料回來後才初始化例行任務（避免競態）
+      // 雲端資料回來後才初始化例行任務（避免競態）
       initRoutines();
       // Show recurring morning dialog if not yet shown today
       maybeShowRecurMorningDialog();
@@ -4499,7 +4498,6 @@ async function init() {
       }
       renderEnergyDots(); renderTree(); renderTasks();
       renderSandbox(); renderStats(); renderRewards(); renderLottery();
-      // Fix: 雲端讀取失敗走本地備份時也要初始化例行任務
       initRoutines();
       setTimeout(async () => {
         const dot2 = document.getElementById('syncDot');
@@ -4534,7 +4532,6 @@ async function init() {
     loadStateLocal();
     renderEnergyDots(); renderTree(); renderTasks();
     renderSandbox(); renderStats(); renderRewards(); renderLottery();
-    // Fix: 本地模式也需要初始化例行任務
     initRoutines();
     maybeShowRecurMorningDialog();
   }
@@ -4602,7 +4599,7 @@ async function init() {
     initLottery();
   }
   checkTaskDates();
-  // Fix: 只有在沒有設定雲端 API 時（本機模式）才在這裡執行換日重置
+  // 只有在沒有設定雲端 API 時（本機模式）才在這裡執行換日重置
   // 有雲端的情況已在 loadFromCloud 完成後執行，避免競態
   if (!getApiUrl()) checkMissedReset();
 
@@ -6603,7 +6600,7 @@ function undoneTask(id) {
   t.done = false;
   t.completedAt = null;
   state.done = state.tasks.filter(x => x.done).length;
-  onTaskUncompleted(t); // Fix: 退還 wishPoints 與 lotteryState.todayDone
+  onTaskUncompleted(t);
   renderStats();
   renderTasks();
   renderTree();
