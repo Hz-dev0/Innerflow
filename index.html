@@ -4244,6 +4244,16 @@ function runDailyReset() {
   let resetCount = 0;
   const toDelete = [];
 
+  // ── 每次重置：把「有 taskDate 且日期已到、但上個週期被手動取消」的任務解除 cancelled ──
+  // 取消標記只作用於當個重置週期，新的一天應重新出現讓使用者決定
+  state.tasks.forEach(t => {
+    if (t.done || t.status !== 'cancelled' || !t.taskDate) return;
+    if (t.taskDate <= todayKey) {
+      t.status = null;
+      t.scheduledFor = null; // 清掉，讓 checkTaskDates() 重新排入今日
+    }
+  });
+
   // ── 保護：在 00:00~重置時間 之間預先安排今日的任務，更新 scheduledFor 為真正的今天 ──
   // （避免 scheduledFor 停在昨天的日期被當成逾期）
   state.tasks.forEach(t => {
