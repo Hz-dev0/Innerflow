@@ -4496,6 +4496,14 @@ async function init() {
         state.routineResetDate = _preLocal.routineResetDate || null;
       }
     } catch(e) {}
+    // 先用本地快取立刻顯示任務，不等雲端——讓用戶瞬間看到上次的資料
+    if (loadStateLocal()) {
+      renderEnergyDots();
+      renderSandbox();
+      renderAll();
+      initRoutines();
+      checkTaskDates();
+    }
     const ok = await loadFromCloud();
     if (ok) {
       // 雲端資料載入後：確保 lotteryState 日期正確（可能跨日），並對齊實際完成數
