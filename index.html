@@ -3087,6 +3087,7 @@ function clearApiUrl() {
 let isSyncing = false;
 let _pendingSync = false; // Bug 1 fix: don't silently drop concurrent sync requests
 let _syncRetryCount = 0; // auto-retry counter for transient failures
+let _syncRetryTimer = null; // 追蹤 retry setTimeout，防止疊加觸發
 
 async function loadFromCloud() {
   const url = getApiUrl();
@@ -3117,7 +3118,7 @@ async function loadFromCloud() {
         state.wishPoints   = typeof localBackup.wishPoints === 'number' ? localBackup.wishPoints : 0;
         state.routines     = Array.isArray(localBackup.routines) ? localBackup.routines : [];
         state.routineResetDate = localBackup.routineResetDate || null;
-        setTimeout(() => syncToCloud(), 1500); // 延遲推送，等 init 完成
+        setTimeout(() => syncToCloud(), 1500); // 延遲推送，等 init 完成（唯一的初始推送點）
         return true;
       }
       state.tasks   = data.tasks;
@@ -3142,8 +3143,8 @@ async function loadFromCloud() {
         if (cloudRoutines.length === 0 && localRoutines.length > 0) {
           console.warn('[InnerFlow] 雲端 routines 為空，但本地有', localRoutines.length, '筆，保留本地並重新推送');
           state.routines = localRoutines;
-          // 延遲推送，讓 init 完成後把本地 routines 寫回雲端
-          setTimeout(() => { if (typeof syncToCloud === 'function') syncToCloud(); }, 2000);
+          // 延遲推送，讓 init 完成後把本地 routines 寫回雲端（使用 _pendingSync 佇列機制即可，不需要獨立 setTimeout）
+          // 不再 setTimeout syncToCloud，讓 init() 結尾統一推送
         } else {
           const merged = {};
           cloudRoutines.forEach(r => { merged[r.id] = { ...r }; });
@@ -3378,11 +3379,12 @@ async function syncToCloud() {
   const url = getApiUrl();
   if (!url) return;
   if (isSyncing) { _pendingSync = true; return; } // queue a retry instead of dropping
+  // ── 若有排隊中的 retry timer，先清除，避免與本次同步疊加 ──
+  if (_syncRetryTimer !== null) { clearTimeout(_syncRetryTimer); _syncRetryTimer = null; }
   isSyncing = true;
   _pendingSync = false;
   const dot = document.getElementById('syncDot');
   if (dot) dot.className = 'sync-dot syncing';
-  let _isRetryScheduled = false;
   try {
     // ── 重要：不使用 Content-Type: application/json ──
     // application/json 會觸發 CORS preflight (OPTIONS)，Google Apps Script 不支援
@@ -3424,17 +3426,23 @@ async function syncToCloud() {
     console.warn('雲端儲存失敗', e);
     if (dot) dot.className = 'sync-dot error';
     // Auto-retry up to 3 times with exponential backoff (3s, 6s, 9s)
+    // ── 修復：isSyncing 鎖保持到 retry 真正執行時才解開，防止空窗期被其他呼叫搶入 ──
     if (_syncRetryCount < 3) {
       _syncRetryCount++;
       const delay = _syncRetryCount * 3000;
-      _isRetryScheduled = true;
-      isSyncing = false;
-      setTimeout(() => syncToCloud(), delay);
+      // 不在這裡解鎖 isSyncing；由 finally 統一處理，retry 進入時再重新鎖定
+      _syncRetryTimer = setTimeout(() => {
+        _syncRetryTimer = null;
+        isSyncing = false; // 解鎖後立刻重進，讓下一次 syncToCloud 能正常取鎖
+        syncToCloud();
+      }, delay);
+      return; // 跳過 finally 的 isSyncing = false，鎖維持到 timer 執行
     }
   } finally {
-    if (!_isRetryScheduled) {
+    // 只有非 retry 路徑（成功、或重試次數耗盡）才在這裡解鎖
+    if (_syncRetryTimer === null) {
       isSyncing = false;
-      if (_pendingSync) { _pendingSync = false; syncToCloud(); } // retry the queued write
+      if (_pendingSync) { _pendingSync = false; syncToCloud(); } // 處理佇列中的 pending 寫入
     }
   }
 }
@@ -3638,6 +3646,7 @@ function syncDotClicked() {
     return;
   }
   // Force sync even if isSyncing (reset all flags)
+  if (_syncRetryTimer !== null) { clearTimeout(_syncRetryTimer); _syncRetryTimer = null; }
   isSyncing = false;
   _pendingSync = false;
   _syncRetryCount = 0;
