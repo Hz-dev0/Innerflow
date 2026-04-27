@@ -2995,6 +2995,7 @@ async function saveApiUrl(fragment) {
       renderEnergyDots(); renderSandbox(); renderAll();
       if (typeof notesReloadFromStorage === 'function') notesReloadFromStorage();
       if (typeof initRoutines === 'function') initRoutines();
+      state._initDone = true; // 允許 saveStateLocal / syncToCloud 正常運作
       saveStateLocal();
       checkMissedReset();
     }
@@ -3150,9 +3151,14 @@ async function loadFromCloud() {
           cloudRoutines.forEach(r => { merged[r.id] = { ...r }; });
           localRoutines.forEach(r => {
             if (merged[r.id]) {
-              // 任一方完成都算完成
+              // 任一方完成都算完成；保留最新的 doneTs（供 maybeResetRoutines 判斷週期）
+              const wasDone = merged[r.id].done;
               merged[r.id].done = merged[r.id].done || r.done;
               merged[r.id].doneDate = merged[r.id].done ? (merged[r.id].doneDate || r.doneDate) : null;
+              // 保留較新的 doneTs
+              const cloudTs = merged[r.id].doneTs || 0;
+              const localTs = r.doneTs || 0;
+              merged[r.id].doneTs = merged[r.id].done ? Math.max(cloudTs, localTs) || null : null;
             } else {
               // 本地有但雲端沒有 → 保留（離線新增的）
               merged[r.id] = { ...r };
@@ -5954,8 +5960,11 @@ function addTask() {
   // Remove sandbox item if task name was picked from sandbox
   if (window._pendingSandboxRemoveName && window._pendingSandboxRemoveName['new'] !== undefined) {
     const idx = window._pendingSandboxRemoveName['new'];
-    if (state.sandbox[idx] !== undefined) {
-      state.sandbox.splice(idx, 1);
+    // 用 name 反查，防止同時操作時 index 已過期
+    const targetText = typeof state.sandbox[idx] === 'string' ? state.sandbox[idx] : (state.sandbox[idx] && state.sandbox[idx].text);
+    const freshIdx = targetText !== undefined ? state.sandbox.findIndex(s => (typeof s === 'string' ? s : s.text) === targetText) : idx;
+    if (freshIdx >= 0 && state.sandbox[freshIdx] !== undefined) {
+      state.sandbox.splice(freshIdx, 1);
       renderSandbox();
     }
     delete window._pendingSandboxRemoveName['new'];
@@ -6013,7 +6022,7 @@ function renderSandbox() {
   }
   list.innerHTML = state.sandbox.map((s, i) => `
     <div class="sandbox-item">
-      <span class="sandbox-text">${s}</span>
+      <span class="sandbox-text">${escHtml(typeof s === 'string' ? s : (s.text || ''))}</span>
       <span class="sandbox-del" onclick="removeSandbox(${i})">×</span>
     </div>
   `).join('');
@@ -6347,7 +6356,6 @@ function flipCard(i) {
         status: 'active',
       };
       state.tasks.push(wishTask);
-      syncToCloud();
       renderRewards();
       renderTasks();
       renderTree();
