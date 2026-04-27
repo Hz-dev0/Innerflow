@@ -3159,6 +3159,22 @@ async function loadFromCloud() {
             }
           });
           state.routines = Object.values(merged);
+          // ── 去重：若有 name 相同的項目（不同裝置各自新增），合併為一筆（保留完成狀態最新的）
+          const nameMap = {};
+          state.routines.forEach(r => {
+            const key = r.name.trim();
+            if (!nameMap[key]) {
+              nameMap[key] = r;
+            } else {
+              // 任一方完成都算完成；id 保留較小的（較早建立的）
+              const existing = nameMap[key];
+              const mergedDone = existing.done || r.done;
+              const mergedDoneDate = mergedDone ? (existing.doneDate || r.doneDate) : null;
+              const mergedDoneTs = mergedDone ? Math.max(existing.doneTs || 0, r.doneTs || 0) || null : null;
+              nameMap[key] = { ...existing, done: mergedDone, doneDate: mergedDoneDate, doneTs: mergedDoneTs };
+            }
+          });
+          state.routines = Object.values(nameMap);
         }
       }
       // ── Goal migration: map old 8-goal system to new 3-goal system ──
@@ -8983,6 +8999,13 @@ function addRoutineItem() {
   const name = input.value.trim();
   if (!name) return;
   if (!Array.isArray(state.routines)) state.routines = [];
+  // 防止重複：若已有完全相同名稱的例行任務，不新增
+  const isDuplicate = state.routines.some(r => r.name.trim() === name);
+  if (isDuplicate) {
+    showToast('⚠️ 已有相同名稱的例行任務');
+    input.select();
+    return;
+  }
   state.routines.push({ id: Date.now(), name, done: false, doneDate: null });
   input.value = '';
   if (typeof syncToCloud === 'function') syncToCloud();
