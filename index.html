@@ -16,6 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=DM+Serif+Display:ital@0;1&family=Lato:wght@300;400&display=swap" rel="stylesheet">
 </noscript>
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js" defer></script>
 <link rel="manifest" href="manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2713,9 +2714,8 @@
     <div style="font-size:10px;letter-spacing:0.08em;color:var(--text-dim);text-transform:uppercase;margin-bottom:6px;margin-top:2px">☁️ 雲端連線</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       <input class="api-modal-input" id="apiKeyFragment"
-        placeholder="連線密碼" maxlength="3" type="password"
-        style="width:120px;flex-shrink:0;text-align:center;border-radius:8px;margin-bottom:0;font-size:14px;font-weight:600;letter-spacing:0.2em;padding:7px 10px"
-        oninput="this.value=this.value.toUpperCase()">
+        placeholder="連線密碼" type="password"
+        style="width:120px;flex-shrink:0;text-align:center;border-radius:8px;margin-bottom:0;font-size:14px;font-weight:600;letter-spacing:0.2em;padding:7px 10px">
       <span style="font-size:11px;color:var(--text-faint);line-height:1.4">輸入連線密碼完成雲端設定</span>
     </div>
     <div class="api-status" id="apiStatus"></div>
@@ -2922,8 +2922,8 @@ function setApiStatus(type, msg) {
 }
 
 async function saveApiUrl(fragment) {
-  if (!fragment || fragment.length !== 3) {
-    setApiStatus('err', '請輸入正確的三位金鑰');
+  if (!fragment) {
+    setApiStatus('err', '請輸入連線密碼');
     return false;
   }
   const url = buildFullUrl(fragment);
@@ -3020,7 +3020,7 @@ async function saveApiSettings() {
   }
 
   // Save API fragment if provided
-  const frag = (document.getElementById('apiKeyFragment').value || '').trim().toUpperCase();
+  const frag = (document.getElementById('apiKeyFragment').value || '').trim();
   const existingFrag = localStorage.getItem(API_KEY_FRAGMENT_STORE) || '';
   if (frag && frag !== existingFrag) {
     const ok = await saveApiUrl(frag);
@@ -3059,24 +3059,8 @@ function clearApiUrl() {
   state.routineResetDate = null;
   state._initDone    = true;
 
-  // 重置記憶體中的筆記（取消 pending auto-save，避免清空後舊資料被寫回）
-  clearTimeout(notesSaveTimer);
-  notesSaveTimer = null;
-  if (typeof notesFolderData !== 'undefined') {
-    notesFolderData = [{ name: '筆記', pages: [{ titleA:'', a:'', titleB:'', b:'' }], currentPage: 0 }];
-    notesTabIndex = 0;
-    // 直接清空 DOM，確保畫面立即淨空（不論目前是否在筆記頁）
-    ['notesTitleA','notesTextA','notesTitleB','notesTextB'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = '';
-    });
-    const preA = document.getElementById('notes-md-preview-a');
-    const preB = document.getElementById('notes-md-preview-b');
-    if (preA) preA.innerHTML = '';
-    if (preB) preB.innerHTML = '';
-    if (typeof notesEnsureDefaults === 'function') notesEnsureDefaults();
-    if (typeof notesRenderTabs === 'function') notesRenderTabs();
-  }
+  // 重置記憶體中的筆記（透過專用函數處理，確保無論是否開啟過筆記都能完整淨空）
+  if (typeof notesClearAll === 'function') notesClearAll();
 
   // 重新渲染畫面
   if (typeof render === 'function') render();
@@ -4677,7 +4661,11 @@ async function init() {
   // App 開著跨日時自動觸發 checkTaskDates，確保排定日期的任務準時出現
   scheduleCheckTaskDates();
 
+  // ── 初始化完成旗標，允許 syncToCloud 正常推送 ──
+  state._initDone = true;
+
   // ── 修復：確保 wishPoints 不低於已分配給願望的點數（防止可用碎片永遠顯示 0）──
+  // 注意：必須在 _initDone = true 之後執行，syncToCloud 才不會被守衛攔截
   {
     const allocatedTotal = (state.rewards || []).reduce((sum, r) => sum + (r.allocatedPoints || 0), 0);
     if ((state.wishPoints || 0) < allocatedTotal) {
@@ -4686,9 +4674,6 @@ async function init() {
       if (typeof syncToCloud === 'function') syncToCloud();
     }
   }
-
-  // ── 初始化完成旗標，允許 syncToCloud 正常推送 ──
-  state._initDone = true;
 
   // ── 歷史封存：將一年前的 doneHistory 封存到獨立的 localStorage key ──
   archiveOldHistory();
@@ -5156,14 +5141,17 @@ function openAddTask() {
 }
 
 function openAddTaskForToday() {
-  document.getElementById('addModal').classList.add('open');
+  // 與 openAddTask 相同的狀態重置，避免上次開啟後的 goal/energy/recur 殘留
+  const activeGoal = state.pendingGoalForAdd || state.goalFilter || '技能';
+  _setGoalBtn(activeGoal);
+  _setEnergyBtn('easy');
+  if (state.pendingGoalForAdd) state.pendingGoalForAdd = null;
+  _recurState['new'] = 'off';
+  _applyRecurUI('new', 'off');
   // Pre-fill today's date so it auto-appears in today panel
   document.getElementById('newTaskDate').value = localDateStr();
-  if (state.pendingGoalForAdd) {
-    document.getElementById('newTaskGoal').value = state.pendingGoalForAdd;
-    state.pendingGoalForAdd = null;
-  }
-  document.getElementById('newTaskName').focus();
+  document.getElementById('addModal').classList.add('open');
+  setTimeout(() => document.getElementById('newTaskName').focus(), 50);
   state._addTaskForToday = true;
 }
 
@@ -5757,7 +5745,8 @@ function toggleTask(id) {
       scheduleIntervalTask(t);
       // Remove the completed original — the clone is the new single instance
       state.tasks = state.tasks.filter(x => x.id !== t.id);
-      if (state.done > 0) state.done--;
+      // 移除後以實際陣列重算，避免 done 計數與任務列表不同步
+      state.done = state.tasks.filter(x => x.done).length;
     }
   } else {
     t.completedAt = null; // clear completion date when unchecking
@@ -6323,14 +6312,17 @@ function flipCard(i) {
   // ── 翻到許願牌：自動兌現願望 ──
   if (card.isWish && card.wishId) {
     const wishId = card.wishId;
+    // 立即把 reward 從清單移除，防止 400ms 內重入導致雙重扣點
+    const rImmediate = (state.rewards || []).find(x => x.id === wishId);
+    if (!rImmediate) { /* 已被其他路徑處理，跳過 */ } else {
+    state.rewards = state.rewards.filter(x => x.id !== wishId);
+    const _lockedSpent = rImmediate.allocatedPoints || 0;
+    const _lockedName  = rImmediate.name;
+    state.wishPoints = Math.max(0, (state.wishPoints || 0) - _lockedSpent);
     setTimeout(() => {
-      const r = (state.rewards || []).find(x => x.id === wishId);
-      if (!r) return;
-      const wishName = r.name;
-      // 1. 扣除已配點並移除願望
-      const spent = r.allocatedPoints || 0;
-      state.wishPoints = Math.max(0, (state.wishPoints || 0) - spent);
-      state.rewards = state.rewards.filter(x => x.id !== wishId);
+      const wishName = _lockedName;
+      const spent = _lockedSpent;
+      // rewards 已在上方移除，此處只做後續 UI 與任務建立
       // 2. 清掉其他抽獎牌對此願望的引用
       if (lotteryState.cards) {
         lotteryState.cards.forEach(c2 => {
@@ -6362,6 +6354,7 @@ function flipCard(i) {
       showToast(`🌊 願望成真！「${wishName}」已加入今日任務`);
       syncToCloud();
     }, 400); // slight delay so card flip animation plays first
+    } // end else (rImmediate found)
   }
 
   const cardEl = document.getElementById('lcard-' + i);
@@ -7473,7 +7466,12 @@ document.addEventListener('click', (e) => {
 // ── Inline date picker for taskDate tag ──
 let _datePickerEl = null;
 function _closeDatePicker() {
-  if (_datePickerEl) { _datePickerEl.remove(); _datePickerEl = null; }
+  if (_datePickerEl) {
+    _datePickerEl.remove();
+    _datePickerEl = null;
+    // 無論是點外部、按鈕確定、Escape 鍵，都一律移除監聽，避免殘留
+    document.removeEventListener('click', _datePickerOutside);
+  }
 }
 function openDateTagPicker(e, taskId) {
   _closeDatePicker();
@@ -7896,6 +7894,30 @@ function notesReloadFromStorage() {
 }
 window.notesReloadFromStorage = notesReloadFromStorage;
 
+// ── 清除所有筆記資料（給 clearApiUrl 呼叫）──
+// 不依賴筆記 section 是否已掛載到 DOM，確保無論使用者有無開啟過筆記都能完整淨空
+function notesClearAll() {
+  // 1. 取消 pending auto-save，防止清空後舊資料被寫回
+  clearTimeout(notesSaveTimer);
+  notesSaveTimer = null;
+  // 2. 重置記憶體資料
+  notesFolderData = [{ name: '筆記', pages: [{ titleA:'', a:'', titleB:'', b:'' }], currentPage: 0 }];
+  notesTabIndex = 0;
+  // 3. 直接清空所有筆記相關 DOM（無論是否可見）
+  ['notesTitleA','notesTextA','notesTitleB','notesTextB'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const preA = document.getElementById('notes-md-preview-a');
+  const preB = document.getElementById('notes-md-preview-b');
+  if (preA) preA.innerHTML = '';
+  if (preB) preB.innerHTML = '';
+  // 4. 若 section 已掛載，重新渲染 tab 列與頁面內容
+  if (typeof notesEnsureDefaults === 'function') notesEnsureDefaults();
+  if (typeof notesRenderTabs === 'function') notesRenderTabs();
+}
+window.notesClearAll = notesClearAll;
+
 function notesEnsureDefaults() {
   if (notesFolderData.length === 0) {
     notesFolderData = [{ name: '筆記', pages: [{ titleA:'', a:'', titleB:'', b:'' }], currentPage: 0 }];
@@ -7928,9 +7950,23 @@ function notesFlush() {
 const _notesMdState = { A: true, B: true };
 
 function _notesMdParse(text) {
-  if (typeof marked === 'undefined') return (text || '').replace(/\n/g, '<br>');
   const processed = (text || '').replace(/^[ \t]*(---+|===+|\*\*\*+)[ \t]*$/gm, '\n\n$1\n\n');
-  return marked.parse(processed, { breaks: true, gfm: true });
+  let raw;
+  if (typeof marked !== 'undefined') {
+    raw = marked.parse(processed, { breaks: true, gfm: true });
+  } else {
+    raw = processed.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  }
+  if (typeof DOMPurify !== 'undefined') {
+    return DOMPurify.sanitize(raw, {
+      ALLOWED_TAGS: ['p','br','b','strong','i','em','u','s','del','mark','span','div',
+                     'h1','h2','h3','h4','h5','h6','ul','ol','li','blockquote','hr',
+                     'table','thead','tbody','tr','th','td','code','pre','a'],
+      ALLOWED_ATTR: ['href','target','rel','style','class'],
+      ALLOW_DATA_ATTR: false
+    });
+  }
+  return raw;
 }
 
 function notesToggleMd(side) {
@@ -8313,11 +8349,19 @@ function notesRunSearch(q) {
       const item = document.createElement('div');
       item.className = 'notes-search-item';
       const label = [h.titleA, h.titleB].filter(Boolean).join(' / ') || '（無標題）';
-      item.innerHTML = `
-        <span class="notes-search-title">${label}</span>
-        <span class="notes-search-meta">${h.tab} · 第 ${h.pi+1} 頁</span>
-        <span class="notes-search-snippet">${h.snippet}</span>
-      `;
+      // 用 textContent 逐一設定，避免 innerHTML XSS
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'notes-search-title';
+      titleSpan.textContent = label;
+      const metaSpan = document.createElement('span');
+      metaSpan.className = 'notes-search-meta';
+      metaSpan.textContent = h.tab + ' · 第 ' + (h.pi + 1) + ' 頁';
+      const snippetSpan = document.createElement('span');
+      snippetSpan.className = 'notes-search-snippet';
+      snippetSpan.textContent = h.snippet;
+      item.appendChild(titleSpan);
+      item.appendChild(metaSpan);
+      item.appendChild(snippetSpan);
       item.addEventListener('click', () => {
         notesFlush();
         notesTabIndex = h.ti;
