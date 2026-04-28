@@ -3112,10 +3112,18 @@ async function loadFromCloud() {
   const url = getApiUrl();
   if (!url) return false;
   try {
-    const res = await fetch(url + '?action=load&_t=' + Date.now(), {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
-    });
+    const controller = new AbortController();
+    const _timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout，避免 GAS 冷啟動卡住
+    let res;
+    try {
+      res = await fetch(url + '?action=load&_t=' + Date.now(), {
+        cache: 'no-store',
+        signal: controller.signal,
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+      });
+    } finally {
+      clearTimeout(_timeout);
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     // ── 雲端有回應，不論有無 tasks 都算成功（防止空回應被誤判為失敗）──
@@ -4588,39 +4596,48 @@ async function init() {
       // 推送本次 init 中任何本地變動（orphan cleanup、checkMissedReset、routines reset 等）
       syncToCloud();
     } else {
+      // ── 雲端讀取失敗 ──
       if (dot) dot.className = 'sync-dot error';
-      // ── 雲端讀取失敗：嘗試從本地備份還原 ──
       const localOk = loadStateLocal();
       if (localOk) {
+        // 有本地備份（舊裝置離線）→ 先顯示本地資料，背景重試
         showToast('⚠️ 雲端讀取失敗，已從本地備份還原');
+        state._initDone = true;
+        renderEnergyDots(); renderSandbox(); renderAll();
+        checkMissedReset(); checkTaskDates(); initRoutines();
+        maybeShowRecurMorningDialog();
+      } else {
+        // 新裝置，本地也沒資料 → 顯示提示，持續重試
+        showToast('⏳ 正在連線雲端，請稍候…');
       }
-      renderEnergyDots(); renderSandbox(); renderAll();
-      initRoutines();
-      setTimeout(async () => {
-        const dot2 = document.getElementById('syncDot');
-        if (!dot2 || !dot2.className.includes('error')) return;
-        dot2.className = 'sync-dot syncing';
-        const ok2 = await loadFromCloud();
-        if (ok2) {
-          dot2.className = 'sync-dot synced';
-          renderEnergyDots(); renderSandbox(); renderAll();
-        } else {
-          dot2.className = 'sync-dot error';
-          // 再 15 秒後第二次重試
-          setTimeout(async () => {
-            const dot3 = document.getElementById('syncDot');
-            if (!dot3 || !dot3.className.includes('error')) return;
-            dot3.className = 'sync-dot syncing';
-            const ok3 = await loadFromCloud();
-            if (ok3) {
-              dot3.className = 'sync-dot synced';
-              renderEnergyDots(); renderSandbox(); renderAll();
-            } else {
-              dot3.className = 'sync-dot error';
-            }
-          }, 15000);
+
+      // ── 背景自動重試，最多 5 次，間隔遞增 ──
+      let _retryCount = 0;
+      const _retryDelays = [3000, 6000, 10000, 15000, 20000];
+      async function _retryLoad() {
+        if (!dot || !dot.className.includes('error')) return; // 已成功就停
+        _retryCount++;
+        if (_retryCount > _retryDelays.length) {
+          showToast('❌ 雲端連線失敗，請點同步燈重試');
+          return;
         }
-      }, 5000);
+        dot.className = 'sync-dot syncing';
+        const retryOk = await loadFromCloud();
+        if (retryOk) {
+          state._initDone = true;
+          dot.className = 'sync-dot synced';
+          saveLottery();
+          renderEnergyDots(); renderSandbox(); renderAll();
+          checkMissedReset(); checkTaskDates(); initRoutines();
+          maybeShowRecurMorningDialog();
+          syncToCloud();
+          showToast('✓ 雲端資料已載入');
+        } else {
+          dot.className = 'sync-dot error';
+          setTimeout(_retryLoad, _retryDelays[_retryCount] || 20000);
+        }
+      }
+      setTimeout(_retryLoad, _retryDelays[0]);
     }
   } else {
     // ── 沒有設定雲端 API：從本地備份讀取 ──
