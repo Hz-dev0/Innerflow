@@ -3087,8 +3087,9 @@ function clearApiUrl() {
 let isSyncing = false;
 let _pendingSync = false;
 let _syncRetryCount = 0;
-let _syncRetryTimer = null;   // 追蹤 retry timer，防止疊加
+let _syncRetryTimer = null;    // 追蹤 retry timer，防止疊加
 let _syncDebounceTimer = null; // debounce：合批短時間內連續的 sync 呼叫為一次
+let _routineResetDate = null;  // in-memory 快取（存重置時間戳字串）
 
 async function loadFromCloud() {
   const url = getApiUrl();
@@ -8941,7 +8942,7 @@ document.addEventListener('visibilitychange', () => {
 
 // 每日重置：若上次重置週期已過，清空例行任務的 done 狀態
 // 使用重置時間戳而非日期字串，確保 00:00~重置時間 之間不會提早重置
-let _routineResetDate = null; // in-memory 快取（存重置時間戳字串）
+// _routineResetDate 已宣告於檔案頂部 sync 變數區
 function maybeResetRoutines() {
   const thisCycleResetTs = getLastResetTimestamp();
   const thisCycleResetStr = String(thisCycleResetTs);
