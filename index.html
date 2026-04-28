@@ -3275,6 +3275,8 @@ async function loadFromCloud() {
 
 // ── Notes cloud sync helper — debounced 5s to avoid pushing on every keystroke ──
 let _notesSyncTimer = null;
+let _notesDirty = false; // 只有筆記真正修改時才標記，避免每次 sync 都帶上全文
+
 function syncNotesToCloud() {
   // 每次筆記變更時，更新本地 updatedAt 時間戳，確保與雲端比較時本地版本不會被誤判為舊版
   try {
@@ -3285,6 +3287,7 @@ function syncNotesToCloud() {
       localStorage.setItem('innerflow_notes_v1', JSON.stringify(data));
     }
   } catch(e) {}
+  _notesDirty = true; // 標記筆記已修改，下一次 _doSyncToCloud 才帶上 notes
   clearTimeout(_notesSyncTimer);
   _notesSyncTimer = setTimeout(() => syncToCloud(), 5000);
 }
@@ -3399,12 +3402,12 @@ function syncToCloud() {
   const url = getApiUrl();
   if (!url) return;
 
-  // debounce：500ms 內連續呼叫只送最後一次
+  // debounce：1000ms 內連續呼叫只送最後一次（合批拖曳、快速勾選等高頻操作）
   if (_syncDebounceTimer !== null) { clearTimeout(_syncDebounceTimer); _syncDebounceTimer = null; }
   _syncDebounceTimer = setTimeout(() => {
     _syncDebounceTimer = null;
     _doSyncToCloud();
-  }, 500);
+  }, 1000);
 }
 
 // ── _doSyncToCloud：實際執行 HTTP 推送的內部函式 ──
@@ -3449,7 +3452,7 @@ async function _doSyncToCloud() {
             morningDialogShownDate: state.morningDialogShownDate || null,
             routines: state.routines || [],
             routineResetDate: state.routineResetDate || null,
-            notes: (function(){ try { return JSON.parse(localStorage.getItem('innerflow_notes_v1') || 'null'); } catch(e){ return null; } })(),
+            notes: _notesDirty ? (function(){ try { return JSON.parse(localStorage.getItem('innerflow_notes_v1') || 'null'); } catch(e){ return null; } })() : undefined,
             settings: { resetTime: localStorage.getItem('innerflow_reset_time') || '04:00', neglectDays: localStorage.getItem('innerflow_neglect_days') || '7' }
           }
         })
@@ -3460,6 +3463,7 @@ async function _doSyncToCloud() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     if (dot) dot.className = 'sync-dot synced';
     _syncRetryCount = 0;
+    _notesDirty = false; // 成功後清除，下次 sync 若筆記無變動就不帶
   } catch (e) {
     console.warn('雲端儲存失敗', e);
     if (dot) dot.className = 'sync-dot error';
@@ -3683,6 +3687,7 @@ async function syncDotClicked() {
   isSyncing = false;
   _pendingSync = false;
   _syncRetryCount = 0;
+  _notesDirty = true; // 手動同步強制帶上 notes，確保完整推送
   if (typeof showToast === 'function') showToast('☁️ 同步中…');
   const dot = document.getElementById('syncDot');
   // 直接執行並等待結果，讓 toast 反映最終狀態
@@ -4615,6 +4620,8 @@ async function init() {
       // Show recurring morning dialog if not yet shown today
       maybeShowRecurMorningDialog();
       // 推送本次 init 中任何本地變動（orphan cleanup、checkMissedReset、routines reset 等）
+      // 首次推送標記 notes dirty，確保雲端有最新筆記
+      _notesDirty = true;
       syncToCloud();
     } else {
       // ── 雲端讀取失敗 ──
