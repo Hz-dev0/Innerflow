@@ -252,6 +252,9 @@
     position: relative;
     overflow: hidden;
   }
+  @media (pointer: coarse) {
+    .task-item { padding-left: 20px; }
+  }
   .task-item::before {
     content: '';
     position: absolute;
@@ -262,22 +265,24 @@
   .task-item:hover { border-color: rgba(74,130,196,0.35); background: rgba(74,130,196,0.04); }
   .task-item.done { opacity: 0.45; }
   .task-check {
-    width: 18px; height: 18px; border-radius: 50%;
+    width: 22px; height: 22px; border-radius: 50%;
     border: 1.5px solid var(--border);
     flex-shrink: 0; margin-top: 1px;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
     transition: all 0.2s;
-    font-size: 10px;
-    /* 手機觸控：用 padding 擴大點擊範圍到 44x44 最低標準 */
+    font-size: 11px;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
   @media (pointer: coarse) {
     .task-check {
-      padding: 13px;
-      margin: -13px;
-      margin-top: calc(-13px + 1px);
+      width: 26px; height: 26px;
+      font-size: 12px;
+      padding: 10px;
+      margin: -10px;
+      margin-left: 4px;
+      margin-top: calc(-10px + 1px);
     }
   }
   .task-check:hover { border-color: var(--green); }
@@ -2184,21 +2189,30 @@
     background: rgba(255,255,255,0.02);
     cursor: pointer; transition: all 0.15s; user-select: none;
   }
+  @media (pointer: coarse) {
+    .routine-item { padding-left: 18px; gap: 12px; }
+  }
   .routine-item:hover { border-color: rgba(74,130,196,0.35); background: rgba(74,130,196,0.04); }
   .routine-item.done-routine {
     border-color: rgba(58,110,165,0.4);
     background: rgba(58,110,165,0.06);
   }
   .routine-check {
-    width: 18px; height: 18px; border-radius: 50%;
+    width: 22px; height: 22px; border-radius: 50%;
     border: 1.5px solid var(--border); flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    font-size: 10px; transition: all 0.15s; color: #fff;
+    font-size: 11px; transition: all 0.15s; color: #fff;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
   @media (pointer: coarse) {
-    .routine-check { padding: 12px; margin: -12px; }
+    .routine-check {
+      width: 26px; height: 26px;
+      font-size: 12px;
+      padding: 10px;
+      margin: -10px;
+      margin-left: 4px;
+    }
   }
   .routine-item.done-routine .routine-check { background: var(--green); border-color: var(--green); }
   .routine-item:hover .routine-check { border-color: var(--green); }
