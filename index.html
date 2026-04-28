@@ -2943,7 +2943,10 @@ async function saveApiUrl(fragment) {
   const url = buildFullUrl(fragment);
   setApiStatus('', '連線測試中…');
   try {
-    const res = await fetch(url + '?action=load');
+    const res = await fetch(url + '?action=load&_t=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     localStorage.setItem(API_KEY_FRAGMENT_STORE, fragment);
@@ -3095,7 +3098,10 @@ async function loadFromCloud() {
   const url = getApiUrl();
   if (!url) return false;
   try {
-    const res = await fetch(url + '?action=load');
+    const res = await fetch(url + '?action=load&_t=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     // ── 雲端有回應，不論有無 tasks 都算成功（防止空回應被誤判為失敗）──
