@@ -3126,7 +3126,7 @@ async function loadFromCloud() {
         state.wishPoints   = typeof localBackup.wishPoints === 'number' ? localBackup.wishPoints : 0;
         state.routines     = Array.isArray(localBackup.routines) ? localBackup.routines : [];
         state.routineResetDate = localBackup.routineResetDate || null;
-        setTimeout(() => syncToCloud(), 1500); // 延遲推送，等 init 完成
+        // 不需要額外 setTimeout，init() 結尾會統一推送
         return true;
       }
       state.tasks   = data.tasks;
@@ -3151,8 +3151,7 @@ async function loadFromCloud() {
         if (cloudRoutines.length === 0 && localRoutines.length > 0) {
           console.warn('[InnerFlow] 雲端 routines 為空，但本地有', localRoutines.length, '筆，保留本地並重新推送');
           state.routines = localRoutines;
-          // 延遲推送，讓 init 完成後把本地 routines 寫回雲端
-          setTimeout(() => { if (typeof syncToCloud === 'function') syncToCloud(); }, 2000);
+          // 不需要額外 setTimeout，init() 結尾會統一推送
         } else {
           const merged = {};
           cloudRoutines.forEach(r => { merged[r.id] = { ...r }; });
@@ -3368,27 +3367,16 @@ function loadStateLocal() {
 
 // ── syncToCloud：對外入口，帶 debounce（500ms）防止短時間內連續呼叫造成閃爍 ──
 function syncToCloud() {
-  // ── 初始化保護：若 state.tasks 尚未載入完成（空陣列且本地有資料），不推送 ──
-  if (!state._initDone) {
-    const localRaw = localStorage.getItem('innerflow_state_local');
-    if (localRaw) {
-      try {
-        const parsed = JSON.parse(localRaw);
-        if (parsed && Array.isArray(parsed.tasks) && parsed.tasks.length > 0 &&
-            (!state.tasks || state.tasks.length === 0)) {
-          saveStateLocal();
-          return;
-        }
-      } catch(e) {}
-    }
-  }
-  // ── 無論雲端是否設定，先把 state 存到 localStorage ──
+  // 無論如何先存本地
   saveStateLocal();
+
+  // 初始化未完成時不推雲端
+  if (!state._initDone) return;
 
   const url = getApiUrl();
   if (!url) return;
 
-  // 合批：清掉上一個 debounce timer，500ms 內沒有新的呼叫才真正送出
+  // debounce：500ms 內連續呼叫只送最後一次
   if (_syncDebounceTimer !== null) { clearTimeout(_syncDebounceTimer); _syncDebounceTimer = null; }
   _syncDebounceTimer = setTimeout(() => {
     _syncDebounceTimer = null;
@@ -3401,14 +3389,13 @@ async function _doSyncToCloud() {
   const url = getApiUrl();
   if (!url) return;
   if (isSyncing) { _pendingSync = true; return; }
-  // 清掉任何殘留的 retry timer（本次手動觸發優先）
   if (_syncRetryTimer !== null) { clearTimeout(_syncRetryTimer); _syncRetryTimer = null; }
   isSyncing = true;
   _pendingSync = false;
+  let _retryScheduled = false; // 本次執行是否安排了 retry
   const dot = document.getElementById('syncDot');
   if (dot) dot.className = 'sync-dot syncing';
   try {
-    // ── 不使用 Content-Type: application/json，避免 CORS preflight ──
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
@@ -3444,17 +3431,17 @@ async function _doSyncToCloud() {
   } catch (e) {
     console.warn('雲端儲存失敗', e);
     if (dot) dot.className = 'sync-dot error';
-    // Auto-retry 最多 3 次，指數退避（3s / 6s / 9s）
     if (_syncRetryCount < 3) {
       _syncRetryCount++;
+      _retryScheduled = true;
       const delay = _syncRetryCount * 3000;
-      isSyncing = false; // 解鎖，讓 retry 能重新取鎖
+      // 先解鎖才排 timer，timer 執行時重新取鎖
+      isSyncing = false;
       _syncRetryTimer = setTimeout(() => { _syncRetryTimer = null; _doSyncToCloud(); }, delay);
-      return; // 跳過 finally 的正常結束流程
     }
   } finally {
-    // 只有非 retry 路徑（成功或耗盡重試）才在這裡解鎖
-    if (_syncRetryTimer === null) {
+    // 只有沒有安排 retry 時才在這裡做收尾
+    if (!_retryScheduled) {
       isSyncing = false;
       if (_pendingSync) { _pendingSync = false; _doSyncToCloud(); }
     }
@@ -3654,17 +3641,15 @@ function showInstantRewardPopup(reward) {
 // ── Manual sync on syncDot click ──
 function syncDotClicked() {
   const url = getApiUrl();
-  if (!url) {
-    // No cloud configured — open settings
-    openApiModal();
-    return;
-  }
-  // Force sync even if isSyncing (reset all flags)
+  if (!url) { openApiModal(); return; }
+  // 清除所有 pending timer，強制立即同步
+  if (_syncDebounceTimer !== null) { clearTimeout(_syncDebounceTimer); _syncDebounceTimer = null; }
+  if (_syncRetryTimer !== null) { clearTimeout(_syncRetryTimer); _syncRetryTimer = null; }
   isSyncing = false;
   _pendingSync = false;
   _syncRetryCount = 0;
   if (typeof showToast === 'function') showToast('☁️ 同步中…');
-  syncToCloud();
+  _doSyncToCloud();
 }
 window.syncDotClicked = syncDotClicked;
 
@@ -4547,6 +4532,8 @@ async function init() {
       checkTaskDates();
     }
     const ok = await loadFromCloud();
+    // ── initDone 在雲端資料回來後立刻設定，讓後續呼叫的 syncToCloud 能正常推送 ──
+    state._initDone = true;
     if (ok) {
       // 雲端資料載入後：確保 lotteryState 日期正確（可能跨日），並對齊實際完成數
       const _today = localDateStr();
@@ -4584,6 +4571,8 @@ async function init() {
       initRoutines();
       // Show recurring morning dialog if not yet shown today
       maybeShowRecurMorningDialog();
+      // 推送本次 init 中任何本地變動（orphan cleanup、checkMissedReset、routines reset 等）
+      syncToCloud();
     } else {
       if (dot) dot.className = 'sync-dot error';
       // ── 雲端讀取失敗：嘗試從本地備份還原 ──
@@ -4697,11 +4686,10 @@ async function init() {
   // App 開著跨日時自動觸發 checkTaskDates，確保排定日期的任務準時出現
   scheduleCheckTaskDates();
 
-  // ── 初始化完成旗標，允許 syncToCloud 正常推送 ──
-  state._initDone = true;
+  // ── 本機模式（無雲端）的 _initDone 在這裡設定；有雲端的已在 loadFromCloud 後設定 ──
+  if (!state._initDone) state._initDone = true;
 
   // ── 修復：確保 wishPoints 不低於已分配給願望的點數（防止可用碎片永遠顯示 0）──
-  // 注意：必須在 _initDone = true 之後執行，syncToCloud 才不會被守衛攔截
   {
     const allocatedTotal = (state.rewards || []).reduce((sum, r) => sum + (r.allocatedPoints || 0), 0);
     if ((state.wishPoints || 0) < allocatedTotal) {
