@@ -2958,8 +2958,7 @@ async function saveApiUrl(fragment) {
   setApiStatus('', '連線測試中…');
   try {
     const res = await fetch(url + '?action=load&_t=' + Date.now(), {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+      cache: 'no-store'
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
@@ -3118,8 +3117,7 @@ async function loadFromCloud() {
     try {
       res = await fetch(url + '?action=load&_t=' + Date.now(), {
         cache: 'no-store',
-        signal: controller.signal,
-        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+        signal: controller.signal
       });
     } finally {
       clearTimeout(_timeout);
